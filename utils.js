@@ -650,6 +650,12 @@ window.currentClientId = currentClientId;
 window.currentReceiptData = currentReceiptData;
 window.sectionVisibility = sectionVisibility;
 
+// Variables para modales de asignación
+window.currentPaymentForAssignment = currentPaymentForAssignment;
+window.currentInvoiceForAssignment = currentInvoiceForAssignment;
+window.selectedInvoiceForPayment = selectedInvoiceForPayment;
+window.selectedPaymentForInvoice = selectedPaymentForInvoice;
+
 // Funciones de fecha
 window.parseDate = parseDate;
 window.formatDateForDisplay = formatDateForDisplay;
