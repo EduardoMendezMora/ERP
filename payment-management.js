@@ -103,7 +103,7 @@ async function applySinglePayment(payment, invoice, availableAmount) {
         };
 
         if (newStatus === 'Pagado') {
-            updateData.FechaPago = formatDateForStorage(new Date(paymentDate));
+            updateData.FechaPago = safeFormatDate(new Date(paymentDate));
         }
 
         await updateInvoiceStatus(invoice.NumeroFactura, updateData);
@@ -406,7 +406,7 @@ async function confirmPaymentDistribution() {
             };
 
             if (newStatus === 'Pagado') {
-                updateData.FechaPago = formatDateForStorage(new Date(currentPaymentForDistribution.Fecha));
+                updateData.FechaPago = safeFormatDate(new Date(currentPaymentForDistribution.Fecha));
             }
 
             await updateInvoiceStatus(invoice.NumeroFactura, updateData);
@@ -1113,6 +1113,12 @@ function debugSheetDBInfo() {
     console.log('🧪 Funciones de prueba:');
     console.log('   testSheetDBConnection("18475172", "BN")');
     console.log('   quickTestUpdate("18475172", "BN")');
+}
+
+// Función auxiliar para formatear fechas de forma segura (si no existe ya)
+function safeFormatDate(date) {
+    if (!date || isNaN(new Date(date).getTime())) return '';
+    return formatDateForStorage(new Date(date));
 }
 
 // ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
