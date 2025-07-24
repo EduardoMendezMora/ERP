@@ -103,7 +103,7 @@ async function applySinglePayment(payment, invoice, availableAmount) {
         };
 
         if (newStatus === 'Pagado') {
-            updateData.FechaPago = safeFormatDate(new Date(paymentDate));
+            updateData.FechaPago = safeFormatDate(payment.Fecha);
         }
 
         await updateInvoiceStatus(invoice.NumeroFactura, updateData);
@@ -406,7 +406,7 @@ async function confirmPaymentDistribution() {
             };
 
             if (newStatus === 'Pagado') {
-                updateData.FechaPago = safeFormatDate(new Date(currentPaymentForDistribution.Fecha));
+                updateData.FechaPago = safeFormatDate(currentPaymentForDistribution.Fecha);
             }
 
             await updateInvoiceStatus(invoice.NumeroFactura, updateData);
