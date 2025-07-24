@@ -42,6 +42,9 @@
         .badge-red { background: #ff3b30; color: #fff; }
         .badge-gray { background: #f2f2f7; color: #86868b; }
         .client-list-section { margin-top: 48px; }
+        .search-bar-container { display: flex; justify-content: center; margin-bottom: 32px; }
+        .search-input-bar { width: 100%; max-width: 600px; padding: 16px 24px; border: 1.5px solid #d2d2d7; border-radius: 16px; font-size: 1.1rem; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.04); transition: border-color 0.2s; }
+        .search-input-bar:focus { outline: none; border-color: #007aff; box-shadow: 0 0 0 3px rgba(0,122,255,0.08); }
         .clients-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 32px; }
         .client-card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 2px solid #e5e7eb; padding: 32px 24px 24px 24px; position: relative; display: flex; flex-direction: column; min-width: 0; }
         .client-header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
@@ -153,6 +156,9 @@
             </form>
         </div>
         <div class="client-list-section">
+            <div class="search-bar-container">
+                <input type="text" class="search-input-bar" placeholder="🔍 Buscar clientes por nombre, ID, placa o teléfono..." id="searchInput">
+            </div>
             <div class="clients-grid" id="clientsGrid"></div>
         </div>
     </div>
