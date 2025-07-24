@@ -1,338 +1,199 @@
-// ===== VARIABLES PARA MODALES DE ASIGNACIÓN =====
-// Estas variables ya están declaradas en utils.js, las referenciaremos usando window.
-// NO declarar aquí para evitar conflictos
+// ===== MAIN.JS - CONTROLADOR PRINCIPAL =====
+// Este archivo coordina la aplicación sin duplicar funciones de otros módulos
 
 // ===== INICIALIZACIÓN DE LA APLICACIÓN =====
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('✅ DOM cargado, iniciando aplicación...');
-    console.log('🎯 Sistema de Facturas v2.0 - Con distribución múltiple de pagos');
-
-    // Cargar preferencias de secciones
-    loadSectionPreferences();
-    updateControlUI();
-
-    // Inicializar aplicación
-    initializeApp();
-});
-
 async function initializeApp() {
-    console.log('=== INICIALIZANDO PÁGINA DE FACTURAS ===');
+    console.log('🚀 Inicializando aplicación de facturas...');
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const clientId = urlParams.get('cliente');
-
-    if (!clientId) {
-        showError('No se especificó un cliente válido en la URL');
-        return;
-    }
-
-    window.currentClientId = clientId;
-    console.log('🎯 Cliente ID desde URL:', clientId);
-
-    await loadData();
-}
-
-async function loadData() {
     try {
+        // Obtener ID del cliente desde la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const clientId = urlParams.get('clientId') || urlParams.get('id');
+
+        if (!clientId) {
+            throw new Error('No se proporcionó un ID de cliente en la URL');
+        }
+
+        // ✅ Establecer ID del cliente globalmente
+        currentClientId = clientId;
+        window.currentClientId = clientId;
+
+        console.log('🆔 Cliente ID obtenido:', clientId);
+
+        // Cargar preferencias de sección guardadas
+        loadSectionPreferences();
+
+        // Mostrar loading
         showLoading(true);
 
-        console.log('📋 Cargando datos del cliente y facturas...');
-        await loadClientAndInvoices(window.currentClientId);
+        // Cargar datos del cliente y facturas
+        await loadClientAndInvoices(clientId);
 
-        console.log('💰 Cargando pagos no asignados...');
-        await loadUnassignedPayments(window.currentClientId);
+        // Cargar pagos no asignados y asignados
+        await Promise.all([
+            loadUnassignedPayments(clientId),
+            loadAssignedPayments(clientId)
+        ]);
 
-        console.log('✅ Cargando pagos asignados...');
-        await loadAssignedPayments(window.currentClientId);
-
-        console.log('🎨 Renderizando página...');
+        // Renderizar la página completa
         renderPage();
 
+        // Mostrar contenido principal
+        document.getElementById('mainContent').style.display = 'block';
         showLoading(false);
 
-        console.log('✅ Aplicación cargada exitosamente');
+        console.log('✅ Aplicación inicializada correctamente');
 
     } catch (error) {
-        console.error('❌ Error al cargar datos:', error);
-        showError('Error al cargar los datos: ' + error.message);
+        console.error('❌ Error al inicializar aplicación:', error);
+        showError(error.message);
+        showLoading(false);
     }
-}
-
-async function retryLoad() {
-    document.getElementById('errorState').style.display = 'none';
-    await loadData();
 }
 
 // ===== FUNCIÓN PRINCIPAL DE RENDERIZADO =====
 function renderPage() {
-    // ✅ FIX: Verificar múltiples fuentes para currentClient
+    console.log('🎨 Renderizando página completa...');
+
+    try {
+        // Actualizar nombre del cliente en header
+        updateClientHeader();
+
+        // Renderizar detalles del cliente
+        renderClientDetails();
+
+        // Clasificar facturas por estado
+        const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
+        const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
+
+        // Actualizar estadísticas
+        updateStatsWithoutPending(overdueInvoices, paidInvoices);
+
+        // Renderizar secciones de facturas
+        renderInvoicesSection('overdue', overdueInvoices);
+        renderInvoicesSection('paid', paidInvoices);
+
+        // Renderizar secciones de pagos
+        renderUnassignedPaymentsSection();
+        renderAssignedPaymentsSection();
+
+        // Actualizar contadores de secciones
+        updateSectionCounts();
+
+        // Aplicar visibilidad de secciones
+        updateSectionVisibility();
+        updateControlUI();
+
+        console.log('✅ Página renderizada completamente');
+
+    } catch (error) {
+        console.error('❌ Error al renderizar página:', error);
+        showToast('Error al renderizar la página: ' + error.message, 'error');
+    }
+}
+
+// ===== FUNCIÓN PARA ACTUALIZAR HEADER DEL CLIENTE =====
+function updateClientHeader() {
+    // ✅ Usar la variable sincronizada correctamente
     const client = window.currentClient || currentClient;
 
     if (!client) {
-        console.error('❌ No se pudo cargar la información del cliente');
-        console.log('🔍 Estado de variables:');
-        console.log('  window.currentClient:', window.currentClient);
-        console.log('  currentClient:', typeof currentClient !== 'undefined' ? currentClient : 'undefined');
-        showError('No se pudo cargar la información del cliente');
+        console.error('❌ No hay cliente disponible para actualizar header');
         return;
     }
 
-    // ✅ Asegurar que la variable global esté actualizada
-    if (!window.currentClient) {
-        window.currentClient = client;
-        console.log('🔗 Sincronizando window.currentClient con variable local');
+    // Actualizar nombre en header
+    const clientNameElement = document.getElementById('clientName');
+    if (clientNameElement) {
+        clientNameElement.textContent = `Cliente: ${client.Nombre}`;
     }
 
-    console.log('🎨 Renderizando página completa...');
-    console.log('👤 Cliente activo:', client.Nombre, '(ID:', client.ID, ')');
+    // Actualizar detalles del cliente
+    const clientNameDetailElement = document.getElementById('clientNameDetail');
+    const clientIdDetailElement = document.getElementById('clientIdDetail');
 
-    // Actualizar información del cliente
-    const clientDisplayName = `${client.Nombre} (ID: ${client.ID})`;
-    document.getElementById('clientName').textContent = clientDisplayName;
-    document.getElementById('clientNameDetail').textContent = client.Nombre || 'Sin nombre';
-    document.getElementById('clientIdDetail').textContent = `ID: ${client.ID}`;
-
-    // Renderizar detalles del cliente
-    renderClientDetails();
-
-    // Renderizar pagos no asignados PRIMERO
-    renderUnassignedPaymentsSection();
-
-    // Separar facturas por estado (ya filtradas sin pendientes)
-    const overdueInvoices = window.clientInvoices.filter(inv => inv.Estado === 'Vencido');
-    const paidInvoices = window.clientInvoices.filter(inv => inv.Estado === 'Pagado');
-
-    console.log(`📊 Facturas encontradas: ${overdueInvoices.length} vencidas, ${paidInvoices.length} pagadas`);
-
-    // Actualizar estadísticas (sin pendientes)
-    updateStatsWithoutPending(overdueInvoices, paidInvoices);
-
-    // Renderizar facturas vencidas
-    renderInvoicesSection('overdue', overdueInvoices);
-
-    // Renderizar facturas pagadas
-    renderInvoicesSection('paid', paidInvoices);
-
-    // Renderizar pagos aplicados DESPUÉS de las facturas
-    renderAssignedPaymentsSection();
-
-    // Ocultar sección de facturas pendientes (no se usan)
-    const pendingSection = document.getElementById('pendingSection');
-    if (pendingSection) {
-        pendingSection.style.display = 'none';
+    if (clientNameDetailElement) {
+        clientNameDetailElement.textContent = client.Nombre;
     }
 
-    // Actualizar contadores y visibilidad de secciones
-    updateSectionCounts();
-    updateSectionVisibility();
-
-    // Mostrar contenido
-    document.getElementById('mainContent').style.display = 'block';
-
-    console.log('✅ Página renderizada exitosamente');
+    if (clientIdDetailElement) {
+        clientIdDetailElement.textContent = `ID: ${client.ID}`;
+    }
 }
 
-// ===== FUNCIONES PARA MODALES DE ASIGNACIÓN =====
+// ===== FUNCIÓN DE REINTENTO DE CARGA =====
+async function retryLoad() {
+    console.log('🔄 Reintentando cargar datos...');
+
+    // Ocultar error y mostrar loading
+    document.getElementById('errorState').style.display = 'none';
+
+    // Reinicializar la aplicación
+    await initializeApp();
+}
+
+// ===== MODALES DE ASIGNACIÓN DE PAGOS =====
 function openAssignPaymentModal(paymentReference, bankSource) {
-    const payment = window.unassignedPayments.find(p => p.Referencia === paymentReference && p.BankSource === bankSource);
+    console.log('💰 Abriendo modal de asignación de pago:', paymentReference);
+
+    // Encontrar el pago
+    const payment = unassignedPayments.find(p =>
+        p.Referencia === paymentReference && p.BankSource === bankSource
+    );
+
     if (!payment) {
         showToast('Pago no encontrado', 'error');
         return;
     }
 
-    window.currentPaymentForAssignment = payment;
+    currentPaymentForAssignment = payment;
 
-    // Filtrar facturas pendientes y vencidas para mostrar en el modal
-    const availableInvoices = window.clientInvoices.filter(inv =>
-        inv.Estado === 'Pendiente' || inv.Estado === 'Vencido'
-    );
-
-    if (availableInvoices.length === 0) {
-        showToast('No hay facturas pendientes para asignar este pago', 'warning');
-        return;
+    // Crear y mostrar modal si no existe
+    if (!document.getElementById('assignPaymentModal')) {
+        createAssignPaymentModal();
     }
 
-    // Crear y mostrar modal dinámicamente
-    showAssignPaymentModal(payment, availableInvoices);
+    renderAssignPaymentModal(payment);
+    document.getElementById('assignPaymentModal').classList.add('show');
 }
 
 function openAssignInvoiceModal(invoiceNumber) {
-    const invoice = window.clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
+    console.log('📄 Abriendo modal de asignación de factura:', invoiceNumber);
+
+    // Encontrar la factura
+    const invoice = clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
+
     if (!invoice) {
         showToast('Factura no encontrada', 'error');
         return;
     }
 
-    if (invoice.Estado === 'Pagado') {
-        showToast('Esta factura ya está pagada', 'warning');
-        return;
-    }
+    currentInvoiceForAssignment = invoice;
 
-    window.currentInvoiceForAssignment = invoice;
-
-    if (window.unassignedPayments.length === 0) {
-        showToast('No hay pagos disponibles para asignar a esta factura', 'warning');
-        return;
-    }
-
-    // Crear y mostrar modal dinámicamente
-    showAssignInvoiceModal(invoice, window.unassignedPayments);
-}
-
-function showAssignPaymentModal(payment, availableInvoices) {
-    const modal = document.getElementById('assignPaymentModal');
-    if (!modal) {
-        createAssignPaymentModal();
-        return showAssignPaymentModal(payment, availableInvoices);
-    }
-
-    // Calcular monto disponible del pago
-    const totalAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-    const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-    const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-    const availableAmount = totalAmount - assignedAmount;
-
-    // Llenar información del pago
-    const paymentInfo = document.getElementById('assignPaymentInfo');
-
-    paymentInfo.innerHTML = `
-        <div style="background: #f0f8ff; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-            <h4 style="margin: 0 0 8px 0; color: #007aff;">💰 ${payment.Referencia}</h4>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; font-size: 0.9rem;">
-                <div><strong>Banco:</strong><br>${getBankDisplayName(payment.BankSource)}</div>
-                <div><strong>Total:</strong><br>₡${totalAmount.toLocaleString('es-CR')}</div>
-                <div><strong>Disponible:</strong><br><span style="color: #34c759; font-weight: 600;">₡${availableAmount.toLocaleString('es-CR')}</span></div>
-            </div>
-            <div style="margin-top: 8px; font-size: 0.85rem; color: #666;">
-                <strong>Fecha:</strong> ${formatDateForDisplay(payment.Fecha)}
-                ${assignments.length > 0 ? `<br><strong>Asignaciones previas:</strong> ${assignments.length} factura(s)` : ''}
-            </div>
-        </div>
-    `;
-
-    // Llenar lista de facturas
-    const invoicesList = document.getElementById('availableInvoicesList');
-    invoicesList.innerHTML = availableInvoices.map(invoice => {
-        const baseAmount = parseFloat(invoice.MontoBase || 0);
-        const totalAmount = parseFloat(invoice.MontoTotal || baseAmount);
-        const status = invoice.Estado;
-
-        // Verificar si puede pagarse con el monto disponible
-        const canPayCompletely = availableAmount >= totalAmount;
-        const matchClass = canPayCompletely ? 'exact-match' : '';
-
-        return `
-            <div class="invoice-option ${matchClass}" onclick="selectInvoiceForPayment('${invoice.NumeroFactura}')" data-invoice="${invoice.NumeroFactura}">
-                <div class="invoice-option-header">
-                    <strong>${invoice.NumeroFactura}</strong>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <span class="status-badge status-${status.toLowerCase()}">${status}</span>
-                        ${canPayCompletely ? '<span style="color: #34c759; font-size: 0.8rem;">✅ Pago completo</span>' : '<span style="color: #ff9500; font-size: 0.8rem;">⚠️ Pago parcial</span>'}
-                    </div>
-                </div>
-                <div style="font-size: 0.9rem; color: #666; margin-top: 4px;">
-                    ${invoice.ConceptoManual || invoice.SemanaDescripcion || 'N/A'}<br>
-                    <strong>Total adeudado: ₡${totalAmount.toLocaleString('es-CR')}</strong><br>
-                    Vence: ${formatDateForDisplay(invoice.FechaVencimiento)}
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    modal.classList.add('show');
-}
-
-function showAssignInvoiceModal(invoice, availablePayments) {
-    const modal = document.getElementById('assignInvoiceModal');
-    if (!modal) {
+    // Crear y mostrar modal si no existe
+    if (!document.getElementById('assignInvoiceModal')) {
         createAssignInvoiceModal();
-        return showAssignInvoiceModal(invoice, availablePayments);
     }
 
-    // Llenar información de la factura
-    const invoiceInfo = document.getElementById('assignInvoiceInfo');
-    const totalAmount = parseFloat(invoice.MontoTotal || invoice.MontoBase || 0);
-
-    invoiceInfo.innerHTML = `
-        <div style="background: #fff5f0; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-            <h4 style="margin: 0 0 8px 0; color: #ff9500;">📄 ${invoice.NumeroFactura}</h4>
-            <p style="margin: 0; color: #666;">
-                <strong>Concepto:</strong> ${invoice.ConceptoManual || invoice.SemanaDescripcion || 'N/A'}<br>
-                <strong>Total adeudado:</strong> ₡${totalAmount.toLocaleString('es-CR')}<br>
-                <strong>Vencimiento:</strong> ${formatDateForDisplay(invoice.FechaVencimiento)}
-            </p>
-        </div>
-    `;
-
-    // Llenar lista de pagos con información de monto disponible
-    const paymentsList = document.getElementById('availablePaymentsList');
-    paymentsList.innerHTML = availablePayments.map(payment => {
-        const totalPaymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-        const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-        const availableAmount = totalPaymentAmount - assignedAmount;
-
-        const isExactMatch = Math.abs(availableAmount - totalAmount) < 0.01;
-        const canPayCompletely = availableAmount >= totalAmount;
-
-        let matchClass = '';
-        let statusText = '';
-
-        if (isExactMatch) {
-            matchClass = 'exact-match';
-            statusText = '<span style="color: #34c759; font-size: 0.8rem;">✅ Coincide exactamente</span>';
-        } else if (canPayCompletely) {
-            statusText = '<span style="color: #34c759; font-size: 0.8rem;">✅ Pago completo</span>';
-        } else if (availableAmount > 0) {
-            statusText = '<span style="color: #ff9500; font-size: 0.8rem;">⚠️ Pago parcial</span>';
-        } else {
-            statusText = '<span style="color: #ff3b30; font-size: 0.8rem;">❌ Sin saldo</span>';
-        }
-
-        return `
-            <div class="payment-option ${matchClass}" onclick="selectPaymentForInvoice('${payment.Referencia}', '${payment.BankSource}')" data-payment="${payment.Referencia}-${payment.BankSource}" ${availableAmount <= 0 ? 'style="opacity: 0.5; pointer-events: none;"' : ''}>
-                <div class="payment-option-header">
-                    <strong>${payment.Referencia}</strong>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <span class="bank-badge ${getBankBadgeClass(payment.BankSource)}">
-                            ${payment.BankSource}
-                        </span>
-                        ${statusText}
-                    </div>
-                </div>
-                <div style="font-size: 0.9rem; color: #666; margin-top: 4px;">
-                    <strong>Total: ₡${totalPaymentAmount.toLocaleString('es-CR')}</strong><br>
-                    <strong>Disponible: ₡${availableAmount.toLocaleString('es-CR')}</strong><br>
-                    Fecha: ${formatDateForDisplay(payment.Fecha)}
-                    ${assignments.length > 0 ? `<br><small>Asignaciones previas: ${assignments.length}</small>` : ''}
-                    ${payment.Descripción ? `<br>${payment.Descripción}` : ''}
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    modal.classList.add('show');
+    renderAssignInvoiceModal(invoice);
+    document.getElementById('assignInvoiceModal').classList.add('show');
 }
 
+// ===== CREACIÓN DE MODALES DE ASIGNACIÓN =====
 function createAssignPaymentModal() {
     const modalHTML = `
         <div class="modal-overlay" id="assignPaymentModal" onclick="closeAssignPaymentModal()">
-            <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 600px;">
+            <div class="modal-content" onclick="event.stopPropagation()">
                 <div class="modal-header">
                     <h3>💰 Asignar Pago a Factura</h3>
                     <button class="modal-close" onclick="closeAssignPaymentModal()">✕</button>
                 </div>
-               
+                
                 <div class="modal-body">
-                    <div id="assignPaymentInfo"></div>
-                   
-                    <h4 style="margin-bottom: 12px; color: #1d1d1f;">Seleccione la factura a pagar:</h4>
-                   
-                    <div id="availableInvoicesList" style="max-height: 300px; overflow-y: auto; border: 1px solid #f2f2f7; border-radius: 8px; padding: 8px;">
-                        <!-- Se llenará dinámicamente -->
-                    </div>
-                   
-                    <div class="form-actions" style="margin-top: 24px;">
+                    <div id="paymentInfoForAssignment"></div>
+                    <div id="invoiceOptionsForPayment"></div>
+                    
+                    <div class="form-actions">
                         <button type="button" class="btn btn-secondary" onclick="closeAssignPaymentModal()">
                             Cancelar
                         </button>
@@ -351,27 +212,22 @@ function createAssignPaymentModal() {
 function createAssignInvoiceModal() {
     const modalHTML = `
         <div class="modal-overlay" id="assignInvoiceModal" onclick="closeAssignInvoiceModal()">
-            <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 600px;">
+            <div class="modal-content" onclick="event.stopPropagation()">
                 <div class="modal-header">
-                    <h3>📄 Asignar Pago a Esta Factura</h3>
+                    <h3>📄 Asignar Factura a Pago</h3>
                     <button class="modal-close" onclick="closeAssignInvoiceModal()">✕</button>
                 </div>
-               
+                
                 <div class="modal-body">
-                    <div id="assignInvoiceInfo"></div>
-                   
-                    <h4 style="margin-bottom: 12px; color: #1d1d1f;">Seleccione el pago a asignar:</h4>
-                   
-                    <div id="availablePaymentsList" style="max-height: 300px; overflow-y: auto; border: 1px solid #f2f2f7; border-radius: 8px; padding: 8px;">
-                        <!-- Se llenará dinámicamente -->
-                    </div>
-                   
-                    <div class="form-actions" style="margin-top: 24px;">
+                    <div id="invoiceInfoForAssignment"></div>
+                    <div id="paymentOptionsForInvoice"></div>
+                    
+                    <div class="form-actions">
                         <button type="button" class="btn btn-secondary" onclick="closeAssignInvoiceModal()">
                             Cancelar
                         </button>
                         <button type="button" class="btn btn-primary" id="confirmAssignInvoiceBtn" onclick="confirmAssignInvoice()" disabled>
-                            ✅ Asignar Pago
+                            ✅ Asignar Factura
                         </button>
                     </div>
                 </div>
@@ -382,21 +238,178 @@ function createAssignInvoiceModal() {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
+// ===== RENDERIZADO DE MODALES DE ASIGNACIÓN =====
+function renderAssignPaymentModal(payment) {
+    const totalAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+    const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+    const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+    const availableAmount = totalAmount - assignedAmount;
+
+    // Información del pago
+    document.getElementById('paymentInfoForAssignment').innerHTML = `
+        <div style="background: #e6f3ff; border: 2px solid #007aff; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 8px 0; color: #007aff;">💳 ${payment.Referencia} - ${getBankDisplayName(payment.BankSource)}</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; font-size: 0.9rem;">
+                <div><strong>Monto Total:</strong><br>₡${totalAmount.toLocaleString('es-CR')}</div>
+                <div><strong>Disponible:</strong><br>₡${availableAmount.toLocaleString('es-CR')}</div>
+                <div><strong>Fecha:</strong><br>${formatDateForDisplay(payment.Fecha)}</div>
+            </div>
+        </div>
+    `;
+
+    // Opciones de facturas
+    const eligibleInvoices = clientInvoices.filter(inv =>
+        inv.Estado === 'Pendiente' || inv.Estado === 'Vencido'
+    );
+
+    if (eligibleInvoices.length === 0) {
+        document.getElementById('invoiceOptionsForPayment').innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #86868b;">
+                <h4>No hay facturas pendientes o vencidas</h4>
+                <p>Todas las facturas del cliente están pagadas.</p>
+            </div>
+        `;
+        return;
+    }
+
+    const invoiceOptionsHTML = eligibleInvoices.map(invoice => {
+        const baseAmount = parseFloat(invoice.MontoBase || 0);
+        const fines = parseFloat(invoice.MontoMultas || 0);
+        const totalAmount = parseFloat(invoice.MontoTotal || baseAmount);
+        const difference = Math.abs(totalAmount - availableAmount);
+        const isExactMatch = difference < 0.01;
+        const isCloseMatch = difference < 1000;
+
+        return `
+            <div class="invoice-option ${isExactMatch ? 'exact-match' : ''}" 
+                 onclick="selectInvoiceForPayment('${invoice.NumeroFactura}')"
+                 id="invoice-option-${invoice.NumeroFactura}">
+                <div class="invoice-option-header">
+                    <div>
+                        <strong>${invoice.NumeroFactura}</strong>
+                        <span class="status-badge status-${invoice.Estado.toLowerCase()}">${invoice.Estado}</span>
+                    </div>
+                    <div style="text-align: right; font-weight: 600;">
+                        ₡${totalAmount.toLocaleString('es-CR')}
+                        ${isExactMatch ? '<div style="color: #34c759; font-size: 0.8rem;">✅ Coincidencia exacta</div>' : ''}
+                        ${!isExactMatch && isCloseMatch ? `<div style="color: #ff9500; font-size: 0.8rem;">≈ Diferencia: ₡${difference.toLocaleString('es-CR')}</div>` : ''}
+                    </div>
+                </div>
+                <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">
+                    ${invoice.ConceptoManual || invoice.SemanaDescripcion || 'N/A'}<br>
+                    Vencimiento: ${formatDateForDisplay(invoice.FechaVencimiento)}
+                    ${fines > 0 ? ` | Multas: ₡${fines.toLocaleString('es-CR')}` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    document.getElementById('invoiceOptionsForPayment').innerHTML = `
+        <h4 style="margin-bottom: 12px;">📋 Seleccione la factura a pagar:</h4>
+        ${invoiceOptionsHTML}
+    `;
+}
+
+function renderAssignInvoiceModal(invoice) {
+    const baseAmount = parseFloat(invoice.MontoBase || 0);
+    const fines = parseFloat(invoice.MontoMultas || 0);
+    const totalAmount = parseFloat(invoice.MontoTotal || baseAmount);
+
+    // Información de la factura
+    document.getElementById('invoiceInfoForAssignment').innerHTML = `
+        <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 8px 0; color: #856404;">📄 ${invoice.NumeroFactura}</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; font-size: 0.9rem;">
+                <div><strong>Monto Base:</strong><br>₡${baseAmount.toLocaleString('es-CR')}</div>
+                <div><strong>Multas:</strong><br>₡${fines.toLocaleString('es-CR')}</div>
+                <div><strong>Total:</strong><br>₡${totalAmount.toLocaleString('es-CR')}</div>
+            </div>
+            <div style="margin-top: 8px; font-size: 0.85rem; color: #666;">
+                ${invoice.ConceptoManual || invoice.SemanaDescripcion || 'N/A'}<br>
+                Vencimiento: ${formatDateForDisplay(invoice.FechaVencimiento)}
+            </div>
+        </div>
+    `;
+
+    // Opciones de pagos
+    if (unassignedPayments.length === 0) {
+        document.getElementById('paymentOptionsForInvoice').innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #86868b;">
+                <h4>No hay pagos disponibles</h4>
+                <p>Todos los pagos están asignados a otras facturas.</p>
+            </div>
+        `;
+        return;
+    }
+
+    const paymentOptionsHTML = unassignedPayments.map(payment => {
+        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+        const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+        const availableAmount = paymentAmount - assignedAmount;
+
+        if (availableAmount <= 0) return ''; // Skip pagos completamente asignados
+
+        const difference = Math.abs(totalAmount - availableAmount);
+        const isExactMatch = difference < 0.01;
+        const isCloseMatch = difference < 1000;
+
+        return `
+            <div class="payment-option ${isExactMatch ? 'exact-match' : ''}" 
+                 onclick="selectPaymentForInvoice('${payment.Referencia}', '${payment.BankSource}')"
+                 id="payment-option-${payment.Referencia}-${payment.BankSource}">
+                <div class="payment-option-header">
+                    <div>
+                        <strong>${payment.Referencia}</strong>
+                        <span class="bank-badge ${getBankBadgeClass(payment.BankSource)}">${payment.BankSource}</span>
+                    </div>
+                    <div style="text-align: right; font-weight: 600;">
+                        ₡${availableAmount.toLocaleString('es-CR')} disponible
+                        ${isExactMatch ? '<div style="color: #34c759; font-size: 0.8rem;">✅ Coincidencia exacta</div>' : ''}
+                        ${!isExactMatch && isCloseMatch ? `<div style="color: #ff9500; font-size: 0.8rem;">≈ Diferencia: ₡${difference.toLocaleString('es-CR')}</div>` : ''}
+                    </div>
+                </div>
+                <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">
+                    ${getBankDisplayName(payment.BankSource)} | ${formatDateForDisplay(payment.Fecha)}
+                    ${assignedAmount > 0 ? ` | Total: ₡${paymentAmount.toLocaleString('es-CR')} (₡${assignedAmount.toLocaleString('es-CR')} asignado)` : ''}
+                </div>
+            </div>
+        `;
+    }).filter(html => html !== '').join('');
+
+    if (paymentOptionsHTML === '') {
+        document.getElementById('paymentOptionsForInvoice').innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #86868b;">
+                <h4>No hay pagos con saldo disponible</h4>
+                <p>Todos los pagos están completamente asignados.</p>
+            </div>
+        `;
+        return;
+    }
+
+    document.getElementById('paymentOptionsForInvoice').innerHTML = `
+        <h4 style="margin-bottom: 12px;">💳 Seleccione el pago a aplicar:</h4>
+        ${paymentOptionsHTML}
+    `;
+}
+
+// ===== FUNCIONES DE SELECCIÓN EN MODALES =====
 function selectInvoiceForPayment(invoiceNumber) {
     // Remover selección previa
     document.querySelectorAll('.invoice-option').forEach(el => el.classList.remove('selected'));
 
-    // Seleccionar nueva factura
-    const element = document.querySelector(`[data-invoice="${invoiceNumber}"]`);
-    if (element) {
-        element.classList.add('selected');
-        window.selectedInvoiceForPayment = invoiceNumber;
+    // Seleccionar nueva opción
+    const selectedElement = document.getElementById(`invoice-option-${invoiceNumber}`);
+    if (selectedElement) {
+        selectedElement.classList.add('selected');
+    }
 
-        // Habilitar botón de confirmar
-        const confirmBtn = document.getElementById('confirmAssignPaymentBtn');
-        if (confirmBtn) {
-            confirmBtn.disabled = false;
-        }
+    selectedInvoiceForPayment = invoiceNumber;
+
+    // Habilitar botón de confirmar
+    const confirmBtn = document.getElementById('confirmAssignPaymentBtn');
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
     }
 }
 
@@ -404,80 +417,85 @@ function selectPaymentForInvoice(paymentReference, bankSource) {
     // Remover selección previa
     document.querySelectorAll('.payment-option').forEach(el => el.classList.remove('selected'));
 
-    // Seleccionar nuevo pago
-    const element = document.querySelector(`[data-payment="${paymentReference}-${bankSource}"]`);
-    if (element) {
-        element.classList.add('selected');
-        window.selectedPaymentForInvoice = { reference: paymentReference, bankSource: bankSource };
+    // Seleccionar nueva opción
+    const selectedElement = document.getElementById(`payment-option-${paymentReference}-${bankSource}`);
+    if (selectedElement) {
+        selectedElement.classList.add('selected');
+    }
 
-        // Habilitar botón de confirmar
-        const confirmBtn = document.getElementById('confirmAssignInvoiceBtn');
-        if (confirmBtn) {
-            confirmBtn.disabled = false;
-        }
+    selectedPaymentForInvoice = { reference: paymentReference, bankSource: bankSource };
+
+    // Habilitar botón de confirmar
+    const confirmBtn = document.getElementById('confirmAssignInvoiceBtn');
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
     }
 }
 
+// ===== FUNCIONES DE CONFIRMACIÓN DE ASIGNACIÓN =====
 async function confirmAssignPayment() {
-    if (!window.currentPaymentForAssignment || !window.selectedInvoiceForPayment) {
-        showToast('Debe seleccionar una factura', 'error');
+    if (!currentPaymentForAssignment || !selectedInvoiceForPayment) {
+        showToast('Seleccione una factura para asignar el pago', 'error');
         return;
     }
 
     const confirmBtn = document.getElementById('confirmAssignPaymentBtn');
-    const originalText = confirmBtn.textContent;
     confirmBtn.disabled = true;
     confirmBtn.textContent = '⏳ Asignando...';
 
     try {
         await assignPaymentToInvoice(
-            window.currentPaymentForAssignment.Referencia,
-            window.currentPaymentForAssignment.BankSource,
-            window.selectedInvoiceForPayment
+            currentPaymentForAssignment.Referencia,
+            currentPaymentForAssignment.BankSource,
+            selectedInvoiceForPayment
         );
 
         closeAssignPaymentModal();
 
     } catch (error) {
-        // Restaurar botón en caso de error
+        console.error('❌ Error al confirmar asignación:', error);
+
+        // Restaurar botón
         confirmBtn.disabled = false;
-        confirmBtn.textContent = originalText;
+        confirmBtn.textContent = '✅ Asignar Pago';
     }
 }
 
 async function confirmAssignInvoice() {
-    if (!window.currentInvoiceForAssignment || !window.selectedPaymentForInvoice) {
-        showToast('Debe seleccionar un pago', 'error');
+    if (!currentInvoiceForAssignment || !selectedPaymentForInvoice) {
+        showToast('Seleccione un pago para asignar a la factura', 'error');
         return;
     }
 
     const confirmBtn = document.getElementById('confirmAssignInvoiceBtn');
-    const originalText = confirmBtn.textContent;
     confirmBtn.disabled = true;
     confirmBtn.textContent = '⏳ Asignando...';
 
     try {
         await assignPaymentToInvoice(
-            window.selectedPaymentForInvoice.reference,
-            window.selectedPaymentForInvoice.bankSource,
-            window.currentInvoiceForAssignment.NumeroFactura
+            selectedPaymentForInvoice.reference,
+            selectedPaymentForInvoice.bankSource,
+            currentInvoiceForAssignment.NumeroFactura
         );
 
         closeAssignInvoiceModal();
 
     } catch (error) {
-        // Restaurar botón en caso de error
+        console.error('❌ Error al confirmar asignación:', error);
+
+        // Restaurar botón
         confirmBtn.disabled = false;
-        confirmBtn.textContent = originalText;
+        confirmBtn.textContent = '✅ Asignar Factura';
     }
 }
 
+// ===== FUNCIONES DE CIERRE DE MODALES =====
 function closeAssignPaymentModal() {
     const modal = document.getElementById('assignPaymentModal');
     if (modal) {
         modal.classList.remove('show');
-        window.currentPaymentForAssignment = null;
-        window.selectedInvoiceForPayment = null;
+        currentPaymentForAssignment = null;
+        selectedInvoiceForPayment = null;
     }
 }
 
@@ -485,56 +503,52 @@ function closeAssignInvoiceModal() {
     const modal = document.getElementById('assignInvoiceModal');
     if (modal) {
         modal.classList.remove('show');
-        window.currentInvoiceForAssignment = null;
-        window.selectedPaymentForInvoice = null;
+        currentInvoiceForAssignment = null;
+        selectedPaymentForInvoice = null;
     }
 }
 
-// ===== FUNCIONES DE NAVEGACIÓN Y UTILIDADES =====
-function retryLoadFromMain() {
-    document.getElementById('errorState').style.display = 'none';
-    loadData();
-}
+// ===== EVENT LISTENERS PRINCIPALES =====
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 DOM cargado, inicializando aplicación...');
+
+    // Cargar preferencias de sección
+    loadSectionPreferences();
+
+    // Inicializar aplicación
+    initializeApp();
+
+    // Event listeners para controles de sección
+    document.addEventListener('click', function(event) {
+        // Manejo de clics en controles de sección
+        if (event.target.closest('.control-item')) {
+            const controlItem = event.target.closest('.control-item');
+            const sectionKey = controlItem.id.replace('control-', '');
+            if (sectionVisibility.hasOwnProperty(sectionKey)) {
+                toggleSection(sectionKey);
+            }
+        }
+    });
+});
 
 // ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
-// Funciones principales
 window.initializeApp = initializeApp;
-window.loadData = loadData;
-window.retryLoad = retryLoad;
 window.renderPage = renderPage;
+window.updateClientHeader = updateClientHeader;
+window.retryLoad = retryLoad;
 
-// Funciones de asignación modal
+// Funciones de modales de asignación
 window.openAssignPaymentModal = openAssignPaymentModal;
 window.openAssignInvoiceModal = openAssignInvoiceModal;
 window.closeAssignPaymentModal = closeAssignPaymentModal;
 window.closeAssignInvoiceModal = closeAssignInvoiceModal;
+
+// Funciones de selección
 window.selectInvoiceForPayment = selectInvoiceForPayment;
 window.selectPaymentForInvoice = selectPaymentForInvoice;
+
+// Funciones de confirmación
 window.confirmAssignPayment = confirmAssignPayment;
 window.confirmAssignInvoice = confirmAssignInvoice;
 
-console.log('✅ main.js cargado - Aplicación principal con distribución múltiple de pagos');
-console.log('🎯 CARACTERÍSTICAS PRINCIPALES:');
-console.log('   - Detección de clientes por ID directo Y observaciones');
-console.log('   - Distribución múltiple de pagos entre facturas');
-console.log('   - Cálculo automático de multas hasta fecha de pago');
-console.log('   - Sistema de recibos con WhatsApp automatizado');
-console.log('   - Control de visibilidad de secciones');
-console.log('   - CRUD completo de facturas manuales');
-console.log('');
-console.log('🧪 FUNCIONES DE PRUEBA DISPONIBLES:');
-console.log('   - testClientIdDetection(clientId, observationsText)');
-console.log('   - addClientGroup(clientId, groupId)');
-console.log('   - listConfiguredGroups()');
-console.log('   - toggleSection(sectionName)');
-console.log('   - showOnlyActive()');
-console.log('');
-console.log('📱 CONFIGURACIÓN WHATSAPP:');
-console.log('   - Agregue ID de grupos en la columna "idGrupoWhatsapp" de la BD');
-console.log('   - O configure manualmente con addClientGroup()');
-console.log('');
-
-// Mostrar estado inicial
-if (typeof listConfiguredGroups === 'function') {
-    listConfiguredGroups();
-}
+console.log('✅ main.js cargado - Controlador principal de la aplicación');

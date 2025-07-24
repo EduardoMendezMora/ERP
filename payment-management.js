@@ -474,9 +474,11 @@ function closePaymentDistributionModal() {
     }
 }
 
-// ===== FUNCIONES DE MANEJO DE ASIGNACIONES EN BD =====
+// ===== FUNCIONES DE MANEJO DE ASIGNACIONES EN BD (VERSIÓN CORREGIDA) =====
 async function updatePaymentAssignments(payment, newAssignments) {
     try {
+        console.log('🔄 Actualizando asignaciones de pago:', payment.Referencia);
+
         // Obtener asignaciones previas
         const previousAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
 
@@ -497,21 +499,71 @@ async function updatePaymentAssignments(payment, newAssignments) {
         // Formatear para la base de datos
         const formattedAssignments = formatAssignedInvoices(combinedAssignments);
 
-        // Actualizar en la API bancaria
-        const response = await fetch(`${API_CONFIG.PAYMENTS}/Referencia/${payment.Referencia}?sheet=${payment.BankSource}`, {
+        console.log('📝 Asignaciones formateadas:', formattedAssignments);
+
+        // ✅ MÉTODO CORREGIDO: Buscar primero, luego actualizar
+        // 1. Verificar que el pago existe
+        const checkUrl = `${API_CONFIG.PAYMENTS}?sheet=${payment.BankSource}&Referencia=${encodeURIComponent(payment.Referencia)}`;
+        console.log('🔍 Verificando existencia del pago:', checkUrl);
+
+        const checkResponse = await fetch(checkUrl);
+
+        if (!checkResponse.ok) {
+            throw new Error(`No se pudo verificar el pago: HTTP ${checkResponse.status}`);
+        }
+
+        const existingPayments = await checkResponse.json();
+
+        if (!Array.isArray(existingPayments) || existingPayments.length === 0) {
+            throw new Error(`Pago ${payment.Referencia} no encontrado en la hoja ${payment.BankSource}`);
+        }
+
+        console.log('✅ Pago encontrado, procediendo con actualización');
+
+        // 2. Actualizar usando el método correcto de SheetDB
+        const updateUrl = `${API_CONFIG.PAYMENTS}?sheet=${payment.BankSource}`;
+
+        const updateData = {
+            FacturasAsignadas: formattedAssignments,
+            FechaAsignacion: formatDateForStorage(new Date())
+        };
+
+        // Usar el método search/update de SheetDB
+        const response = await fetch(updateUrl, {
             method: 'PATCH',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
             },
-            body: new URLSearchParams({
-                FacturasAsignadas: formattedAssignments,
-                FechaAsignacion: formatDateForStorage(new Date())
-            }).toString()
+            body: JSON.stringify({
+                data: updateData,
+                condition: {
+                    Referencia: payment.Referencia
+                }
+            })
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
+            // Si el método anterior falla, intentar con el método original pero URL-encoded
+            console.log('⚠️ Método 1 falló, intentando método alternativo...');
+
+            const alternativeUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
+
+            const altResponse = await fetch(alternativeUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(updateData).toString()
+            });
+
+            if (!altResponse.ok) {
+                const errorText = await altResponse.text();
+                throw new Error(`Ambos métodos fallaron. Último error: HTTP ${altResponse.status}: ${errorText}`);
+            }
+
+            console.log('✅ Actualización exitosa con método alternativo');
+        } else {
+            console.log('✅ Actualización exitosa con método principal');
         }
 
         console.log(`✅ Asignaciones actualizadas en BD: ${formattedAssignments}`);
@@ -519,6 +571,13 @@ async function updatePaymentAssignments(payment, newAssignments) {
 
     } catch (error) {
         console.error('❌ Error al actualizar asignaciones:', error);
+
+        // Información adicional para debugging
+        console.error('🔍 Información de debugging:');
+        console.error('  - Referencia del pago:', payment.Referencia);
+        console.error('  - Banco:', payment.BankSource);
+        console.error('  - Nuevas asignaciones:', newAssignments);
+
         throw error;
     }
 }
@@ -572,24 +631,8 @@ async function unassignPaymentFromInvoice(paymentReference, bankSource, invoiceN
         // Remover la asignación específica
         const updatedAssignments = currentAssignments.filter(a => a.invoiceNumber !== invoiceNumber);
 
-        // Actualizar en la base de datos
-        const formattedAssignments = formatAssignedInvoices(updatedAssignments);
-
-        const response = await fetch(`${API_CONFIG.PAYMENTS}/Referencia/${paymentReference}?sheet=${bankSource}`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                FacturasAsignadas: formattedAssignments,
-                FechaAsignacion: updatedAssignments.length > 0 ? formatDateForStorage(new Date()) : ''
-            }).toString()
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
+        // Actualizar en la base de datos usando la función corregida
+        await updatePaymentAssignmentsRaw(payment, updatedAssignments);
 
         // Actualizar la factura - recalcular estado
         const invoice = clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
@@ -639,6 +682,72 @@ async function unassignPaymentFromInvoice(paymentReference, bankSource, invoiceN
     } catch (error) {
         console.error('❌ Error al desasignar pago:', error);
         showToast('Error al desasignar el pago: ' + error.message, 'error');
+        throw error;
+    }
+}
+
+// ===== FUNCIÓN AUXILIAR PARA ACTUALIZACIÓN RAW DE ASIGNACIONES =====
+async function updatePaymentAssignmentsRaw(payment, assignments) {
+    try {
+        const formattedAssignments = formatAssignedInvoices(assignments);
+
+        const updateData = {
+            FacturasAsignadas: formattedAssignments,
+            FechaAsignacion: assignments.length > 0 ? formatDateForStorage(new Date()) : ''
+        };
+
+        // Usar el mismo método corregido que la función principal
+        const checkUrl = `${API_CONFIG.PAYMENTS}?sheet=${payment.BankSource}&Referencia=${encodeURIComponent(payment.Referencia)}`;
+        const checkResponse = await fetch(checkUrl);
+
+        if (!checkResponse.ok) {
+            throw new Error(`No se pudo verificar el pago: HTTP ${checkResponse.status}`);
+        }
+
+        const existingPayments = await checkResponse.json();
+
+        if (!Array.isArray(existingPayments) || existingPayments.length === 0) {
+            throw new Error(`Pago ${payment.Referencia} no encontrado en la hoja ${payment.BankSource}`);
+        }
+
+        // Actualizar usando el método correcto
+        const updateUrl = `${API_CONFIG.PAYMENTS}?sheet=${payment.BankSource}`;
+
+        const response = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                data: updateData,
+                condition: {
+                    Referencia: payment.Referencia
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const alternativeUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
+
+            const altResponse = await fetch(alternativeUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(updateData).toString()
+            });
+
+            if (!altResponse.ok) {
+                const errorText = await altResponse.text();
+                throw new Error(`Error en actualización: HTTP ${altResponse.status}: ${errorText}`);
+            }
+        }
+
+        console.log(`✅ Asignaciones actualizadas: ${formattedAssignments}`);
+        return assignments;
+
+    } catch (error) {
+        console.error('❌ Error en updatePaymentAssignmentsRaw:', error);
         throw error;
     }
 }
@@ -867,4 +976,4 @@ window.updateDistributionCalculation = updateDistributionCalculation;
 window.parseAssignedInvoices = parseAssignedInvoices;
 window.formatAssignedInvoices = formatAssignedInvoices;
 
-console.log('✅ payment-management.js cargado - Sistema de pagos con distribución múltiple');
+console.log('✅ payment-management.js CORREGIDO - Sistema de pagos con manejo robusto de API');
