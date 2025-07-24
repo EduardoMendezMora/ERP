@@ -529,6 +529,16 @@ async function updatePaymentAssignments(payment, newAssignments) {
 
         console.log('📦 Datos a actualizar:', updateData);
 
+        // DEBUGGING PROFUNDO: Mostrar toda la información relevante antes del PATCH
+        console.log('🛠️ [DEBUG] --- INICIO DEBUG PROFUNDO PATCH SheetDB ---');
+        console.log('🛠️ [DEBUG] URL PATCH:', officialUpdateUrl);
+        console.log('🛠️ [DEBUG] Headers:', { 'Content-Type': 'application/json' });
+        console.log('🛠️ [DEBUG] Body:', JSON.stringify(updateData));
+        console.log('🛠️ [DEBUG] Referencia:', payment.Referencia);
+        console.log('🛠️ [DEBUG] Banco:', payment.BankSource);
+        console.log('🛠️ [DEBUG] Resultado búsqueda unicidad:', searchData);
+        console.log('🛠️ [DEBUG] --- FIN DEBUG PRE-PATCH ---');
+
         const response = await fetch(officialUpdateUrl, {
             method: 'PATCH',
             headers: {
@@ -536,6 +546,19 @@ async function updatePaymentAssignments(payment, newAssignments) {
             },
             body: JSON.stringify(updateData)
         });
+
+        // DEBUGGING PROFUNDO: Mostrar respuesta cruda
+        let responseText = '';
+        try {
+            responseText = await response.clone().text();
+        } catch (e) {
+            responseText = '[No se pudo leer el body de la respuesta]';
+        }
+        console.log('🛠️ [DEBUG] PATCH status:', response.status);
+        console.log('🛠️ [DEBUG] PATCH statusText:', response.statusText);
+        console.log('🛠️ [DEBUG] PATCH response body:', responseText);
+        console.log('🛠️ [DEBUG] PATCH ok:', response.ok);
+        console.log('🛠️ [DEBUG] --- FIN DEBUG PATCH ---');
 
         if (response.ok) {
             const result = await response.json();
