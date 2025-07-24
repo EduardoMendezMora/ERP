@@ -2,12 +2,6 @@
 let currentPaymentForDistribution = null;
 let paymentDistributionData = [];
 
-// ===== CONFIGURACIÓN API =====
-const API_CONFIG = {
-    INVOICES: 'https://sheetdb.io/api/v1/qu62bagiwlgqy',
-    PAYMENTS: 'https://sheetdb.io/api/v1/a7oekivxzreg7'
-};
-
 // ===== FUNCIÓN PRINCIPAL MEJORADA PARA APLICAR PAGOS =====
 async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumber) {
     try {
@@ -480,10 +474,10 @@ function closePaymentDistributionModal() {
     }
 }
 
-// ===== FUNCIÓN CORREGIDA PARA ACTUALIZAR ASIGNACIONES DE PAGOS =====
+// ===== FUNCIONES DE MANEJO DE ASIGNACIONES EN BD (CORREGIDA SEGÚN DOCUMENTACIÓN OFICIAL) =====
 async function updatePaymentAssignments(payment, newAssignments) {
     try {
-        console.log('🔄 Actualizando asignaciones de pago:', payment.Referencia);
+        console.log('🔄 Actualizando asignaciones de pago según documentación oficial:', payment.Referencia);
 
         // Obtener asignaciones previas
         const previousAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
@@ -505,15 +499,23 @@ async function updatePaymentAssignments(payment, newAssignments) {
         // Formatear para la base de datos
         const formattedAssignments = formatAssignedInvoices(combinedAssignments);
 
-        console.log('📝 Asignaciones formateadas:', formattedAssignments);
+        console.log('📝 Asignaciones formateadas para BD:', formattedAssignments);
 
-        // ✅ MÉTODO CORRECTO SEGÚN EL CÓDIGO HTML
+        // ✅ MÉTODO OFICIAL SEGÚN DOCUMENTACIÓN
+        // URL: https://sheetdb.io/api/v1/{API_ID}/{COLUMN_NAME}/{VALUE}?sheet={SHEET}
+        const officialUpdateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
+
+        console.log('🚀 Usando método oficial SheetDB:', officialUpdateUrl);
+
+        // Preparar datos como form data (según documentación)
         const updateData = {
             FacturasAsignadas: formattedAssignments,
             FechaAsignacion: formatDateForStorage(new Date())
         };
 
-        const response = await fetch(`${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`, {
+        console.log('📦 Datos a actualizar:', updateData);
+
+        const response = await fetch(officialUpdateUrl, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -521,16 +523,54 @@ async function updatePaymentAssignments(payment, newAssignments) {
             body: new URLSearchParams(updateData).toString()
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Actualización oficial exitosa:', result);
+            return combinedAssignments;
         }
 
-        console.log('✅ Actualización exitosa');
-        return combinedAssignments;
+        // Si el método oficial falla, obtener más información del error
+        const errorText = await response.text();
+        console.error('❌ Error en método oficial:', response.status, errorText);
+
+        // Verificar si el problema es que el registro no existe
+        if (response.status === 404) {
+            console.log('🔍 Error 404 - Verificando si el pago existe...');
+
+            // Verificar que el pago existe con una búsqueda
+            const searchUrl = `${API_CONFIG.PAYMENTS}/search?Referencia=${encodeURIComponent(payment.Referencia)}&sheet=${payment.BankSource}`;
+            const searchResponse = await fetch(searchUrl);
+
+            if (searchResponse.ok) {
+                const searchData = await searchResponse.json();
+                console.log('🔍 Resultado de búsqueda:', searchData.length, 'registros encontrados');
+
+                if (searchData.length === 0) {
+                    throw new Error(`El pago ${payment.Referencia} no existe en la hoja ${payment.BankSource}`);
+                } else {
+                    console.log('⚠️ El pago existe pero no se puede actualizar. Posibles causas:');
+                    console.log('  1. El campo "Referencia" no es único en la hoja');
+                    console.log('  2. La cuenta no tiene permisos de escritura');
+                    console.log('  3. La hoja está protegida');
+                    throw new Error(`Error 404 al actualizar: El pago existe pero no se puede modificar. Verifique permisos y unicidad del campo "Referencia"`);
+                }
+            } else {
+                throw new Error(`Error de conectividad: No se puede verificar la existencia del pago (HTTP ${searchResponse.status})`);
+            }
+        }
+
+        throw new Error(`Actualización fallida: HTTP ${response.status} - ${errorText}`);
 
     } catch (error) {
         console.error('❌ Error al actualizar asignaciones:', error);
+
+        // Información de debugging
+        console.error('🔍 Información de debugging:');
+        console.error('  - Referencia del pago:', payment.Referencia);
+        console.error('  - Banco:', payment.BankSource);
+        console.error('  - API URL base:', API_CONFIG.PAYMENTS);
+        console.error('  - Nuevas asignaciones:', newAssignments);
+
         throw error;
     }
 }
@@ -584,24 +624,8 @@ async function unassignPaymentFromInvoice(paymentReference, bankSource, invoiceN
         // Remover la asignación específica
         const updatedAssignments = currentAssignments.filter(a => a.invoiceNumber !== invoiceNumber);
 
-        // ✅ ACTUALIZAR USANDO EL MÉTODO CORRECTO
-        const updateData = {
-            FacturasAsignadas: formatAssignedInvoices(updatedAssignments),
-            FechaAsignacion: updatedAssignments.length > 0 ? formatDateForStorage(new Date()) : ''
-        };
-
-        const response = await fetch(`${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(paymentReference)}?sheet=${bankSource}`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams(updateData).toString()
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
+        // Actualizar en la base de datos usando la función corregida
+        await updatePaymentAssignmentsRaw(payment, updatedAssignments);
 
         // Actualizar la factura - recalcular estado
         const invoice = clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
@@ -651,6 +675,44 @@ async function unassignPaymentFromInvoice(paymentReference, bankSource, invoiceN
     } catch (error) {
         console.error('❌ Error al desasignar pago:', error);
         showToast('Error al desasignar el pago: ' + error.message, 'error');
+        throw error;
+    }
+}
+
+// ===== FUNCIÓN AUXILIAR PARA ACTUALIZACIÓN RAW DE ASIGNACIONES =====
+async function updatePaymentAssignmentsRaw(payment, assignments) {
+    try {
+        const formattedAssignments = formatAssignedInvoices(assignments);
+        console.log('🔄 Actualización RAW para:', payment.Referencia, 'con asignaciones:', formattedAssignments);
+
+        // Datos a actualizar
+        const updateData = {
+            FacturasAsignadas: formattedAssignments,
+            FechaAsignacion: assignments.length > 0 ? formatDateForStorage(new Date()) : ''
+        };
+
+        // URL oficial según documentación
+        const updateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
+        console.log('🚀 Enviando actualización RAW oficial:', updateUrl);
+
+        const response = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(updateData).toString()
+        });
+
+        if (response.ok) {
+            console.log('✅ Actualización RAW oficial exitosa');
+            return assignments;
+        }
+
+        const errorText = await response.text();
+        throw new Error(`Actualización RAW fallida: HTTP ${response.status}: ${errorText}`);
+
+    } catch (error) {
+        console.error('❌ Error en updatePaymentAssignmentsRaw:', error);
         throw error;
     }
 }
@@ -829,10 +891,9 @@ async function loadAssignedPayments(clientId) {
     }
 }
 
-// ===== FUNCIONES DE ACTUALIZACIÓN DE FACTURAS (CORREGIDAS) =====
+// ===== FUNCIONES DE ACTUALIZACIÓN DE FACTURAS =====
 async function updateInvoiceStatus(invoiceNumber, updateData) {
     try {
-        // ✅ MÉTODO CORRECTO SEGÚN EL CÓDIGO HTML - VERSIÓN 1 (con query params)
         const params = new URLSearchParams(updateData);
         params.append('sheet', 'Facturas');
 
@@ -862,190 +923,177 @@ function showUnassignConfirmation(paymentReference, bankSource, invoiceNumber) {
     }
 }
 
-// ===== FUNCIONES AUXILIARES =====
-
-// Función para calcular multas hasta una fecha específica
-function calculateFinesUntilDate(invoice, targetDate) {
-    const dueDateStr = invoice.FechaVencimiento;
-    if (!dueDateStr) return 0;
-
-    const dueDate = parseDate(dueDateStr);
-    const paymentDate = parseDate(targetDate);
-
-    if (!dueDate || !paymentDate) return 0;
-
-    // Normalizar fechas (sin horas)
-    dueDate.setHours(0, 0, 0, 0);
-    paymentDate.setHours(0, 0, 0, 0);
-
-    // Si el pago es antes o el día del vencimiento, no hay multas
-    if (paymentDate <= dueDate) return 0;
-
-    // Solo calcular multas para facturas de arrendamiento (NO manuales)
-    const isManualInvoice = invoice.TipoFactura === 'Manual' ||
-        invoice.NumeroFactura?.startsWith('MAN-') ||
-        invoice.ConceptoManual;
-
-    if (isManualInvoice) return 0;
-
-    // Calcular días de atraso hasta la fecha del pago
-    const diffTime = paymentDate.getTime() - dueDate.getTime();
-    const daysLate = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    return daysLate * 2000; // ₡2,000 por día
-}
-
-// Función para parsear montos según el banco
-function parsePaymentAmount(paymentAmount, bankSource) {
-    if (!paymentAmount) return 0;
-
-    let cleanAmount = paymentAmount.toString().trim();
-
-    if (bankSource === 'BAC') {
-        // BAC usa formato europeo: 105.000.00 (puntos como separadores de miles)
-        // Convertir puntos a comas para thousands separator
-        // Solo si hay más de un punto, el último es decimal
-        const parts = cleanAmount.split('.');
-
-        if (parts.length > 2) {
-            // Formato: 105.000.00 -> unir los primeros como miles y el último como decimales
-            const integerPart = parts.slice(0, -1).join('');
-            const decimalPart = parts[parts.length - 1];
-            cleanAmount = integerPart + '.' + decimalPart;
-        } else if (parts.length === 2 && parts[1].length <= 2) {
-            // Formato: 105.00 (ya correcto)
-            cleanAmount = cleanAmount;
-        } else if (parts.length === 2 && parts[1].length > 2) {
-            // Formato: 105.000 (es separador de miles, no decimal)
-            cleanAmount = parts.join('');
-        }
-
-        console.log(`💰 BAC Amount: "${paymentAmount}" -> "${cleanAmount}" = ${parseFloat(cleanAmount)}`);
-    } else {
-        // BN y HuberBN usan formato normal con comas como separadores de miles
-        cleanAmount = cleanAmount.replace(/,/g, '');
-    }
-
-    return parseFloat(cleanAmount) || 0;
-}
-
-// Función para detectar ID de cliente en observaciones
-function isClientIdInObservations(observations, clientId) {
-    if (!observations || !clientId) return false;
-
-    const obsText = observations.toString().trim();
-    const targetId = clientId.toString();
-
-    console.log(`🔍 Buscando ID "${targetId}" en observaciones: "${obsText}"`);
-
-    // Patrones para buscar el ID del cliente
-    const patterns = [
-        // ID exacto como palabra completa
-        new RegExp(`\\b${targetId}\\b`, 'i'),
-
-        // ID con prefijos comunes
-        new RegExp(`(?:cliente|client|id|código|codigo)[-:\\s]*${targetId}\\b`, 'i'),
-
-        // ID al inicio de línea o después de espacios
-        new RegExp(`(?:^|\\s)${targetId}(?:\\s|$)`, 'i'),
-
-        // ID entre delimitadores
-        new RegExp(`[-_#:]${targetId}[-_#:\\s]`, 'i'),
-
-        // Formato "ID: 123456"
-        new RegExp(`id[-:\\s]+${targetId}`, 'i')
-    ];
-
-    // Verificar cada patrón
-    for (let i = 0; i < patterns.length; i++) {
-        const pattern = patterns[i];
-        if (pattern.test(obsText)) {
-            console.log(`🎯 ID ${targetId} encontrado en observaciones con patrón ${i + 1}`);
-            console.log(`   Patrón: ${pattern.toString()}`);
-            console.log(`   Texto: "${obsText}"`);
-            return true;
-        }
-    }
-
-    return false;
-}
-
-// Funciones de fecha
-function parseDate(dateString) {
-    if (!dateString) return null;
+// ===== FUNCIONES DE DEBUGGING PARA SHEETDB (COMPLETAS) =====
+async function testSheetDBConnection(paymentReference, bankSource) {
+    console.log('🧪 === PRUEBA DE CONEXIÓN SHEETDB OFICIAL ===');
+    console.log(`Probando pago: ${paymentReference} en banco: ${bankSource}`);
 
     try {
-        // Formato DD/MM/YYYY (desde Google Sheets)
-        if (dateString.includes('/')) {
-            const parts = dateString.split('/');
-            if (parts.length === 3) {
-                const day = parseInt(parts[0], 10);
-                const month = parseInt(parts[1], 10) - 1; // JS usa 0-11
-                const year = parseInt(parts[2], 10);
+        // 1. Probar búsqueda (sabemos que funciona)
+        const searchUrl = `${API_CONFIG.PAYMENTS}/search?Referencia=${encodeURIComponent(paymentReference)}&sheet=${bankSource}`;
+        console.log('🔍 1. Probando búsqueda:', searchUrl);
 
-                if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 2020 && year <= 2050) {
-                    return new Date(year, month, day);
+        const searchResponse = await fetch(searchUrl);
+        console.log('📡 Respuesta búsqueda:', searchResponse.status, searchResponse.statusText);
+
+        if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            console.log('✅ Datos encontrados:', searchData.length, 'registros');
+            console.log('📋 Registro encontrado:', searchData[0]);
+
+            if (searchData.length > 0) {
+                const originalData = searchData[0];
+
+                // 2. Probar método OFICIAL según documentación
+                const testUpdateData = {
+                    FacturasAsignadas: 'TEST-OFFICIAL-' + Date.now(),
+                    FechaAsignacion: formatDateForStorage(new Date())
+                };
+
+                const officialUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(paymentReference)}?sheet=${bankSource}`;
+                console.log('\n🚀 2. Probando MÉTODO OFICIAL según documentación:');
+                console.log('   URL:', officialUrl);
+                console.log('   Datos:', testUpdateData);
+
+                const officialResponse = await fetch(officialUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(testUpdateData).toString()
+                });
+
+                console.log('📡 Respuesta oficial:', officialResponse.status, officialResponse.statusText);
+
+                if (officialResponse.ok) {
+                    const result = await officialResponse.json();
+                    console.log('✅ MÉTODO OFICIAL EXITOSO!');
+                    console.log('📦 Resultado:', result);
+
+                    // Revertir cambio
+                    const revertData = {
+                        FacturasAsignadas: originalData.FacturasAsignadas || '',
+                        FechaAsignacion: originalData.FechaAsignacion || ''
+                    };
+
+                    await fetch(officialUrl, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams(revertData).toString()
+                    });
+
+                    console.log('🔄 Cambios revertidos');
+                    console.log('🎉 EL MÉTODO OFICIAL FUNCIONA CORRECTAMENTE');
+                } else {
+                    const errorText = await officialResponse.text();
+                    console.log('❌ Método oficial falló:', errorText);
+
+                    // 3. Probar método JSON
+                    console.log('\n🔄 3. Probando método JSON:');
+                    const jsonResponse = await fetch(officialUrl, {
+                        method: 'PATCH',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(testUpdateData)
+                    });
+
+                    console.log('📡 Respuesta JSON:', jsonResponse.status, jsonResponse.statusText);
+
+                    if (jsonResponse.ok) {
+                        const result = await jsonResponse.json();
+                        console.log('✅ MÉTODO JSON EXITOSO!');
+                        console.log('📦 Resultado:', result);
+
+                        // Revertir cambio
+                        await fetch(officialUrl, {
+                            method: 'PATCH',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                FacturasAsignadas: originalData.FacturasAsignadas || '',
+                                FechaAsignacion: originalData.FechaAsignacion || ''
+                            })
+                        });
+
+                        console.log('🔄 Cambios revertidos');
+                        console.log('🎉 EL MÉTODO JSON FUNCIONA CORRECTAMENTE');
+                    } else {
+                        const jsonErrorText = await jsonResponse.text();
+                        console.log('❌ Método JSON también falló:', jsonErrorText);
+                        console.log('💡 Posibles causas:');
+                        console.log('   - Registro no existe para actualización');
+                        console.log('   - Permisos insuficientes en SheetDB');
+                        console.log('   - Campo Referencia no es único');
+                        console.log('   - API SheetDB requiere plan pagado para updates');
+                    }
                 }
             }
+
+        } else {
+            const errorText = await searchResponse.text();
+            console.error('❌ Error en búsqueda:', errorText);
         }
 
-        // Formato YYYY-MM-DD
-        if (dateString.includes('-')) {
-            const parts = dateString.split('-');
-            if (parts.length === 3) {
-                const year = parseInt(parts[0], 10);
-                const month = parseInt(parts[1], 10) - 1;
-                const day = parseInt(parts[2], 10);
-
-                if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 2020 && year <= 2050) {
-                    return new Date(year, month, day);
-                }
-            }
-        }
-
-        console.warn('Formato de fecha no reconocido:', dateString);
-        return null;
-
     } catch (error) {
-        console.error('Error al parsear fecha:', dateString, error);
-        return null;
+        console.error('❌ Error en prueba de conexión:', error);
     }
+
+    console.log('🧪 === FIN DE PRUEBA OFICIAL ===');
 }
 
-function formatDateForDisplay(dateString) {
-    const date = parseDate(dateString);
-    if (!date) return dateString || 'Fecha inválida';
+// ===== FUNCIÓN DE PRUEBA SIMPLE =====
+async function quickTestUpdate(paymentReference, bankSource) {
+    console.log('🚀 Prueba rápida de actualización oficial...');
+
+    const payment = { Referencia: paymentReference, BankSource: bankSource };
+    const testAssignments = [{ invoiceNumber: 'TEST-123', amount: 1000 }];
 
     try {
-        return date.toLocaleDateString('es-CR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
+        const result = await updatePaymentAssignments(payment, testAssignments);
+        console.log('✅ Prueba exitosa:', result);
+
+        // Limpiar
+        await updatePaymentAssignmentsRaw(payment, []);
+        console.log('🧹 Limpieza completada');
+
     } catch (error) {
-        return dateString;
+        console.error('❌ Prueba falló:', error.message);
     }
 }
 
-function formatDateForStorage(date) {
-    try {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${day}/${month}/${year}`; // DD/MM/YYYY para Google Sheets
-    } catch (error) {
-        console.error('Error al formatear fecha:', error);
-        return '';
-    }
-}
-
-function getBankDisplayName(bankSource) {
-    switch (bankSource) {
-        case 'BAC': return 'BAC Credomatic';
-        case 'BN': return 'Banco Nacional de Costa Rica';
-        case 'HuberBN': return 'Huber - Banco Nacional';
-        default: return bankSource;
-    }
+// Función para mostrar información de debugging
+function debugSheetDBInfo() {
+    console.log('🧪 === INFORMACIÓN DE DEBUGGING SHEETDB ===');
+    console.log('Base URL:', API_CONFIG.PAYMENTS);
+    console.log('');
+    console.log('✅ MÉTODO QUE FUNCIONA (búsqueda):');
+    console.log('   GET /search?Referencia=X&sheet=Y');
+    console.log('');
+    console.log('🔧 MÉTODO OFICIAL IMPLEMENTADO:');
+    console.log('   PATCH /Referencia/X?sheet=Y');
+    console.log('   Con Content-Type: application/x-www-form-urlencoded');
+    console.log('   Y datos en el body como URLSearchParams');
+    console.log('');
+    console.log('🎯 SEGÚN DOCUMENTACIÓN OFICIAL:');
+    console.log('   PATCH /api/v1/{API_ID}/{COLUMN_NAME}/{VALUE}?sheet={SHEET}');
+    console.log('   Con Content-Type: application/x-www-form-urlencoded');
+    console.log('   Y datos en el body');
+    console.log('');
+    console.log('💡 POSIBLES CAUSAS DE ERROR 404:');
+    console.log('   1. Plan gratuito no permite updates');
+    console.log('   2. Campo Referencia no es clave única');
+    console.log('   3. Permisos insuficientes');
+    console.log('   4. API endpoint incorrecto');
+    console.log('');
+    console.log('🧪 Funciones de prueba:');
+    console.log('   testSheetDBConnection("18475172", "BN")');
+    console.log('   quickTestUpdate("18475172", "BN")');
 }
 
 // ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
@@ -1066,25 +1114,24 @@ window.updateDistributionCalculation = updateDistributionCalculation;
 window.parseAssignedInvoices = parseAssignedInvoices;
 window.formatAssignedInvoices = formatAssignedInvoices;
 
-// Funciones auxiliares
+// Funciones principales de actualización
 window.updatePaymentAssignments = updatePaymentAssignments;
-window.calculateFinesUntilDate = calculateFinesUntilDate;
-window.parsePaymentAmount = parsePaymentAmount;
-window.isClientIdInObservations = isClientIdInObservations;
-window.parseDate = parseDate;
-window.formatDateForDisplay = formatDateForDisplay;
-window.formatDateForStorage = formatDateForStorage;
-window.getBankDisplayName = getBankDisplayName;
+window.updatePaymentAssignmentsRaw = updatePaymentAssignmentsRaw;
 
-console.log('✅ payment-management.js ACTUALIZADO CON MÉTODOS SHEETDB CORRECTOS');
-console.log('🔧 CAMBIOS PRINCIPALES:');
-console.log('  ✅ updatePaymentAssignments() - Usa método correcto con form-urlencoded');
-console.log('  ✅ updateInvoiceStatus() - Usa método correcto con query params');
-console.log('  ✅ unassignPaymentFromInvoice() - Actualizado con método correcto');
-console.log('  ✅ API_CONFIG centralizado para fácil mantenimiento');
+// ✅ FUNCIONES DE DEBUGGING EXPUESTAS (COMPLETAS)
+window.testSheetDBConnection = testSheetDBConnection;
+window.debugSheetDBInfo = debugSheetDBInfo;
+window.quickTestUpdate = quickTestUpdate;
+
+console.log('✅ payment-management.js COMPLETO - Usando método oficial SheetDB');
+console.log('🧪 Funciones de debugging disponibles:');
+console.log('  - debugSheetDBInfo() - Información de debugging');
+console.log('  - testSheetDBConnection(referencia, banco) - Prueba conexión oficial');
+console.log('  - quickTestUpdate(referencia, banco) - Prueba rápida oficial');
 console.log('');
-console.log('📡 MÉTODOS SHEETDB IMPLEMENTADOS:');
-console.log('  - PATCH /ColumnName/Value?sheet=SheetName con form-urlencoded body');
-console.log('  - PATCH /ColumnName/Value?queryParams con query parameters');
+console.log('🔧 CAMBIO PRINCIPAL:');
+console.log('  ✅ Usando método OFICIAL: PATCH /Referencia/X?sheet=Y');
+console.log('  ✅ Con Content-Type: application/x-www-form-urlencoded');
+console.log('  ✅ Datos en body como URLSearchParams (según documentación)');
 console.log('');
-console.log('🎯 LISTO PARA USAR EN PRODUCCIÓN');
+console.log('🎯 Para probar: testSheetDBConnection("18475172", "BN")');
