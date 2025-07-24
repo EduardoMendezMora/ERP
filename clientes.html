@@ -16,75 +16,38 @@
             <div class="form-section">
                 <h2 id="formTitle">Nuevo Cliente</h2>
                 <form id="clientForm">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">ID del Cliente <span class="required">*</span></label>
-                            <input type="text" class="form-input" id="ID" required placeholder="Solo números (9-15 dígitos)" pattern="[0-9]{9,15}" maxlength="15">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Nombre Completo <span class="required">*</span></label>
-                            <input type="text" class="form-input" id="Nombre" required placeholder="Nombre del cliente">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Número de Teléfono</label>
-                            <input type="tel" class="form-input" id="numeroTelefono" placeholder="50688888888" pattern="506[0-9]{8}" maxlength="11">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Placa del Vehículo</label>
-                            <input type="text" class="form-input" id="Placa" placeholder="ABC123">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">ID Grupo WhatsApp</label>
-                            <input type="text" class="form-input" id="idGrupoWhatsapp" placeholder="120363295526322228@g.us">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Día de Pago Semanal</label>
-                            <select class="form-input" id="diaPago">
-                                <option value="">-- Seleccionar día de la semana --</option>
-                                <option value="Lunes">Lunes</option>
-                                <option value="Martes">Martes</option>
-                                <option value="Miércoles">Miércoles</option>
-                                <option value="Jueves">Jueves</option>
-                                <option value="Viernes">Viernes</option>
-                                <option value="Sábado">Sábado</option>
-                                <option value="Domingo">Domingo</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Monto Semanal del Contrato (₡)</label>
-                            <input type="number" class="form-input" id="montoContrato" step="1000" placeholder="50000">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Fecha de Inicio del Contrato</label>
-                            <input type="date" class="form-input" id="fechaContrato">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Duración del Contrato (semanas)</label>
-                            <input type="number" class="form-input" id="plazoContrato" placeholder="52" min="1" max="520">
-                        </div>
+                    <div class="form-group">
+                        <label for="nombre">Nombre</label>
+                        <input type="text" id="nombre" name="nombre" required>
                     </div>
-                    <div style="display: flex; gap: 16px; margin-top: 32px; justify-content: center; flex-wrap: wrap;">
-                        <button type="submit" class="btn btn-primary btn-large" id="submitBtn">
-                            💾 Guardar Cliente
-                        </button>
-                        <button type="button" class="btn btn-secondary btn-large" id="cancelBtn" onclick="cancelEdit()" style="display: none;">
-                            ❌ Cancelar Edición
-                        </button>
+                    <div class="form-group">
+                        <label for="identificacion">Identificación</label>
+                        <input type="text" id="identificacion" name="identificacion" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="telefono">Teléfono</label>
+                        <input type="text" id="telefono" name="telefono">
+                    </div>
+                    <div class="form-group">
+                        <label for="correo">Correo</label>
+                        <input type="email" id="correo" name="correo">
+                    </div>
+                    <div class="form-group">
+                        <label for="direccion">Dirección</label>
+                        <input type="text" id="direccion" name="direccion">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="saveClientBtn">Guardar</button>
+                        <button type="button" class="btn btn-secondary" id="cancelEditBtn" style="display:none;">Cancelar</button>
                     </div>
                 </form>
             </div>
             <div class="clients-section">
                 <div class="search-container">
-                    <input type="text" class="search-input" placeholder="🔍 Buscar clientes por nombre, ID, placa o teléfono..." id="searchInput">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Buscar cliente por nombre, identificación o correo...">
                 </div>
-                <div class="loading" id="loading">
-                    <div class="spinner"></div>
-                    <p>Cargando clientes...</p>
-                </div>
-                <div class="clients-grid" id="clientsGrid"></div>
-                <div class="empty-state" id="emptyState" style="display: none;">
-                    <h3>📋 No hay clientes registrados</h3>
-                    <p>Utiliza el formulario de arriba para agregar tu primer cliente al sistema</p>
+                <div id="clientsGrid" class="clients-grid">
+                    <!-- Aquí se renderizan las tarjetas de clientes -->
                 </div>
             </div>
         </div>
