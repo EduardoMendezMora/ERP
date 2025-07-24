@@ -7,7 +7,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f5f5f7; color: #1d1d1f; line-height: 1.6; }
-        .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
         .header { text-align: center; margin-bottom: 16px; }
         .header h1 { font-size: 3rem; font-weight: 700; color: #1d1d1f; margin-bottom: 10px; letter-spacing: -0.02em; }
         .header p { font-size: 1.2rem; color: #86868b; font-weight: 400; }
@@ -31,7 +31,41 @@
         .btn-primary:hover { background: #0056cc; }
         .btn-secondary { background: #f2f2f7; color: #1d1d1f; }
         .btn-secondary:hover { background: #e8e8ed; }
-        @media (max-width: 900px) { .container { padding: 20px 5px; } .stats { flex-direction: column; gap: 12px; } .form-grid { grid-template-columns: 1fr; } }
+        .btn-warning { background: #ff9500; color: white; }
+        .btn-warning:hover { background: #cc7700; }
+        .btn-danger { background: #ff3b30; color: white; }
+        .btn-danger:hover { background: #d70015; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 8px; font-size: 1rem; font-weight: 600; margin-top: 4px; }
+        .badge-green { background: #22c55e; color: #fff; }
+        .badge-outline-green { background: #fff; color: #22c55e; border: 2px solid #22c55e; }
+        .badge-yellow { background: #ff9500; color: #fff; }
+        .badge-red { background: #ff3b30; color: #fff; }
+        .badge-gray { background: #f2f2f7; color: #86868b; }
+        .client-list-section { margin-top: 48px; }
+        .clients-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 32px; }
+        .client-card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 2px solid #e5e7eb; padding: 32px 24px 24px 24px; position: relative; display: flex; flex-direction: column; min-width: 0; }
+        .client-header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .client-name-block { font-size: 1.3rem; font-weight: 700; color: #1d1d1f; line-height: 1.2; margin-bottom: 2px; text-transform: uppercase; }
+        .client-id-block { color: #86868b; font-size: 0.95rem; font-weight: 500; margin-bottom: 10px; }
+        .client-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .client-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; margin-bottom: 12px; }
+        .client-detail-label { font-size: 0.9rem; color: #86868b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+        .client-detail-value { font-size: 1.1rem; color: #1d1d1f; font-weight: 600; }
+        .client-detail-value.badge { font-size: 1rem; font-weight: 700; }
+        .fact-status-row { margin: 12px 0 8px 0; }
+        .fact-status-badge { display: inline-block; padding: 6px 18px; border-radius: 8px; font-size: 1rem; font-weight: 600; background: #22c55e; color: #fff; }
+        .fact-status-badge.pending { background: #ff9500; }
+        .fact-status-badge.not { background: #f2f2f7; color: #86868b; }
+        .client-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #f8fafc; border-radius: 12px; margin-top: 16px; padding: 12px 0; }
+        .client-stat-box { text-align: center; }
+        .client-stat-value { font-size: 1.1rem; font-weight: 700; color: #1d1d1f; }
+        .client-stat-label { font-size: 0.85rem; color: #86868b; }
+        .client-stat-box.red .client-stat-value { color: #ff3b30; }
+        .client-stat-box.yellow .client-stat-value { color: #ff9500; }
+        .client-stat-box.green .client-stat-value { color: #22c55e; }
+        .client-stat-box.gray .client-stat-value { color: #86868b; }
+        @media (max-width: 1200px) { .container { padding: 20px 5px; } .clients-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) { .form-grid { grid-template-columns: 1fr; } .stats { flex-direction: column; gap: 12px; } }
     </style>
 </head>
 <body>
@@ -117,6 +151,9 @@
                     <button type="button" class="btn btn-secondary" onclick="toggleDebug()">🐛 Debug</button>
                 </div>
             </form>
+        </div>
+        <div class="client-list-section">
+            <div class="clients-grid" id="clientsGrid"></div>
         </div>
     </div>
     <script src="client-management.js"></script>
