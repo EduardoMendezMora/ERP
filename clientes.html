@@ -929,7 +929,6 @@
                 const hasContract = client.fechaContrato && client.montoContrato && client.plazoContrato;
                 const billingInfo = getClientBillingInfo(client.ID);
                 const isBilled = billingInfo.status === 'billed';
-                
                 // Determinar qué botón mostrar
                 let actionButton = '';
                 if (hasContract) {
@@ -953,7 +952,6 @@
                         </button>
                     `;
                 }
-                
                 let billingStatusHtml = '';
                 if (isBilled && billingInfo.summary) {
                     const s = billingInfo.summary;
@@ -980,22 +978,12 @@
                         </div>
                     `;
                 }
-                
                 return `
                     <div class="client-card ${isBilled ? 'billed' : ''}" id="card-${client.ID}">
                         <div class="client-header">
                             <div class="client-info">
                                 <div class="client-name">${client.Nombre || 'Sin nombre'}</div>
                                 <div class="client-id">ID: ${client.ID || 'Sin ID'}</div>
-                            </div>
-                            <div class="client-actions">
-                                <button class="btn btn-secondary" onclick="editClient('${client.ID}')">
-                                    ✏️ Editar
-                                </button>
-                                ${actionButton}
-                                <button class="btn btn-danger" onclick="deleteClient('${client.ID}')">
-                                    🗑️ Eliminar
-                                </button>
                             </div>
                         </div>
                         <div class="client-details">
@@ -1056,6 +1044,15 @@
                             `}
                         </div>
                         ${billingStatusHtml}
+                        <div class="client-actions" style="margin-top: 18px; justify-content: flex-start;">
+                            <button class="btn btn-secondary" onclick="editClient('${client.ID}')">
+                                ✏️ Editar
+                            </button>
+                            ${actionButton}
+                            <button class="btn btn-danger" onclick="deleteClient('${client.ID}')">
+                                🗑️ Eliminar
+                            </button>
+                        </div>
                     </div>
                 `;
             }).join('');
