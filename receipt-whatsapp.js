@@ -1,3 +1,5 @@
+// ===== LOGO DE LA EMPRESA =====
+const logoUrl = './Logotipo EasyCars Fondo Blanco con Slogan - Copy.jpg';
 // ===== FUNCIONES PARA GENERAR RECIBOS =====
 function generateReceipt(paymentReference, bankSource) {
     const payment = assignedPayments.find(p =>
