@@ -14,6 +14,12 @@ async function initializeApp() {
         console.log('🆔 ID del cliente extraído:', clientId);
 
         if (!clientId) {
+            // Redirigir automáticamente a la página de clientes si no hay parámetro
+            window.location.href = '/clientes.html'; // Ajusta la ruta si tu archivo de clientes tiene otro nombre o ubicación
+            return;
+        }
+
+        if (!clientId) {
             console.error('❌ No se encontró ID de cliente en la URL');
             console.error('📋 Parámetros disponibles:', [...urlParams.entries()]);
             throw new Error('No se proporcionó un ID de cliente en la URL. Use ?cliente=123456 o ?clientId=123456');
