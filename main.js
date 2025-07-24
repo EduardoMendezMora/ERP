@@ -541,6 +541,7 @@ window.initializeApp = initializeApp;
 window.renderPage = renderPage;
 window.updateClientHeader = updateClientHeader;
 window.retryLoad = retryLoad;
+window.currentClient = currentClient;
 
 // Funciones de modales de asignación
 window.openAssignPaymentModal = openAssignPaymentModal;
