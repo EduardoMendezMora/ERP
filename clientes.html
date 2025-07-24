@@ -1,167 +1,1641 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Clientes</title>
+    <title>ERP - Gestión de Clientes</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f5f5f7; color: #1d1d1f; line-height: 1.6; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
-        .header { text-align: center; margin-bottom: 16px; }
-        .header h1 { font-size: 3rem; font-weight: 700; color: #1d1d1f; margin-bottom: 10px; letter-spacing: -0.02em; }
-        .header p { font-size: 1.2rem; color: #86868b; font-weight: 400; }
-        .stats { display: flex; justify-content: space-between; gap: 20px; margin: 32px 0 32px 0; }
-        .stat { flex: 1; background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 24px 0; text-align: center; }
-        .stat-value { font-size: 2rem; font-weight: 700; color: #007aff; margin-bottom: 4px; }
-        .stat-label { font-size: 1rem; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px; }
-        .stat-value.money { color: #007aff; }
-        .form-section { background: #fff; border-radius: 20px; padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #f2f2f7; width: 100%; margin: 0 auto; }
-        .form-section h2 { font-size: 1.5rem; font-weight: 600; color: #1d1d1f; margin-bottom: 24px; text-align: center; }
-        .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-        .form-group { display: flex; flex-direction: column; margin-bottom: 0; }
-        .form-label { display: block; margin-bottom: 8px; font-weight: 500; color: #1d1d1f; font-size: 0.9rem; }
-        .required { color: #ff3b30; }
-        .form-input { width: 100%; padding: 12px 16px; border: 1px solid #d2d2d7; border-radius: 12px; font-size: 16px; background: white; transition: all 0.3s ease; min-height: 48px; }
-        .form-input:focus { outline: none; border-color: #007aff; box-shadow: 0 0 0 3px rgba(0,122,255,0.1); }
-        .field-help { color: #86868b; font-size: 0.8rem; margin-top: 4px; display: block; line-height: 1.3; }
-        .form-actions { display: flex; gap: 16px; justify-content: center; margin-top: 32px; }
-        .btn { padding: 12px 24px; border: none; border-radius: 12px; font-size: 16px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; white-space: nowrap; }
-        .btn-primary { background: #007aff; color: white; }
-        .btn-primary:hover { background: #0056cc; }
-        .btn-secondary { background: #f2f2f7; color: #1d1d1f; }
-        .btn-secondary:hover { background: #e8e8ed; }
-        .btn-warning { background: #ff9500; color: white; }
-        .btn-warning:hover { background: #cc7700; }
-        .btn-danger { background: #ff3b30; color: white; }
-        .btn-danger:hover { background: #d70015; }
-        .badge { display: inline-block; padding: 4px 12px; border-radius: 8px; font-size: 1rem; font-weight: 600; margin-top: 4px; }
-        .badge-green { background: #22c55e; color: #fff; }
-        .badge-outline-green { background: #fff; color: #22c55e; border: 2px solid #22c55e; }
-        .badge-yellow { background: #ff9500; color: #fff; }
-        .badge-red { background: #ff3b30; color: #fff; }
-        .badge-gray { background: #f2f2f7; color: #86868b; }
-        .client-list-section { margin-top: 48px; }
-        .search-bar-container { display: flex; justify-content: center; margin-bottom: 32px; }
-        .search-input-bar { width: 100%; max-width: 600px; padding: 16px 24px; border: 1.5px solid #d2d2d7; border-radius: 16px; font-size: 1.1rem; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.04); transition: border-color 0.2s; }
-        .search-input-bar:focus { outline: none; border-color: #007aff; box-shadow: 0 0 0 3px rgba(0,122,255,0.08); }
-        .clients-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 32px; }
-        .client-card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 2px solid #e5e7eb; padding: 32px 24px 24px 24px; position: relative; display: flex; flex-direction: column; min-width: 0; }
-        .client-header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-        .client-name-block { font-size: 1.3rem; font-weight: 700; color: #1d1d1f; line-height: 1.2; margin-bottom: 2px; text-transform: uppercase; }
-        .client-id-block { color: #86868b; font-size: 0.95rem; font-weight: 500; margin-bottom: 10px; }
-        .client-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-        .client-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; margin-bottom: 12px; }
-        .client-detail-label { font-size: 0.9rem; color: #86868b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
-        .client-detail-value { font-size: 1.1rem; color: #1d1d1f; font-weight: 600; }
-        .client-detail-value.badge { font-size: 1rem; font-weight: 700; }
-        .fact-status-row { margin: 12px 0 8px 0; }
-        .fact-status-badge { display: inline-block; padding: 6px 18px; border-radius: 8px; font-size: 1rem; font-weight: 600; background: #22c55e; color: #fff; }
-        .fact-status-badge.pending { background: #ff9500; }
-        .fact-status-badge.not { background: #f2f2f7; color: #86868b; }
-        .client-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #f8fafc; border-radius: 12px; margin-top: 16px; padding: 12px 0; }
-        .client-stat-box { text-align: center; }
-        .client-stat-value { font-size: 1.1rem; font-weight: 700; color: #1d1d1f; }
-        .client-stat-label { font-size: 0.85rem; color: #86868b; }
-        .client-stat-box.red .client-stat-value { color: #ff3b30; }
-        .client-stat-box.yellow .client-stat-value { color: #ff9500; }
-        .client-stat-box.green .client-stat-value { color: #22c55e; }
-        .client-stat-box.gray .client-stat-value { color: #86868b; }
-        @media (max-width: 1200px) { .container { padding: 20px 5px; } .clients-grid { grid-template-columns: 1fr; } }
-        @media (max-width: 900px) { .form-grid { grid-template-columns: 1fr; } .stats { flex-direction: column; gap: 12px; } }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: #86868b;
+            font-weight: 400;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 48px;
+        }
+
+        .form-section {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #f2f2f7;
+            width: 100%;
+        }
+
+        .form-section h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .clients-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .search-container {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #f2f2f7;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 20px;
+            border: 1px solid #d2d2d7;
+            border-radius: 12px;
+            font-size: 16px;
+            background: #f9f9f9;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #007aff;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .clients-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .client-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border: 1px solid #f2f2f7;
+            position: relative;
+        }
+
+        .client-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        .client-card.editing {
+            border-color: #007aff;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .client-card.billed {
+            border-left: 4px solid #34c759;
+        }
+
+        .client-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .client-info {
+            flex: 1;
+        }
+
+        .client-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 4px;
+        }
+
+        .client-id {
+            color: #86868b;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .client-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .client-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .detail-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .detail-label {
+            font-weight: 500;
+            color: #86868b;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            font-weight: 500;
+            color: #1d1d1f;
+            font-size: 0.95rem;
+        }
+
+        .amount-badge {
+            background: #34c759;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-block;
+            width: fit-content;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-block;
+            width: fit-content;
+        }
+
+        .status-billed { background: #34c759; color: white; }
+        .status-pending { background: #ff9500; color: white; }
+        .status-overdue { background: #ff3b30; color: white; }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: #007aff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056cc;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #f2f2f7;
+            color: #1d1d1f;
+        }
+
+        .btn-secondary:hover {
+            background: #e8e8ed;
+        }
+
+        .btn-danger {
+            background: #ff3b30;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #d70015;
+        }
+
+        .btn-success {
+            background: #34c759;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #248a3d;
+        }
+
+        .btn-warning {
+            background: #ff9500;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #cc7700;
+        }
+
+        .btn-large {
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 12px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #1d1d1f;
+            font-size: 0.9rem;
+        }
+
+        .required {
+            color: #ff3b30;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d2d2d7;
+            border-radius: 12px;
+            font-size: 16px;
+            background: white;
+            transition: all 0.3s ease;
+            min-height: 48px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #007aff;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .form-input.valid {
+            border-color: #34c759;
+            box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.1);
+        }
+
+        .form-input.invalid {
+            border-color: #ff3b30;
+            box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.1);
+        }
+
+        .field-help {
+            color: #86868b;
+            font-size: 0.8rem;
+            margin-top: 4px;
+            display: block;
+            line-height: 1.3;
+        }
+
+        select.form-input {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 12px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            padding-right: 40px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #86868b;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f2f2f7;
+            border-top: 3px solid #007aff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #86868b;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+            color: #1d1d1f;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            z-index: 2000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            max-width: 400px;
+            word-wrap: break-word;
+        }
+
+        .toast.success { background: #34c759; }
+        .toast.error { background: #ff3b30; }
+        .toast.warning { background: #ff9500; }
+        .toast.show { transform: translateX(0); }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 12px;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 12px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #007aff;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #86868b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .debug-info {
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .billing-status {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+
+        .billing-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .billing-item {
+            text-align: center;
+            padding: 8px;
+            background: white;
+            border-radius: 6px;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 20px 15px; }
+            .header h1 { font-size: 2rem; }
+            .client-details { grid-template-columns: 1fr; }
+            .form-grid { grid-template-columns: 1fr; }
+            .client-actions { flex-direction: column; }
+            .clients-grid { grid-template-columns: 1fr; }
+            .stats { grid-template-columns: 1fr 1fr; }
+        }
     </style>
-</head>
-<body>
+
+
     <div class="container">
         <div class="header">
             <h1>Gestión de Clientes</h1>
             <p>Sistema completo para administrar clientes y contratos de leasing</p>
         </div>
-        <div class="form-section">
-            <h2 id="formTitle">Nuevo Cliente</h2>
-            <div class="stats">
-                <div class="stat">
-                    <div class="stat-value" id="totalClients">0</div>
-                    <div class="stat-label">Total</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value" id="activeContracts">0</div>
-                    <div class="stat-label">Con Contratos</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value" id="billedClients">0</div>
-                    <div class="stat-label">Facturados</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value money" id="totalPending">₡0</div>
-                    <div class="stat-label">Por Cobrar</div>
-                </div>
-            </div>
-            <form id="clientForm">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label">ID del Cliente <span class="required">*</span></label>
-                        <input type="text" class="form-input" id="ID" required placeholder="Solo números (9-15 dígitos)" pattern="[0-9]{9,15}" maxlength="15">
-                        <small class="field-help">Solo números, entre 9 y 15 dígitos</small>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Nombre Completo <span class="required">*</span></label>
-                        <input type="text" class="form-input" id="Nombre" required placeholder="Nombre del cliente">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Número de Teléfono</label>
-                        <input type="tel" class="form-input" id="numeroTelefono" placeholder="50688888888" pattern="506[0-9]{8}" maxlength="11">
-                        <small class="field-help">Formato: 506 + 8 dígitos (ej: 50688888888)</small>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Placa del Vehículo</label>
-                        <input type="text" class="form-input" id="Placa" placeholder="ABC123">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">ID Grupo WhatsApp</label>
-                        <input type="text" class="form-input" id="idGrupoWhatsapp" placeholder="120363295526322228@g.us">
-                        <small class="field-help">Formato: números@g.us (ej: 120363295526322228@g.us)</small>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Día de Pago Semanal</label>
-                        <select class="form-input" id="diaPago">
-                            <option value="">-- Seleccionar día de la semana --</option>
-                            <option value="Lunes">Lunes</option>
-                            <option value="Martes">Martes</option>
-                            <option value="Miércoles">Miércoles</option>
-                            <option value="Jueves">Jueves</option>
-                            <option value="Viernes">Viernes</option>
-                            <option value="Sábado">Sábado</option>
-                            <option value="Domingo">Domingo</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Monto Semanal del Contrato (₡)</label>
-                        <input type="number" class="form-input" id="montoContrato" step="1000" placeholder="50000">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Fecha de Inicio del Contrato</label>
-                        <input type="date" class="form-input" id="fechaContrato">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Duración del Contrato (semanas)</label>
-                        <input type="number" class="form-input" id="plazoContrato" placeholder="52" min="1" max="520">
-                    </div>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary" id="submitBtn">💾 Guardar Cliente</button>
-                    <button type="button" class="btn btn-secondary" id="cancelBtn" onclick="cancelEdit()" style="display: none;">❌ Cancelar Edición</button>
-                    <button type="button" class="btn btn-secondary" onclick="toggleDebug()">🐛 Debug</button>
-                </div>
-            </form>
+
+        <!-- Información de debug -->
+        <div class="debug-info" id="debugInfo" style="display: none;">
+            <strong>Debug Info:</strong><br>
+            API URL: <span id="debugApiUrl"></span><br>
+            Response Status: <span id="debugStatus"></span><br>
+            Response Data: <span id="debugData"></span>
         </div>
-        <div class="client-list-section">
-            <div class="search-bar-container">
-                <input type="text" class="search-input-bar" placeholder="🔍 Buscar clientes por nombre, ID, placa o teléfono..." id="searchInput">
+
+        <div class="main-content">
+            <!-- Formulario de Cliente -->
+            <div class="form-section">
+                <h2 id="formTitle">Nuevo Cliente</h2>
+                
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value" id="totalClients">0</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="activeContracts">0</div>
+                        <div class="stat-label">Con Contratos</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="billedClients">0</div>
+                        <div class="stat-label">Facturados</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="totalPending">₡0</div>
+                        <div class="stat-label">Por Cobrar</div>
+                    </div>
+                </div>
+
+                <form id="clientForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">ID del Cliente <span class="required">*</span></label>
+                            <input type="text" class="form-input" id="ID" required placeholder="Solo números (9-15 dígitos)" pattern="[0-9]{9,15}" maxlength="15">
+                            <small class="field-help">Solo números, entre 9 y 15 dígitos</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nombre Completo <span class="required">*</span></label>
+                            <input type="text" class="form-input" id="Nombre" required placeholder="Nombre del cliente">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Número de Teléfono</label>
+                            <input type="tel" class="form-input" id="numeroTelefono" placeholder="50688888888" pattern="506[0-9]{8}" maxlength="11">
+                            <small class="field-help">Formato: 506 + 8 dígitos (ej: 50688888888)</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Placa del Vehículo</label>
+                            <input type="text" class="form-input" id="Placa" placeholder="ABC123">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">ID Grupo WhatsApp</label>
+                            <input type="text" class="form-input" id="idGrupoWhatsapp" placeholder="120363295526322228@g.us">
+                            <small class="field-help">Formato: números@g.us (ej: 120363295526322228@g.us)</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Día de Pago Semanal</label>
+                            <select class="form-input" id="diaPago">
+                                <option value="">-- Seleccionar día de la semana --</option>
+                                <option value="Lunes">Lunes</option>
+                                <option value="Martes">Martes</option>
+                                <option value="Miércoles">Miércoles</option>
+                                <option value="Jueves">Jueves</option>
+                                <option value="Viernes">Viernes</option>
+                                <option value="Sábado">Sábado</option>
+                                <option value="Domingo">Domingo</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Monto Semanal del Contrato (₡)</label>
+                            <input type="number" class="form-input" id="montoContrato" step="1000" placeholder="50000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Fecha de Inicio del Contrato</label>
+                            <input type="date" class="form-input" id="fechaContrato">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Duración del Contrato (semanas)</label>
+                            <input type="number" class="form-input" id="plazoContrato" placeholder="52" min="1" max="520">
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 16px; margin-top: 32px; justify-content: center; flex-wrap: wrap;">
+                        <button type="submit" class="btn btn-primary btn-large" id="submitBtn">
+                            💾 Guardar Cliente
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-large" id="cancelBtn" onclick="cancelEdit()" style="display: none;">
+                            ❌ Cancelar Edición
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-large" onclick="toggleDebug()">
+                            🐛 Debug
+                        </button>
+                    </div>
+                </form>
             </div>
-            <div class="clients-grid" id="clientsGrid"></div>
+
+            <!-- Lista de Clientes -->
+            <div class="clients-section">
+                <div class="search-container">
+                    <input type="text" class="search-input" placeholder="🔍 Buscar clientes por nombre, ID, placa o teléfono..." id="searchInput">
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Cargando clientes...</p>
+                </div>
+
+                <div class="clients-grid" id="clientsGrid"></div>
+
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <h3>📋 No hay clientes registrados</h3>
+                    <p>Utiliza el formulario de arriba para agregar tu primer cliente al sistema</p>
+                </div>
+            </div>
         </div>
     </div>
-    <script src="client-management.js"></script>
-</body>
-</html>
+
+    <script>
+        const API_URL_CLIENTS = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
+        const API_URL_INVOICES = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
+        
+        let clients = [];
+        let invoices = [];
+        let currentClient = null;
+        let isEditing = false;
+
+        // Inicializar la aplicación
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            setupEventListeners();
+        });
+
+        async function initializeApp() {
+            console.log('=== INICIALIZANDO APLICACIÓN ===');
+            showLoading(true);
+            
+            try {
+                // Cargar clientes y facturas EN PARALELO
+                console.log('Cargando clientes y facturas...');
+                await Promise.all([
+                    loadClientsData(),
+                    loadInvoicesData()  
+                ]);
+                
+                console.log('✅ Ambas cargas completadas');
+                console.log('Clientes cargados:', clients.length);
+                console.log('Facturas cargadas:', invoices.length);
+                
+                // AHORA renderizar la interfaz con todos los datos
+                renderClients(clients);
+                updateStats();
+                
+                showToast(`Sistema cargado: ${clients.length} clientes, ${invoices.length} facturas`, 'success');
+                
+            } catch (error) {
+                console.error('Error al inicializar:', error);
+                showToast('Error al cargar datos del sistema', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function loadClientsData() {
+            const apiUrl = `${API_URL_CLIENTS}?sheet=Clientes`;
+            console.log('Cargando clientes desde:', apiUrl);
+            
+            const response = await fetch(apiUrl);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            clients = Array.isArray(data) ? data : [];
+            clients = clients.filter(client => client.ID && client.ID.toString().trim() !== '');
+            
+            console.log('Clientes procesados:', clients.length);
+        }
+
+        async function loadInvoicesData() {
+            const apiUrl = `${API_URL_INVOICES}?sheet=Facturas`;
+            console.log('Cargando facturas desde:', apiUrl);
+            
+            const response = await fetch(apiUrl);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    console.log('Hoja de facturas no existe aún');
+                    invoices = [];
+                    return;
+                }
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            invoices = Array.isArray(data) ? data : [];
+            invoices = invoices.filter(inv => inv.ID_Cliente && inv.NumeroFactura);
+            
+            // Actualizar multas
+            updateOverdueFines();
+            
+            console.log('Facturas procesadas:', invoices.length);
+        }
+
+        function setupEventListeners() {
+            // Búsqueda en tiempo real
+            document.getElementById('searchInput').addEventListener('input', function(e) {
+                filterClients(e.target.value);
+            });
+
+            // Formulario de cliente
+            document.getElementById('clientForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                if (validateForm()) {
+                    saveClient();
+                }
+            });
+
+            // Validación en tiempo real del ID
+            document.getElementById('ID').addEventListener('input', function(e) {
+                const value = e.target.value;
+                e.target.value = value.replace(/[^0-9]/g, '');
+                validateID(e.target);
+            });
+
+            // Validación en tiempo real del teléfono
+            document.getElementById('numeroTelefono').addEventListener('input', function(e) {
+                const value = e.target.value;
+                e.target.value = value.replace(/[^0-9]/g, '');
+                validatePhone(e.target);
+            });
+
+            // Validación en tiempo real del ID de WhatsApp
+            document.getElementById('idGrupoWhatsapp').addEventListener('input', function(e) {
+                validateWhatsAppID(e.target);
+            });
+        }
+
+        async function loadClients() {
+            // Esta función ahora solo recarga y re-renderiza
+            console.log('=== RECARGANDO CLIENTES ===');
+            showLoading(true);
+            try {
+                await loadClientsData();
+                await loadInvoicesData(); // También recargar facturas por si cambiaron
+                renderClients(clients);
+                updateStats();
+            } catch (error) {
+                console.error('Error al recargar clientes:', error);
+                showToast('Error al recargar clientes: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function loadInvoices() {
+            // Esta función ahora solo recarga facturas
+            console.log('=== RECARGANDO FACTURAS ===');
+            try {
+                await loadInvoicesData();
+                renderClients(clients); // Re-renderizar para actualizar botones
+                updateStats();
+            } catch (error) {
+                console.error('Error al recargar facturas:', error);
+            }
+        }
+
+        function updateOverdueFines() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Resetear horas para comparación exacta
+            
+            console.log('\n=== DEBUG FECHAS DE VENCIMIENTO ===');
+            console.log('Hoy (objeto Date):', today);
+            console.log('Hoy (string):', formatDateForDB(today));
+            
+            let hasUpdates = false;
+            let totalProcessed = 0;
+            let totalPending = 0;
+            let totalOverdue = 0;
+            let debugCount = 0;
+            
+            invoices.forEach(invoice => {
+                if (invoice.Estado === 'Pendiente' || invoice.Estado === 'Vencido') {
+                    totalProcessed++;
+                    const dueDateStr = invoice.FechaVencimiento;
+                    
+                    // Debug solo las primeras 5 facturas
+                    if (debugCount < 5) {
+                        console.log(`\n--- DEBUG FACTURA ${invoice.NumeroFactura} ---`);
+                        console.log('Fecha vencimiento (string):', dueDateStr);
+                        
+                        const dueDate = parseDate(dueDateStr);
+                        console.log('Fecha vencimiento (parseada):', dueDate);
+                        
+                        if (dueDate) {
+                            console.log('¿Es válida?:', dueDate instanceof Date && !isNaN(dueDate));
+                            console.log('¿Hoy > Vencimiento?:', today > dueDate);
+                            
+                            const diffTime = today.getTime() - dueDate.getTime();
+                            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                            console.log('Diferencia en días:', diffDays);
+                        }
+                        debugCount++;
+                    }
+                    
+                    // Validar que la fecha de vencimiento sea válida
+                    if (!dueDateStr || dueDateStr === '' || dueDateStr === 'undefined') {
+                        console.warn('Factura con fecha inválida:', invoice.NumeroFactura);
+                        return;
+                    }
+                    
+                    let newStatus = 'Pendiente';
+                    let newDaysOverdue = 0;
+                    let newFines = 0;
+                    
+                    // Parsear la fecha de vencimiento
+                    const dueDate = parseDate(dueDateStr);
+                    
+                    if (!dueDate || isNaN(dueDate)) {
+                        console.warn(`Fecha inválida para factura ${invoice.NumeroFactura}:`, dueDateStr);
+                        return; // Saltar esta factura
+                    }
+                    
+                    // Resetear horas para comparación exacta
+                    dueDate.setHours(0, 0, 0, 0);
+                    
+                    // Comparación directa de fechas (objetos Date)
+                    if (today > dueDate) {
+                        // Hoy es DESPUÉS del día de vencimiento = Vencida
+                        const diffTime = today.getTime() - dueDate.getTime();
+                        newDaysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                        newFines = newDaysOverdue * 2000;
+                        newStatus = 'Vencido';
+                        totalOverdue++;
+                        
+                        if (debugCount <= 5) {
+                            console.log(`⚠️ FACTURA VENCIDA: ${invoice.NumeroFactura}, días: ${newDaysOverdue}`);
+                        }
+                    } else {
+                        // Hoy es el día de vencimiento o antes = Pendiente
+                        newDaysOverdue = 0;
+                        newFines = 0;
+                        newStatus = 'Pendiente';
+                        totalPending++;
+                        
+                        if (debugCount <= 5) {
+                            console.log(`✅ FACTURA PENDIENTE: ${invoice.NumeroFactura}`);
+                        }
+                    }
+                    
+                    const newTotal = parseFloat(invoice.MontoBase || 0) + newFines;
+                    
+                    // Solo actualizar si hay cambios
+                    if (invoice.DiasAtraso != newDaysOverdue || 
+                        invoice.MontoMultas != newFines || 
+                        invoice.Estado !== newStatus) {
+                        
+                        invoice.DiasAtraso = newDaysOverdue;
+                        invoice.MontoMultas = newFines;
+                        invoice.MontoTotal = newTotal;
+                        invoice.Estado = newStatus;
+                        hasUpdates = true;
+                    }
+                }
+            });
+            
+            console.log(`\n=== RESUMEN FINAL ===`);
+            console.log(`Procesadas: ${totalProcessed} | Pendientes: ${totalPending} | Vencidas: ${totalOverdue}`);
+            
+            if (hasUpdates) {
+                console.log('✅ Estados actualizados');
+            }
+        }
+
+        function updateDebugInfo(key, value) {
+            const element = document.getElementById(`debug${key}`);
+            if (element) {
+                element.textContent = value;
+            }
+        }
+
+        function toggleDebug() {
+            const debugInfo = document.getElementById('debugInfo');
+            debugInfo.style.display = debugInfo.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function getClientBillingInfo(clientId) {
+            // Asegurar que clientId sea string para comparación
+            const searchId = clientId.toString();
+            
+            const clientInvoices = invoices.filter(inv => {
+                const invClientId = inv.ID_Cliente ? inv.ID_Cliente.toString() : '';
+                return invClientId === searchId;
+            });
+            
+            if (clientInvoices.length === 0) {
+                return { status: 'not_billed', invoices: [], summary: null };
+            }
+            
+            // Contar por estado
+            const pending = clientInvoices.filter(inv => inv.Estado === 'Pendiente');
+            const overdue = clientInvoices.filter(inv => inv.Estado === 'Vencido');  
+            const paid = clientInvoices.filter(inv => inv.Estado === 'Pagado');
+            
+            const totalPending = pending.reduce((sum, inv) => sum + parseFloat(inv.MontoTotal || 0), 0);
+            const totalOverdue = overdue.reduce((sum, inv) => sum + parseFloat(inv.MontoTotal || 0), 0);
+            const totalFines = clientInvoices.reduce((sum, inv) => sum + parseFloat(inv.MontoMultas || 0), 0);
+            
+            return {
+                status: 'billed',
+                invoices: clientInvoices,
+                summary: {
+                    total: clientInvoices.length,
+                    pending: pending.length,
+                    overdue: overdue.length,
+                    paid: paid.length,
+                    totalPending,
+                    totalOverdue,
+                    totalFines
+                }
+            };
+        }
+
+        function renderClients(clientsToRender) {
+            const grid = document.getElementById('clientsGrid');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (!clientsToRender || clientsToRender.length === 0) {
+                grid.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            
+            grid.innerHTML = clientsToRender.map(client => {
+                const hasContract = client.fechaContrato && client.montoContrato && client.plazoContrato;
+                const billingInfo = getClientBillingInfo(client.ID);
+                const isBilled = billingInfo.status === 'billed';
+                
+                // Determinar qué botón mostrar
+                let actionButton = '';
+                if (hasContract) {
+                    if (!isBilled) {
+                        actionButton = `
+                            <button class="btn btn-success" onclick="billClient('${client.ID}')" id="billBtn-${client.ID}">
+                                📄 Facturar
+                            </button>
+                        `;
+                    } else {
+                        actionButton = `
+                            <button class="btn btn-warning" onclick="viewInvoices('${client.ID}')">
+                                📋 Ver Facturas
+                            </button>
+                        `;
+                    }
+                } else {
+                    actionButton = `
+                        <button class="btn btn-secondary" disabled title="Contrato incompleto">
+                            📄 Sin Contrato
+                        </button>
+                    `;
+                }
+                
+                let billingStatusHtml = '';
+                if (isBilled && billingInfo.summary) {
+                    const s = billingInfo.summary;
+                    billingStatusHtml = `
+                        <div class="billing-status">
+                            <div class="billing-summary">
+                                <div class="billing-item">
+                                    <div style="color: #34c759; font-weight: 600;">${s.paid}</div>
+                                    <div style="font-size: 0.75rem; color: #86868b;">Pagadas</div>
+                                </div>
+                                <div class="billing-item">
+                                    <div style="color: #ff9500; font-weight: 600;">${s.pending}</div>
+                                    <div style="font-size: 0.75rem; color: #86868b;">Pendientes</div>
+                                </div>
+                                <div class="billing-item">
+                                    <div style="color: #ff3b30; font-weight: 600;">${s.overdue}</div>
+                                    <div style="font-size: 0.75rem; color: #86868b;">Vencidas</div>
+                                </div>
+                                <div class="billing-item">
+                                    <div style="color: #ff3b30; font-weight: 600;">₡${s.totalFines.toLocaleString('es-CR')}</div>
+                                    <div style="font-size: 0.75rem; color: #86868b;">Multas</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                return `
+                    <div class="client-card ${isBilled ? 'billed' : ''}" id="card-${client.ID}">
+                        <div class="client-header">
+                            <div class="client-info">
+                                <div class="client-name">${client.Nombre || 'Sin nombre'}</div>
+                                <div class="client-id">ID: ${client.ID || 'Sin ID'}</div>
+                            </div>
+                            <div class="client-actions">
+                                <button class="btn btn-secondary" onclick="editClient('${client.ID}')">
+                                    ✏️ Editar
+                                </button>
+                                ${actionButton}
+                                <button class="btn btn-danger" onclick="deleteClient('${client.ID}')">
+                                    🗑️ Eliminar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="client-details">
+                            ${client.numeroTelefono ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Teléfono</span>
+                                    <span class="detail-value">${client.numeroTelefono.toString().replace(/^(506)(\d{4})(\d{4})$/, '$1 $2 $3')}</span>
+                                </div>
+                            ` : ''}
+                            ${client.Placa ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Placa</span>
+                                    <span class="detail-value">${client.Placa}</span>
+                                </div>
+                            ` : ''}
+                            ${client.idGrupoWhatsapp ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">WhatsApp</span>
+                                    <span class="detail-value" style="font-size: 0.85rem; word-break: break-all;">${client.idGrupoWhatsapp}</span>
+                                </div>
+                            ` : ''}
+                            ${client.diaPago ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Día de Pago</span>
+                                    <span class="detail-value">${client.diaPago}</span>
+                                </div>
+                            ` : ''}
+                            ${hasContract ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Monto Semanal</span>
+                                    <span class="detail-value amount-badge">₡${parseFloat(client.montoContrato || 0).toLocaleString('es-CR')}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Fecha Inicio</span>
+                                    <span class="detail-value">${formatDateForDisplay(client.fechaContrato)}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Duración</span>
+                                    <span class="detail-value">${client.plazoContrato} semanas</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Total Contrato</span>
+                                    <span class="detail-value amount-badge">₡${(parseFloat(client.montoContrato || 0) * parseInt(client.plazoContrato || 0)).toLocaleString('es-CR')}</span>
+                                </div>
+                                <div class="detail-row" style="grid-column: 1 / -1;">
+                                    <span class="detail-label">Estado Facturación</span>
+                                    <span class="detail-value">
+                                        <span class="status-badge ${isBilled ? 'status-billed' : 'status-pending'}">
+                                            ${isBilled ? '✅ Facturado' : '⏳ Sin Facturar'}
+                                        </span>
+                                    </span>
+                                </div>
+                            ` : `
+                                <div class="detail-row" style="grid-column: 1 / -1;">
+                                    <span class="detail-label">Estado del Contrato</span>
+                                    <span class="detail-value" style="color: #ff9500; font-weight: 600;">⚠️ Información de contrato incompleta</span>
+                                </div>
+                            `}
+                        </div>
+                        ${billingStatusHtml}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterClients(searchTerm) {
+            if (!searchTerm.trim()) {
+                renderClients(clients);
+                return;
+            }
+
+            const filtered = clients.filter(client => 
+                (client.Nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (client.ID || '').toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (client.numeroTelefono || '').toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (client.Placa || '').toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            
+            renderClients(filtered);
+        }
+
+        function updateStats() {
+            const totalClients = clients.length;
+            const activeContracts = clients.filter(client => 
+                client.fechaContrato && client.montoContrato && client.plazoContrato
+            ).length;
+            
+            const billedClients = clients.filter(client => 
+                getClientBillingInfo(client.ID).status === 'billed'
+            ).length;
+            
+            const totalPending = invoices
+                .filter(inv => inv.Estado === 'Pendiente' || inv.Estado === 'Vencido')
+                .reduce((sum, inv) => sum + parseFloat(inv.MontoTotal || 0), 0);
+
+            document.getElementById('totalClients').textContent = totalClients;
+            document.getElementById('activeContracts').textContent = activeContracts;
+            document.getElementById('billedClients').textContent = billedClients;
+            document.getElementById('totalPending').textContent = `₡${totalPending.toLocaleString('es-CR')}`;
+        }
+
+        async function billClient(clientId) {
+            const client = clients.find(c => c.ID.toString() === clientId.toString());
+            if (!client) {
+                showToast('Cliente no encontrado', 'error');
+                return;
+            }
+
+            // Verificar que el contrato esté completo
+            if (!client.fechaContrato || !client.montoContrato || !client.plazoContrato) {
+                showToast('El contrato del cliente está incompleto', 'error');
+                return;
+            }
+
+            // Verificar si ya está facturado
+            const billingInfo = getClientBillingInfo(clientId);
+            if (billingInfo.status === 'billed') {
+                showToast('Este cliente ya ha sido facturado', 'warning');
+                return;
+            }
+
+            // Deshabilitar botón mientras procesa
+            const billBtn = document.getElementById(`billBtn-${clientId}`);
+            if (billBtn) {
+                billBtn.disabled = true;
+                billBtn.textContent = '⏳ Facturando...';
+            }
+
+            try {
+                const invoicesData = generateInvoicesForClient(client);
+                
+                // Enviar todas las facturas en lote
+                const response = await fetch(`${API_URL_INVOICES}?sheet=Facturas`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(invoicesData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+
+                // Recargar facturas y actualizar vista
+                await loadInvoices();
+                renderClients(clients);
+                updateStats();
+                
+                showToast(`✅ Cliente facturado exitosamente: ${invoicesData.length} facturas generadas`, 'success');
+                
+            } catch (error) {
+                console.error('Error al facturar cliente:', error);
+                showToast('Error al generar facturas: ' + error.message, 'error');
+                
+                // Restaurar botón
+                if (billBtn) {
+                    billBtn.disabled = false;
+                    billBtn.textContent = '📄 Facturar';
+                }
+            }
+        }
+
+        function generateInvoicesForClient(client) {
+            const invoicesData = [];
+            const signDate = parseDate(client.fechaContrato); // Fecha de firma usando parseDate
+            const contractStartDate = new Date(signDate);
+            contractStartDate.setDate(signDate.getDate() + 1); // Contrato inicia un día después
+            
+            console.log(`Fecha de firma: ${client.fechaContrato}`);
+            console.log(`Fecha de inicio contrato: ${formatDateForDB(contractStartDate)}`);
+            
+            const weeklyAmount = parseFloat(client.montoContrato);
+            const totalWeeks = parseInt(client.plazoContrato);
+            const paymentDay = client.diaPago;
+            
+            // Obtener el último número de factura para generar consecutivos
+            let lastInvoiceNumber = 0;
+            invoices.forEach(inv => {
+                if (inv.NumeroFactura && inv.NumeroFactura.startsWith('FAC-')) {
+                    const num = parseInt(inv.NumeroFactura.split('-')[1]);
+                    if (num > lastInvoiceNumber) {
+                        lastInvoiceNumber = num;
+                    }
+                }
+            });
+
+            for (let week = 1; week <= totalWeeks; week++) {
+                // Calcular fecha de inicio de la semana (desde el día que inicia el contrato)
+                const weekStartDate = new Date(contractStartDate);
+                weekStartDate.setDate(contractStartDate.getDate() + (week - 1) * 7);
+                
+                // Calcular fecha de fin de la semana
+                const weekEndDate = new Date(weekStartDate);
+                weekEndDate.setDate(weekStartDate.getDate() + 6);
+                
+                // Calcular fecha de vencimiento (un día después del fin de semana)
+                const dueDate = getNextPaymentDate(weekEndDate, paymentDay);
+                
+                // Generar descripción de la semana
+                const weekDescription = generateWeekDescription(weekStartDate, weekEndDate);
+                
+                // Número de factura consecutivo
+                lastInvoiceNumber++;
+                const invoiceNumber = `FAC-${lastInvoiceNumber.toString().padStart(3, '0')}`;
+                
+                const invoiceData = {
+                    ID_Cliente: client.ID,
+                    NumeroFactura: invoiceNumber,
+                    SemanaNumero: week,
+                    SemanaDescripcion: weekDescription,
+                    FechaVencimiento: formatDateForStorage(dueDate), // DD/MM/YYYY para Google Sheets
+                    MontoBase: weeklyAmount,
+                    DiasAtraso: 0,
+                    MontoMultas: 0,
+                    MontoTotal: weeklyAmount,
+                    Estado: 'Pendiente',
+                    FechaCreacion: formatDateForStorage(new Date()), // DD/MM/YYYY para Google Sheets
+                    FechaPago: '',
+                    Observaciones: `Factura generada automáticamente para ${client.Nombre}`
+                };
+                
+                invoicesData.push(invoiceData);
+            }
+            
+            return invoicesData;
+        }
+
+        function getNextPaymentDate(weekEndDate, paymentDay) {
+            // La fecha de vencimiento es simplemente un día después del fin de semana
+            const dueDate = new Date(weekEndDate);
+            dueDate.setDate(weekEndDate.getDate() + 1);
+            return dueDate;
+        }
+
+        function generateWeekDescription(startDate, endDate) {
+            const months = [
+                'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+            ];
+            
+            const startDay = startDate.getDate();
+            const startMonth = months[startDate.getMonth()];
+            const startYear = startDate.getFullYear();
+            
+            const endDay = endDate.getDate();
+            const endMonth = months[endDate.getMonth()];
+            const endYear = endDate.getFullYear();
+            
+            if (startMonth === endMonth && startYear === endYear) {
+                return `Semana del ${startDay} al ${endDay} de ${startMonth} del ${startYear}`;
+            } else if (startYear === endYear) {
+                return `Semana del ${startDay} de ${startMonth} al ${endDay} de ${endMonth} del ${startYear}`;
+            } else {
+                return `Semana del ${startDay} de ${startMonth} del ${startYear} al ${endDay} de ${endMonth} del ${endYear}`;
+            }
+        }
+
+        function parseDate(dateString) {
+            if (!dateString) return null;
+            
+            // Detectar si es formato DD/MM/YYYY (como viene de Google Sheets)
+            if (dateString.includes('/')) {
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                    const day = parseInt(parts[0]);
+                    const month = parseInt(parts[1]) - 1; // JavaScript usa meses 0-11
+                    const year = parseInt(parts[2]);
+                    
+                    // Validar que los valores sean razonables
+                    if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 2025) {
+                        return new Date(year, month, day);
+                    }
+                }
+            }
+            
+            // Si es formato YYYY-MM-DD (como formatDateForDB)
+            if (dateString.includes('-')) {
+                const parts = dateString.split('-');
+                if (parts.length === 3) {
+                    const year = parseInt(parts[0]);
+                    const month = parseInt(parts[1]) - 1; // JavaScript usa meses 0-11
+                    const day = parseInt(parts[2]);
+                    
+                    if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 2025) {
+                        return new Date(year, month, day);
+                    }
+                }
+            }
+            
+            console.warn('Fecha no reconocida:', dateString);
+            return null;
+        }
+
+        function formatDateForDisplay(dateString) {
+            const date = parseDate(dateString);
+            return date ? date.toLocaleDateString('es-CR') : dateString;
+        }
+
+        function formatDateForDB(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`; // YYYY-MM-DD para logging/debugging
+        }
+
+        function formatDateForStorage(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${day}/${month}/${year}`; // DD/MM/YYYY para Google Sheets
+        }
+
+        // FUNCIÓN MODIFICADA: Ahora redirige a URL externa
+        async function viewInvoices(clientId) {
+            const client = clients.find(c => c.ID.toString() === clientId.toString());
+            if (!client) {
+                showToast('Cliente no encontrado', 'error');
+                return;
+            }
+            
+            const billingInfo = getClientBillingInfo(clientId);
+            
+            if (billingInfo.status !== 'billed') {
+                showToast('Este cliente no tiene facturas generadas', 'warning');
+                return;
+            }
+            
+            // Construir la URL con el ID del cliente como parámetro
+            const facturesUrl = `https://www.arrendautos.com/facturas?cliente=${clientId}`;
+            
+            // Mostrar notificación antes de redirigir
+            showToast(`Abriendo facturas para cliente ID: ${clientId}`, 'success');
+            
+            // Redirigir a la URL externa en la misma pestaña
+            window.location.href = facturesUrl;
+        }
+
+        async function markAsPaid(invoiceNumber) {
+            try {
+                // Usar URLSearchParams para SheetDB PATCH
+                const params = new URLSearchParams();
+                params.append('sheet', 'Facturas'); // Especificar la hoja
+                params.append('Estado', 'Pagado');
+                params.append('FechaPago', formatDateForStorage(new Date())); // DD/MM/YYYY para Google Sheets
+                
+                const response = await fetch(`${API_URL_INVOICES}/NumeroFactura/${invoiceNumber}?${params.toString()}`, {
+                    method: 'PATCH'
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                await loadInvoices();
+                renderClients(clients);
+                updateStats();
+                
+                showToast(`Factura ${invoiceNumber} marcada como pagada`, 'success');
+                
+            } catch (error) {
+                console.error('Error al marcar como pagado:', error);
+                showToast('Error al actualizar factura: ' + error.message, 'error');
+            }
+        }
+
+        function editClient(clientId) {
+            const client = clients.find(c => c.ID.toString() === clientId.toString());
+            if (!client) return;
+
+            currentClient = client;
+            isEditing = true;
+
+            document.getElementById('formTitle').textContent = 'Editar Cliente';
+            document.getElementById('submitBtn').innerHTML = '💾 Actualizar Cliente';
+            document.getElementById('cancelBtn').style.display = 'inline-flex';
+
+            fillForm(client);
+            document.getElementById('ID').disabled = true;
+
+            document.querySelectorAll('.client-card').forEach(card => {
+                card.classList.remove('editing');
+            });
+            document.getElementById(`card-${clientId}`).classList.add('editing');
+
+            document.querySelector('.form-section').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }
+
+        function cancelEdit() {
+            currentClient = null;
+            isEditing = false;
+
+            document.getElementById('formTitle').textContent = 'Nuevo Cliente';
+            document.getElementById('submitBtn').innerHTML = '💾 Guardar Cliente';
+            document.getElementById('cancelBtn').style.display = 'none';
+            document.getElementById('ID').disabled = false;
+
+            clearForm();
+            clearValidationStyles();
+
+            document.querySelectorAll('.client-card').forEach(card => {
+                card.classList.remove('editing');
+            });
+        }
+
+        function clearValidationStyles() {
+            const inputs = ['ID', 'numeroTelefono', 'idGrupoWhatsapp'];
+            inputs.forEach(inputId => {
+                const input = document.getElementById(inputId);
+                if (input) {
+                    input.style.borderColor = '';
+                    input.style.boxShadow = '';
+                }
+            });
+        }
+
+        function fillForm(client) {
+            document.getElementById('ID').value = client.ID || '';
+            document.getElementById('Nombre').value = client.Nombre || '';
+            document.getElementById('numeroTelefono').value = client.numeroTelefono || '';
+            document.getElementById('idGrupoWhatsapp').value = client.idGrupoWhatsapp || '';
+            document.getElementById('Placa').value = client.Placa || '';
+            document.getElementById('montoContrato').value = client.montoContrato || '';
+            document.getElementById('fechaContrato').value = client.fechaContrato || '';
+            document.getElementById('plazoContrato').value = client.plazoContrato || '';
+            document.getElementById('diaPago').value = client.diaPago || '';
+        }
+
+        function clearForm() {
+            document.getElementById('clientForm').reset();
+        }
+
+        function validateID(input) {
+            const value = input.value;
+            const isValid = value.length >= 9 && value.length <= 15 && /^[0-9]+$/.test(value);
+            
+            if (value && !isValid) {
+                input.style.borderColor = '#ff3b30';
+                input.style.boxShadow = '0 0 0 3px rgba(255, 59, 48, 0.1)';
+            } else {
+                input.style.borderColor = isValid ? '#34c759' : '#d2d2d7';
+                input.style.boxShadow = isValid ? '0 0 0 3px rgba(52, 199, 89, 0.1)' : '';
+            }
+            
+            return isValid;
+        }
+
+        function validatePhone(input) {
+            const value = input.value;
+            const isValid = value === '' || (/^506[0-9]{8}$/.test(value) && value.length === 11);
+            
+            if (value && !isValid) {
+                input.style.borderColor = '#ff3b30';
+                input.style.boxShadow = '0 0 0 3px rgba(255, 59, 48, 0.1)';
+            } else {
+                input.style.borderColor = isValid && value ? '#34c759' : '#d2d2d7';
+                input.style.boxShadow = isValid && value ? '0 0 0 3px rgba(52, 199, 89, 0.1)' : '';
+            }
+            
+            return isValid;
+        }
+
+        function validateWhatsAppID(input) {
+            const value = input.value.trim();
+            const isValid = value === '' || /^[0-9]+@g\.us$/.test(value);
+            
+            if (value && !isValid) {
+                input.style.borderColor = '#ff3b30';
+                input.style.boxShadow = '0 0 0 3px rgba(255, 59, 48, 0.1)';
+            } else {
+                input.style.borderColor = isValid && value ? '#34c759' : '#d2d2d7';
+                input.style.boxShadow = isValid && value ? '0 0 0 3px rgba(52, 199, 89, 0.1)' : '';
+            }
+            
+            return isValid;
+        }
+
+        function validateForm() {
+            const idInput = document.getElementById('ID');
+            const phoneInput = document.getElementById('numeroTelefono');
+            const whatsappInput = document.getElementById('idGrupoWhatsapp');
+            const nameInput = document.getElementById('Nombre');
+            
+            if (!idInput.value) {
+                showToast('El ID del cliente es obligatorio', 'error');
+                idInput.focus();
+                return false;
+            }
+            
+            if (!validateID(idInput)) {
+                showToast('El ID debe tener entre 9 y 15 dígitos numéricos', 'error');
+                idInput.focus();
+                return false;
+            }
+            
+            if (!nameInput.value.trim()) {
+                showToast('El nombre del cliente es obligatorio', 'error');
+                nameInput.focus();
+                return false;
+            }
+            
+            if (phoneInput.value && !validatePhone(phoneInput)) {
+                showToast('El teléfono debe tener el formato: 506 + 8 dígitos (ej: 50688888888)', 'error');
+                phoneInput.focus();
+                return false;
+            }
+
+            if (whatsappInput.value && !validateWhatsAppID(whatsappInput)) {
+                showToast('El ID de WhatsApp debe tener el formato: números@g.us (ej: 120363295526322228@g.us)', 'error');
+                whatsappInput.focus();
+                return false;
+            }
+            
+            return true;
+        }
+
+        async function saveClient() {
+            const formData = {
+                ID: document.getElementById('ID').value.trim(),
+                Nombre: document.getElementById('Nombre').value.trim(),
+                numeroTelefono: document.getElementById('numeroTelefono').value.trim(),
+                idGrupoWhatsapp: document.getElementById('idGrupoWhatsapp').value.trim(),
+                Placa: document.getElementById('Placa').value.trim(),
+                montoContrato: document.getElementById('montoContrato').value.trim(),
+                fechaContrato: document.getElementById('fechaContrato').value.trim(),
+                plazoContrato: document.getElementById('plazoContrato').value.trim(),
+                diaPago: document.getElementById('diaPago').value.trim()
+            };
+
+            if (!formData.ID || !formData.Nombre) {
+                showToast('Por favor completa los campos obligatorios (ID y Nombre)', 'error');
+                return;
+            }
+
+            if (!isEditing && clients.some(client => client.ID.toString() === formData.ID.toString())) {
+                showToast('Ya existe un cliente con ese ID', 'error');
+                return;
+            }
+
+            try {
+                let response;
+                
+                if (isEditing) {
+                    // Para actualizar, usar el formato correcto de SheetDB PATCH
+                    const updateUrl = `${API_URL_CLIENTS}/ID/${currentClient.ID}`;
+                    
+                    // Crear URLSearchParams para los datos de actualización
+                    const params = new URLSearchParams();
+                    params.append('sheet', 'Clientes'); // Especificar la hoja
+                    
+                    Object.keys(formData).forEach(key => {
+                        if (formData[key] !== '' && key !== 'ID') { // No incluir ID en la actualización
+                            params.append(key, formData[key]);
+                        }
+                    });
+                    
+                    response = await fetch(`${updateUrl}?${params.toString()}`, {
+                        method: 'PATCH'
+                    });
+                } else {
+                    // Para crear, usar POST con JSON
+                    response = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                }
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                cancelEdit();
+                await loadClients();
+                showToast(isEditing ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente', 'success');
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error al guardar cliente: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteClient(clientId) {
+            const client = clients.find(c => c.ID.toString() === clientId.toString());
+            if (!client) return;
+
+            if (!confirm(`¿Estás seguro de que deseas eliminar al cliente "${client.Nombre}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL_CLIENTS}/ID/${clientId}?sheet=Clientes`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) throw new Error('Error al eliminar cliente');
+
+                await loadClients();
+                showToast('Cliente eliminado correctamente', 'success');
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error al eliminar cliente: ' + error.message, 'error');
+            }
+        }
+
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            const grid = document.getElementById('clientsGrid');
+            
+            if (show) {
+                loading.style.display = 'block';
+                grid.style.display = 'none';
+            } else {
+                loading.style.display = 'none';
+                grid.style.display = 'grid';
+            }
+        }
+
+        function showToast(message, type) {
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('show'), 100);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
