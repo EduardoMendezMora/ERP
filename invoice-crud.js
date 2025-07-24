@@ -89,6 +89,12 @@ async function createManualInvoice(invoiceData) {
     }
 }
 
+// Función auxiliar para formatear fechas de forma segura
+function safeFormatDate(date) {
+    if (!date || isNaN(new Date(date).getTime())) return '';
+    return formatDateForStorage(new Date(date));
+}
+
 // ===== FUNCIONES PARA EDITAR FACTURA =====
 function editInvoice(invoiceNumber) {
     console.log('✏️ Editando factura:', invoiceNumber);
@@ -855,7 +861,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     MontoTotal: numAmount, // Se recalculará con multas si es necesario
                     FechaVencimiento: formattedDueDate,
                     Estado: status,
-                    FechaPago: formattedPaymentDate,
+                    FechaPago: safeFormatDate(paymentDate),
                     TipoFactura: currentEditingInvoice.TipoFactura || 'Manual'
                 };
 
