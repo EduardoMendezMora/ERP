@@ -5,416 +5,162 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ERP - Gestión de Clientes</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: #f5f5f7;
-            color: #1d1d1f;
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 60px;
-        }
-        .header h1 {
-            font-size: 3rem;
-            font-weight: 600;
-            color: #1d1d1f;
-            margin-bottom: 10px;
-            letter-spacing: -0.02em;
-        }
-        .header p {
-            font-size: 1.2rem;
-            color: #86868b;
-            font-weight: 400;
-        }
-        .main-content {
-            display: flex;
-            flex-direction: column;
-            gap: 48px;
-        }
-        .form-section {
-            background: white;
-            border-radius: 20px;
-            padding: 32px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            border: 1px solid #f2f2f7;
-            width: 100%;
-        }
-        .form-section h2 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #1d1d1f;
-            margin-bottom: 24px;
-            text-align: center;
-        }
-        .clients-section {
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-        .search-container {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            border: 1px solid #f2f2f7;
-        }
-        .search-input {
-            width: 100%;
-            padding: 12px 20px;
-            border: 1px solid #d2d2d7;
-            border-radius: 12px;
-            font-size: 16px;
-            background: #f9f9f9;
-            transition: all 0.3s ease;
-        }
-        .search-input:focus {
-            outline: none;
-            border-color: #007aff;
-            background: white;
-            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
-        }
-        .clients-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px;
-        }
-        .client-card {
-            background: white;
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            transition: all 0.3s ease;
-            border: 1px solid #f2f2f7;
-            position: relative;
-        }
-        .client-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-        }
-        .client-card.editing {
-            border-color: #007aff;
-            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
-        }
-        .client-card.billed {
-            border-left: 4px solid #34c759;
-        }
-        .client-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 16px;
-        }
-        .client-info {
-            flex: 1;
-        }
-        .client-name {
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: #1d1d1f;
-            margin-bottom: 4px;
-        }
-        .client-id {
-            color: #86868b;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-        .client-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .client-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-top: 16px;
-        }
-        .detail-row {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .detail-label {
-            font-weight: 500;
-            color: #86868b;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .detail-value {
-            font-weight: 500;
-            color: #1d1d1f;
-            font-size: 0.95rem;
-        }
-        .amount-badge {
-            background: #34c759;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            display: inline-block;
-            width: fit-content;
-        }
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            display: inline-block;
-            width: fit-content;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f5f5f7; color: #1d1d1f; line-height: 1.6; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 40px 20px; }
+        .header { text-align: center; margin-bottom: 60px; }
+        .header h1 { font-size: 3rem; font-weight: 600; color: #1d1d1f; margin-bottom: 10px; letter-spacing: -0.02em; }
+        .header p { font-size: 1.2rem; color: #86868b; font-weight: 400; }
+        .main-content { display: flex; flex-direction: column; gap: 48px; }
+        .form-section { background: white; border-radius: 20px; padding: 32px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); border: 1px solid #f2f2f7; width: 100%; }
+        .form-section h2 { font-size: 1.5rem; font-weight: 600; color: #1d1d1f; margin-bottom: 24px; text-align: center; }
+        .clients-section { display: flex; flex-direction: column; gap: 24px; }
+        .search-container { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); border: 1px solid #f2f2f7; }
+        .search-input { width: 100%; padding: 12px 20px; border: 1px solid #d2d2d7; border-radius: 12px; font-size: 16px; background: #f9f9f9; transition: all 0.3s ease; }
+        .search-input:focus { outline: none; border-color: #007aff; background: white; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1); }
+        .clients-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .client-card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); transition: all 0.3s ease; border: 1px solid #f2f2f7; position: relative; }
+        .client-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); }
+        .client-card.editing { border-color: #007aff; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1); }
+        .client-card.billed { border-left: 4px solid #34c759; }
+        .client-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+        .client-info { flex: 1; }
+        .client-name { font-size: 1.3rem; font-weight: 600; color: #1d1d1f; margin-bottom: 4px; }
+        .client-id { color: #86868b; font-size: 0.9rem; font-weight: 500; }
+        .client-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .client-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px; }
+        .detail-row { display: flex; flex-direction: column; gap: 4px; }
+        .detail-label { font-weight: 500; color: #86868b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .detail-value { font-weight: 500; color: #1d1d1f; font-size: 0.95rem; }
+        .amount-badge { background: #34c759; color: white; padding: 4px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; display: inline-block; width: fit-content; }
+        .status-badge { padding: 4px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; display: inline-block; width: fit-content; }
         .status-billed { background: #34c759; color: white; }
         .status-pending { background: #ff9500; color: white; }
         .status-overdue { background: #ff3b30; color: white; }
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            text-decoration: none;
-            white-space: nowrap;
-        }
-        .btn-primary {
-            background: #007aff;
-            color: white;
-        }
-        .btn-primary:hover {
-            background: #0056cc;
-            transform: translateY(-1px);
-        }
-        .btn-secondary {
-            background: #f2f2f7;
-            color: #1d1d1f;
-        }
-        .btn-secondary:hover {
-            background: #e8e8ed;
-        }
-        .btn-danger {
-            background: #ff3b30;
-            color: white;
-        }
-        .btn-danger:hover {
-            background: #d70015;
-        }
-        .btn-success {
-            background: #34c759;
-            color: white;
-        }
-        .btn-success:hover {
-            background: #248a3d;
-        }
-        .btn-warning {
-            background: #ff9500;
-            color: white;
-        }
-        .btn-warning:hover {
-            background: #cc7700;
-        }
-        .btn-large {
-            padding: 12px 24px;
-            font-size: 16px;
-            border-radius: 12px;
-        }
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #1d1d1f;
-            font-size: 0.9rem;
-        }
-        .required {
-            color: #ff3b30;
-        }
-        .form-input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid #d2d2d7;
-            border-radius: 12px;
-            font-size: 16px;
-            background: white;
-            transition: all 0.3s ease;
-            min-height: 48px;
-        }
-        .form-input:focus {
-            outline: none;
-            border-color: #007aff;
-            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
-        }
-        .form-input.valid {
-            border-color: #34c759;
-            box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.1);
-        }
-        .form-input.invalid {
-            border-color: #ff3b30;
-            box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.1);
-        }
-        .field-help {
-            color: #86868b;
-            font-size: 0.8rem;
-            margin-top: 4px;
-            display: block;
-            line-height: 1.3;
-        }
-        select.form-input {
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 12px center;
-            background-repeat: no-repeat;
-            background-size: 16px;
-            padding-right: 40px;
-        }
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-        }
-        .form-group.full-width {
-            grid-column: 1 / -1;
-        }
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 40px;
-            color: #86868b;
-        }
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #f2f2f7;
-            border-top: 3px solid #007aff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #86868b;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        }
-        .empty-state h3 {
-            font-size: 1.5rem;
-            margin-bottom: 12px;
-            color: #1d1d1f;
-        }
-        .toast {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 16px 24px;
-            border-radius: 12px;
-            color: white;
-            font-weight: 500;
-            z-index: 2000;
-            transform: translateX(400px);
-            transition: transform 0.3s ease;
-            max-width: 400px;
-            word-wrap: break-word;
-        }
-        .toast.success { background: #34c759; }
-        .toast.error { background: #ff3b30; }
-        .toast.warning { background: #ff9500; }
-        .toast.show { transform: translateX(0); }
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 20px;
-            margin-bottom: 24px;
-            padding: 20px;
-            background: #f9f9f9;
-            border-radius: 12px;
-        }
-        .stat {
-            text-align: center;
-            padding: 12px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        }
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #007aff;
-        }
-        .stat-label {
-            font-size: 0.8rem;
-            color: #86868b;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .debug-info {
-            background: #f0f0f0;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            padding: 12px;
-            margin: 20px 0;
-            font-family: monospace;
-            font-size: 14px;
-            color: #333;
-        }
-        .billing-status {
-            margin-top: 12px;
-            padding: 12px;
-            border-radius: 8px;
-            background: #f9f9f9;
-        }
-        .billing-summary {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 8px;
-            font-size: 0.85rem;
-        }
-        .billing-item {
-            text-align: center;
-            padding: 8px;
-            background: white;
-            border-radius: 6px;
-        }
-        @media (max-width: 768px) {
-            .container { padding: 20px 15px; }
-            .header h1 { font-size: 2rem; }
-            .client-details { grid-template-columns: 1fr; }
-            .form-grid { grid-template-columns: 1fr; }
-            .client-actions { flex-direction: column; }
-            .clients-grid { grid-template-columns: 1fr; }
-            .stats { grid-template-columns: 1fr 1fr; }
-        }
+        .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; white-space: nowrap; }
+        .btn-primary { background: #007aff; color: white; }
+        .btn-primary:hover { background: #0056cc; transform: translateY(-1px); }
+        .btn-secondary { background: #f2f2f7; color: #1d1d1f; }
+        .btn-secondary:hover { background: #e8e8ed; }
+        .btn-danger { background: #ff3b30; color: white; }
+        .btn-danger:hover { background: #d70015; }
+        .btn-success { background: #34c759; color: white; }
+        .btn-success:hover { background: #248a3d; }
+        .btn-warning { background: #ff9500; color: white; }
+        .btn-warning:hover { background: #cc7700; }
+        .btn-large { padding: 12px 24px; font-size: 16px; border-radius: 12px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 500; color: #1d1d1f; font-size: 0.9rem; }
+        .required { color: #ff3b30; }
+        .form-input { width: 100%; padding: 12px 16px; border: 1px solid #d2d2d7; border-radius: 12px; font-size: 16px; background: white; transition: all 0.3s ease; min-height: 48px; }
+        .form-input:focus { outline: none; border-color: #007aff; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1); }
+        .form-input.valid { border-color: #34c759; box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.1); }
+        .form-input.invalid { border-color: #ff3b30; box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.1); }
+        .field-help { color: #86868b; font-size: 0.8rem; margin-top: 4px; display: block; line-height: 1.3; }
+        select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e"); background-position: right 12px center; background-repeat: no-repeat; background-size: 16px; padding-right: 40px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        .loading { display: none; text-align: center; padding: 40px; color: #86868b; }
+        .spinner { width: 40px; height: 40px; border: 3px solid #f2f2f7; border-top: 3px solid #007aff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .empty-state { text-align: center; padding: 60px 20px; color: #86868b; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
+        .empty-state h3 { font-size: 1.5rem; margin-bottom: 12px; color: #1d1d1f; }
+        .toast { position: fixed; top: 20px; right: 20px; padding: 16px 24px; border-radius: 12px; color: white; font-weight: 500; z-index: 2000; transform: translateX(400px); transition: transform 0.3s ease; max-width: 400px; word-wrap: break-word; }
+        .toast.success { background: #34c759; } .toast.error { background: #ff3b30; } .toast.warning { background: #ff9500; } .toast.show { transform: translateX(0); }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin-bottom: 24px; padding: 20px; background: #f9f9f9; border-radius: 12px; }
+        .stat { text-align: center; padding: 12px; background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); }
+        .stat-value { font-size: 1.5rem; font-weight: 600; color: #007aff; }
+        .stat-label { font-size: 0.8rem; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .debug-info { background: #f0f0f0; border: 1px solid #ccc; border-radius: 8px; padding: 12px; margin: 20px 0; font-family: monospace; font-size: 14px; color: #333; }
+        .billing-status { margin-top: 12px; padding: 12px; border-radius: 8px; background: #f9f9f9; }
+        .billing-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; font-size: 0.85rem; }
+        .billing-item { text-align: center; padding: 8px; background: white; border-radius: 6px; }
+        @media (max-width: 768px) { .container { padding: 20px 15px; } .header h1 { font-size: 2rem; } .client-details { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } .client-actions { flex-direction: column; } .clients-grid { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr 1fr; } }
     </style>
-    <!-- El resto del HTML y JS del usuario va aquí (ver mensaje original) -->
 </head>
 <body>
-<!-- El contenido HTML y JS del usuario continúa aquí -->
+    <div class="container">
+        <div class="header">
+            <h1>Gestión de Clientes</h1>
+            <p>Sistema completo para administrar clientes y contratos de leasing</p>
+        </div>
+        <div class="main-content">
+            <div class="form-section">
+                <h2 id="formTitle">Nuevo Cliente</h2>
+                <form id="clientForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">ID del Cliente <span class="required">*</span></label>
+                            <input type="text" class="form-input" id="ID" required placeholder="Solo números (9-15 dígitos)" pattern="[0-9]{9,15}" maxlength="15">
+                            <small class="field-help">Solo números, entre 9 y 15 dígitos</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nombre Completo <span class="required">*</span></label>
+                            <input type="text" class="form-input" id="Nombre" required placeholder="Nombre del cliente">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Número de Teléfono</label>
+                            <input type="tel" class="form-input" id="numeroTelefono" placeholder="50688888888" pattern="506[0-9]{8}" maxlength="11">
+                            <small class="field-help">Formato: 506 + 8 dígitos (ej: 50688888888)</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Placa del Vehículo</label>
+                            <input type="text" class="form-input" id="Placa" placeholder="ABC123">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">ID Grupo WhatsApp</label>
+                            <input type="text" class="form-input" id="idGrupoWhatsapp" placeholder="120363295526322228@g.us">
+                            <small class="field-help">Formato: números@g.us (ej: 120363295526322228@g.us)</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Día de Pago Semanal</label>
+                            <select class="form-input" id="diaPago">
+                                <option value="">-- Seleccionar día de la semana --</option>
+                                <option value="Lunes">Lunes</option>
+                                <option value="Martes">Martes</option>
+                                <option value="Miércoles">Miércoles</option>
+                                <option value="Jueves">Jueves</option>
+                                <option value="Viernes">Viernes</option>
+                                <option value="Sábado">Sábado</option>
+                                <option value="Domingo">Domingo</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Monto Semanal del Contrato (₡)</label>
+                            <input type="number" class="form-input" id="montoContrato" step="1000" placeholder="50000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Fecha de Inicio del Contrato</label>
+                            <input type="date" class="form-input" id="fechaContrato">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Duración del Contrato (semanas)</label>
+                            <input type="number" class="form-input" id="plazoContrato" placeholder="52" min="1" max="520">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 16px; margin-top: 32px; justify-content: center; flex-wrap: wrap;">
+                        <button type="submit" class="btn btn-primary btn-large" id="submitBtn">💾 Guardar Cliente</button>
+                        <button type="button" class="btn btn-secondary btn-large" id="cancelBtn" onclick="cancelEdit()" style="display: none;">❌ Cancelar Edición</button>
+                    </div>
+                </form>
+            </div>
+            <div class="clients-section">
+                <div class="search-container">
+                    <input type="text" class="search-input" placeholder="🔍 Buscar clientes por nombre, ID, placa o teléfono..." id="searchInput">
+                </div>
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Cargando clientes...</p>
+                </div>
+                <div class="clients-grid" id="clientsGrid"></div>
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <h3>📋 No hay clientes registrados</h3>
+                    <p>Utiliza el formulario de arriba para agregar tu primer cliente al sistema</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="client-management.js"></script>
 </body>
-</html> 
+</html>
