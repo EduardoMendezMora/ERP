@@ -185,8 +185,8 @@ function selectClient(clientId) {
     currentClient = client;
     window.currentClient = client;
     showToast(`Cliente seleccionado: ${client.Nombre}`, 'success');
-    // Redirigir automáticamente a la página de facturas del cliente
-    window.location.href = `https://www.arrendautos.com/facturas?cliente=${clientId}`;
+    // Redirigir a la página de facturas del sistema propio
+    window.location.href = `/?clientId=${clientId}`;
 }
 
 function showToast(message, type) {
