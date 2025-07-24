@@ -1316,22 +1316,13 @@
                 showToast('Cliente no encontrado', 'error');
                 return;
             }
-            
             const billingInfo = getClientBillingInfo(clientId);
-            
             if (billingInfo.status !== 'billed') {
                 showToast('Este cliente no tiene facturas generadas', 'warning');
                 return;
             }
-            
-            // Construir la URL con el ID del cliente como parámetro
-            const facturesUrl = `https://www.arrendautos.com/facturas?cliente=${clientId}`;
-            
-            // Mostrar notificación antes de redirigir
-            showToast(`Abriendo facturas para cliente ID: ${clientId}`, 'success');
-            
-            // Redirigir a la URL externa en la misma pestaña
-            window.location.href = facturesUrl;
+            // Redirigir a la URL correcta
+            window.location.href = `https://arrendautos.app/?clientId=${clientId}`;
         }
 
         async function markAsPaid(invoiceNumber) {
