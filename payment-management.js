@@ -103,6 +103,11 @@ async function applySinglePayment(payment, invoice, availableAmount) {
         };
 
         if (newStatus === 'Pagado') {
+            // DEBUG: Mostrar el objeto payment y sus campos de fecha
+            console.log('DEBUG payment object:', payment);
+            console.log('DEBUG payment.Fecha:', payment.Fecha);
+            console.log('DEBUG payment.fecha:', payment.fecha);
+            console.log('DEBUG payment.fechaTransaccion:', payment.fechaTransaccion);
             updateData.FechaPago = safeFormatDate(payment.Fecha);
         }
 
@@ -406,6 +411,11 @@ async function confirmPaymentDistribution() {
             };
 
             if (newStatus === 'Pagado') {
+                // DEBUG: Mostrar el objeto payment y sus campos de fecha
+                console.log('DEBUG currentPaymentForDistribution:', currentPaymentForDistribution);
+                console.log('DEBUG currentPaymentForDistribution.Fecha:', currentPaymentForDistribution.Fecha);
+                console.log('DEBUG currentPaymentForDistribution.fecha:', currentPaymentForDistribution.fecha);
+                console.log('DEBUG currentPaymentForDistribution.fechaTransaccion:', currentPaymentForDistribution.fechaTransaccion);
                 updateData.FechaPago = safeFormatDate(currentPaymentForDistribution.Fecha);
             }
 
