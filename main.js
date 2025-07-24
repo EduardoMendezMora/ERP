@@ -8,10 +8,15 @@ async function initializeApp() {
     try {
         // Obtener ID del cliente desde la URL
         const urlParams = new URLSearchParams(window.location.search);
-        const clientId = urlParams.get('clientId') || urlParams.get('id');
+        const clientId = urlParams.get('clientId') || urlParams.get('id') || urlParams.get('cliente');
+
+        console.log('🔍 Parámetros de URL encontrados:', window.location.search);
+        console.log('🆔 ID del cliente extraído:', clientId);
 
         if (!clientId) {
-            throw new Error('No se proporcionó un ID de cliente en la URL');
+            console.error('❌ No se encontró ID de cliente en la URL');
+            console.error('📋 Parámetros disponibles:', [...urlParams.entries()]);
+            throw new Error('No se proporcionó un ID de cliente en la URL. Use ?cliente=123456 o ?clientId=123456');
         }
 
         // ✅ Establecer ID del cliente globalmente
