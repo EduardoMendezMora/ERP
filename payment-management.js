@@ -665,6 +665,7 @@ async function loadUnassignedPayments(clientId) {
 
     try {
         unassignedPayments = [];
+        window.unassignedPayments = []; // Sincronizar
         const sheets = ['BAC', 'BN', 'HuberBN'];
 
         for (const sheet of sheets) {
@@ -734,6 +735,9 @@ async function loadUnassignedPayments(clientId) {
             return 0;
         });
 
+        // Sincronizar globalmente
+        window.unassignedPayments = unassignedPayments;
+
         console.log(`✅ Total pagos no asignados: ${unassignedPayments.length}`);
 
     } catch (error) {
@@ -747,6 +751,7 @@ async function loadAssignedPayments(clientId) {
 
     try {
         assignedPayments = [];
+        window.assignedPayments = []; // Sincronizar
         const sheets = ['BAC', 'BN', 'HuberBN'];
 
         for (const sheet of sheets) {
@@ -800,6 +805,9 @@ async function loadAssignedPayments(clientId) {
             }
             return 0;
         });
+
+        // Sincronizar globalmente
+        window.assignedPayments = assignedPayments;
 
         console.log(`✅ Total pagos asignados: ${assignedPayments.length}`);
 

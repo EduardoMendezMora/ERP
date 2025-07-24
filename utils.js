@@ -41,6 +41,96 @@ let sectionVisibility = {
     paid: true
 };
 
+// ===== FUNCIONES DE DEBUGGING =====
+function debugClientState() {
+    console.log('🔍 === ESTADO COMPLETO DE VARIABLES ===');
+    console.log('📋 Variables de Cliente:');
+    console.log('  currentClient (local):', typeof currentClient !== 'undefined' ? currentClient : 'undefined');
+    console.log('  window.currentClient:', window.currentClient);
+    console.log('  currentClientId:', currentClientId);
+    console.log('  window.currentClientId:', window.currentClientId);
+
+    console.log('📊 Variables de Datos:');
+    console.log('  clientInvoices length:', clientInvoices?.length || 0);
+    console.log('  window.clientInvoices length:', window.clientInvoices?.length || 0);
+    console.log('  unassignedPayments length:', unassignedPayments?.length || 0);
+    console.log('  assignedPayments length:', assignedPayments?.length || 0);
+
+    console.log('🎛️ Control de Secciones:');
+    console.log('  sectionVisibility:', sectionVisibility);
+
+    // Verificar estado del DOM
+    console.log('🖥️ Estado del DOM:');
+    const clientNameEl = document.getElementById('clientName');
+    const mainContentEl = document.getElementById('mainContent');
+    const loadingEl = document.getElementById('loading');
+    const errorEl = document.getElementById('errorState');
+
+    console.log('  clientName element:', clientNameEl ? clientNameEl.textContent : 'No encontrado');
+    console.log('  mainContent visible:', mainContentEl ? mainContentEl.style.display !== 'none' : 'No encontrado');
+    console.log('  loading visible:', loadingEl ? loadingEl.style.display !== 'none' : 'No encontrado');
+    console.log('  error visible:', errorEl ? errorEl.style.display !== 'none' : 'No encontrado');
+
+    console.log('========================================');
+}
+
+function forceClientSync() {
+    console.log('🔄 Forzando sincronización de variables de cliente...');
+
+    // Intentar sincronizar desde cualquier fuente disponible
+    const client = window.currentClient || currentClient;
+
+    if (client) {
+        currentClient = client;
+        window.currentClient = client;
+        console.log('✅ Cliente sincronizado:', client.Nombre, '(ID:', client.ID, ')');
+        return true;
+    } else {
+        console.log('❌ No hay cliente disponible para sincronizar');
+        return false;
+    }
+}
+
+function validateSystemState() {
+    console.log('🔍 Validando estado del sistema...');
+
+    const issues = [];
+
+    // Verificar cliente
+    if (!window.currentClient && !currentClient) {
+        issues.push('❌ No hay cliente cargado');
+    } else if (window.currentClient !== currentClient) {
+        issues.push('⚠️ Variables de cliente desincronizadas');
+    }
+
+    // Verificar ID de cliente
+    if (!window.currentClientId && !currentClientId) {
+        issues.push('❌ No hay ID de cliente');
+    }
+
+    // Verificar datos
+    if (!Array.isArray(clientInvoices)) {
+        issues.push('❌ clientInvoices no es un array');
+    }
+
+    if (!Array.isArray(unassignedPayments)) {
+        issues.push('❌ unassignedPayments no es un array');
+    }
+
+    if (!Array.isArray(assignedPayments)) {
+        issues.push('❌ assignedPayments no es un array');
+    }
+
+    if (issues.length === 0) {
+        console.log('✅ Sistema en estado válido');
+        return true;
+    } else {
+        console.log('⚠️ Problemas detectados:');
+        issues.forEach(issue => console.log('  ', issue));
+        return false;
+    }
+}
+
 // ===== FUNCIONES DE FECHA =====
 function parseDate(dateString) {
     if (!dateString) return null;
@@ -340,9 +430,13 @@ function addClientGroup(clientId, groupId) {
 
 function listConfiguredGroups() {
     console.log('📋 Grupos configurados:');
-    Object.entries(GRUPOS_CLIENTES).forEach(([clientId, groupId]) => {
-        console.log(`  Cliente ${clientId}: ${groupId}`);
-    });
+    if (Object.keys(GRUPOS_CLIENTES).length === 0) {
+        console.log('  (ningún grupo configurado manualmente)');
+    } else {
+        Object.entries(GRUPOS_CLIENTES).forEach(([clientId, groupId]) => {
+            console.log(`  Cliente ${clientId}: ${groupId}`);
+        });
+    }
 }
 
 // ===== FUNCIONES DE NÚMEROS A PALABRAS =====
@@ -636,132 +730,44 @@ function findAssociatedPayment(invoiceNumber) {
     return null;
 }
 
-// ===== FUNCIÓN DE DEBUG MEJORADA =====
-function debugClientState() {
-    console.log('🔍 DEBUG: Estado completo del sistema:');
-    console.log('='.repeat(50));
-
-    // Variables de cliente
-    console.log('📋 CLIENTE:');
-    console.log(`  currentClient (local):`, currentClient);
-    console.log(`  window.currentClient:`, window.currentClient);
-    console.log(`  currentClientId:`, currentClientId);
-    console.log(`  window.currentClientId:`, window.currentClientId);
-
-    // Datos cargados
-    console.log('\n📊 DATOS CARGADOS:');
-    console.log(`  clientInvoices: ${clientInvoices?.length || 0} facturas`);
-    console.log(`  unassignedPayments: ${unassignedPayments?.length || 0} pagos sin asignar`);
-    console.log(`  assignedPayments: ${assignedPayments?.length || 0} pagos asignados`);
-
-    // Estado DOM
-    console.log('\n🎨 ESTADO DOM:');
-    const loading = document.getElementById('loading');
-    const mainContent = document.getElementById('mainContent');
-    const errorState = document.getElementById('errorState');
-
-    console.log(`  loading display:`, loading?.style.display || 'not found');
-    console.log(`  mainContent display:`, mainContent?.style.display || 'not found');
-    console.log(`  errorState display:`, errorState?.style.display || 'not found');
-
-    // Verificar sincronización
-    console.log('\n🔧 SINCRONIZACIÓN:');
-    const isClientSynced = currentClient === window.currentClient;
-    const isClientIdSynced = currentClientId === window.currentClientId;
-    console.log(`  Cliente sincronizado:`, isClientSynced ? '✅' : '❌');
-    console.log(`  ID sincronizado:`, isClientIdSynced ? '✅' : '❌');
-
-    // Recomendaciones
-    console.log('\n💡 RECOMENDACIONES:');
-    if (!isClientSynced) {
-        console.log('  🔧 Ejecutar: syncGlobalVariables()');
-    }
-    if (!currentClient && !window.currentClient) {
-        console.log('  🔧 Ejecutar: reloadClientData()');
-    }
-
-    console.log('='.repeat(50));
-}
-
-// ===== FUNCIÓN DE SINCRONIZACIÓN FORZADA =====
-function syncGlobalVariables() {
-    console.log('🔧 Sincronizando variables globales...');
-
-    // Sincronizar cliente
-    if (currentClient && !window.currentClient) {
+// ===== SINCRONIZACIÓN AUTOMÁTICA DE VARIABLES =====
+function ensureVariableSync() {
+    // Sincronizar variables críticas automáticamente
+    if (typeof currentClient !== 'undefined' && currentClient && !window.currentClient) {
         window.currentClient = currentClient;
-        console.log('✅ window.currentClient sincronizado');
-    } else if (!currentClient && window.currentClient) {
-        currentClient = window.currentClient;
-        console.log('✅ currentClient sincronizado');
+        console.log('🔄 Auto-sincronizando window.currentClient');
     }
 
-    // Sincronizar ID
-    if (currentClientId && !window.currentClientId) {
+    if (typeof currentClientId !== 'undefined' && currentClientId && !window.currentClientId) {
         window.currentClientId = currentClientId;
-        console.log('✅ window.currentClientId sincronizado');
-    } else if (!currentClientId && window.currentClientId) {
-        currentClientId = window.currentClientId;
-        console.log('✅ currentClientId sincronizado');
+        console.log('🔄 Auto-sincronizando window.currentClientId');
     }
 
-    // Sincronizar arrays
-    window.clientInvoices = clientInvoices;
-    window.unassignedPayments = unassignedPayments;
-    window.assignedPayments = assignedPayments;
-
-    console.log('✅ Todas las variables globales sincronizadas');
-}
-
-// ===== FUNCIÓN DE RECARGA DE DATOS =====
-async function reloadClientData() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const clientId = urlParams.get('cliente');
-
-    if (!clientId) {
-        console.error('❌ No se puede recargar: ID de cliente no encontrado en URL');
-        return;
+    if (Array.isArray(clientInvoices) && clientInvoices.length > 0 && (!window.clientInvoices || window.clientInvoices.length === 0)) {
+        window.clientInvoices = clientInvoices;
+        console.log('🔄 Auto-sincronizando window.clientInvoices');
     }
 
-    console.log('🔄 Recargando datos del cliente:', clientId);
+    if (Array.isArray(unassignedPayments) && unassignedPayments.length > 0 && (!window.unassignedPayments || window.unassignedPayments.length === 0)) {
+        window.unassignedPayments = unassignedPayments;
+        console.log('🔄 Auto-sincronizando window.unassignedPayments');
+    }
 
-    try {
-        // Usar las funciones existentes si están disponibles
-        if (typeof loadClientAndInvoices === 'function') {
-            await loadClientAndInvoices(clientId);
-            console.log('✅ Cliente y facturas recargados');
-        }
-
-        if (typeof loadUnassignedPayments === 'function') {
-            await loadUnassignedPayments(clientId);
-            console.log('✅ Pagos no asignados recargados');
-        }
-
-        if (typeof loadAssignedPayments === 'function') {
-            await loadAssignedPayments(clientId);
-            console.log('✅ Pagos asignados recargados');
-        }
-
-        // Forzar sincronización
-        syncGlobalVariables();
-
-        // Re-renderizar si es posible
-        if (typeof renderPage === 'function') {
-            renderPage();
-            console.log('✅ Página re-renderizada');
-        }
-
-    } catch (error) {
-        console.error('❌ Error al recargar datos:', error);
+    if (Array.isArray(assignedPayments) && assignedPayments.length > 0 && (!window.assignedPayments || window.assignedPayments.length === 0)) {
+        window.assignedPayments = assignedPayments;
+        console.log('🔄 Auto-sincronizando window.assignedPayments');
     }
 }
+
+// Ejecutar sincronización automática cada 2 segundos
+setInterval(ensureVariableSync, 2000);
 
 // ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
 window.API_CONFIG = API_CONFIG;
 window.ULTRAMSG_CONFIG = ULTRAMSG_CONFIG;
 window.GRUPOS_CLIENTES = GRUPOS_CLIENTES;
 
-// Variables globales - ASEGURAR SINCRONIZACIÓN
+// Variables globales
 window.currentClient = currentClient;
 window.clientInvoices = clientInvoices;
 window.unassignedPayments = unassignedPayments;
@@ -775,6 +781,12 @@ window.currentPaymentForAssignment = currentPaymentForAssignment;
 window.currentInvoiceForAssignment = currentInvoiceForAssignment;
 window.selectedInvoiceForPayment = selectedInvoiceForPayment;
 window.selectedPaymentForInvoice = selectedPaymentForInvoice;
+
+// Funciones de debugging
+window.debugClientState = debugClientState;
+window.forceClientSync = forceClientSync;
+window.validateSystemState = validateSystemState;
+window.ensureVariableSync = ensureVariableSync;
 
 // Funciones de fecha
 window.parseDate = parseDate;
@@ -828,14 +840,10 @@ window.blobToBase64 = blobToBase64;
 window.generateInvoiceNumber = generateInvoiceNumber;
 window.findAssociatedPayment = findAssociatedPayment;
 
-// ===== FUNCIONES DE DEBUG Y SINCRONIZACIÓN =====
-window.debugClientState = debugClientState;
-window.syncGlobalVariables = syncGlobalVariables;
-window.reloadClientData = reloadClientData;
+console.log('✅ utils.js cargado - Funciones utilitarias disponibles');
 
-// Auto-sincronización al cargar
+// Ejecutar sincronización inicial después de cargar
 setTimeout(() => {
-    syncGlobalVariables();
-}, 100);
-
-console.log('✅ utils.js cargado - Funciones utilitarias disponibles con debug mejorado');
+    ensureVariableSync();
+    console.log('🔄 Sincronización inicial ejecutada');
+}, 1000);
