@@ -132,45 +132,25 @@ function validateSystemState() {
 }
 
 // ===== FUNCIONES DE FECHA =====
-function parseDate(dateString) {
-    if (!dateString) return null;
-
-    try {
-        // Formato DD/MM/YYYY (desde Google Sheets)
-        if (dateString.includes('/')) {
-            const parts = dateString.split('/');
-            if (parts.length === 3) {
-                const day = parseInt(parts[0], 10);
-                const month = parseInt(parts[1], 10) - 1; // JS usa 0-11
-                const year = parseInt(parts[2], 10);
-
-                if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 2020 && year <= 2050) {
-                    return new Date(year, month, day);
-                }
-            }
-        }
-
-        // Formato YYYY-MM-DD
-        if (dateString.includes('-')) {
-            const parts = dateString.split('-');
-            if (parts.length === 3) {
-                const year = parseInt(parts[0], 10);
-                const month = parseInt(parts[1], 10) - 1;
-                const day = parseInt(parts[2], 10);
-
-                if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 2020 && year <= 2050) {
-                    return new Date(year, month, day);
-                }
-            }
-        }
-
-        console.warn('Formato de fecha no reconocido:', dateString);
-        return null;
-
-    } catch (error) {
-        console.error('Error al parsear fecha:', dateString, error);
+function parseDate(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') {
+        console.warn('parseDate: valor vacío o no es string:', dateStr);
         return null;
     }
+    // Intentar parsear la fecha
+    const parts = dateStr.split(/[\/\-]/);
+    if (parts.length < 3) {
+        console.warn('parseDate: formato de fecha no reconocido:', dateStr);
+        return null;
+    }
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    if (isNaN(day) || isNaN(month) || isNaN(year)) {
+        console.warn('parseDate: fecha inválida:', dateStr);
+        return null;
+    }
+    return new Date(year, month, day);
 }
 
 function formatDateForDisplay(dateString) {
