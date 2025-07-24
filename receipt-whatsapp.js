@@ -25,7 +25,7 @@ function generateReceipt(paymentReference, bankSource) {
 
     const receiptHTML = `
         <div class="receipt-header">
-            <img src="https://github.com/EduardoMendezMora/ImagenesLeasing/blob/main/Logotipo%20EasyCars%20Fondo%20Blanco%20con%20Slogan%20-%20Copy.jpg?raw=true"
+            <img src="${logoUrl}"
                  alt="EasyCars Logo"
                  class="company-logo"
                  crossorigin="anonymous"
