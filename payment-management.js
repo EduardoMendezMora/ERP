@@ -521,7 +521,7 @@ async function updatePaymentAssignments(payment, newAssignments) {
 
         console.log('🚀 Usando método oficial SheetDB:', officialUpdateUrl);
 
-        // Preparar datos como form data (según documentación)
+        // Preparar datos como JSON (según documentación oficial)
         const updateData = {
             FacturasAsignadas: formattedAssignments,
             FechaAsignacion: formatDateForStorage(new Date())
@@ -532,9 +532,9 @@ async function updatePaymentAssignments(payment, newAssignments) {
         const response = await fetch(officialUpdateUrl, {
             method: 'PATCH',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
             },
-            body: new URLSearchParams(updateData).toString()
+            body: JSON.stringify(updateData)
         });
 
         if (response.ok) {
