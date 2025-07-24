@@ -7,6 +7,7 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
     try {
         console.log(`🎯 Iniciando asignación: Pago ${paymentReference} (${bankSource}) → Factura ${invoiceNumber}`);
 
+        // Encontrar la factura y el pago
         const invoice = clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
         const payment = unassignedPayments.find(p => p.Referencia === paymentReference && p.BankSource === bankSource);
 
@@ -14,6 +15,7 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
             throw new Error('Factura o pago no encontrado');
         }
 
+        // Calcular el monto disponible del pago (descontando asignaciones previas)
         const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
         const previousAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
         const previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
@@ -27,16 +29,19 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
             throw new Error('Este pago ya está completamente asignado a otras facturas');
         }
 
+        // Verificar si hay facturas vencidas del mismo cliente que podrían pagarse
         const overdueInvoices = clientInvoices.filter(inv =>
-            inv.Estado === 'Vencido' && inv.NumeroFactura !== invoiceNumber
+            inv.Estado === 'Vencido' &&
+            inv.NumeroFactura !== invoiceNumber
         );
 
+        // Si hay múltiples facturas vencidas y el pago puede cubrir más de una, mostrar modal de distribución
         if (overdueInvoices.length > 0) {
             const eligibleInvoices = [invoice, ...overdueInvoices].filter(inv => {
                 const baseAmount = parseFloat(inv.MontoBase || 0);
                 const finesUntilPayment = calculateFinesUntilDate(inv, payment.Fecha);
                 const totalOwed = baseAmount + finesUntilPayment;
-                return totalOwed <= availableAmount * 2;
+                return totalOwed <= availableAmount * 2; // Considerar facturas que se pueden pagar con el doble del disponible
             });
 
             if (eligibleInvoices.length > 1) {
@@ -45,6 +50,7 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
             }
         }
 
+        // Aplicar pago a una sola factura
         return await applySinglePayment(payment, invoice, availableAmount);
 
     } catch (error) {
@@ -71,21 +77,25 @@ async function applySinglePayment(payment, invoice, availableAmount) {
         let amountToApply, newStatus, newBalance = 0;
 
         if (availableAmount >= totalOwedUntilPayment) {
+            // Pago completo
             amountToApply = totalOwedUntilPayment;
             newStatus = 'Pagado';
             console.log('✅ Pago completo - Factura será marcada como PAGADA');
         } else {
+            // Pago parcial
             amountToApply = availableAmount;
-            newStatus = invoice.Estado;
+            newStatus = invoice.Estado; // Mantener estado actual (Pendiente/Vencido)
             newBalance = totalOwedUntilPayment - amountToApply;
             console.log(`⚠️ Pago parcial - Saldo restante: ₡${newBalance.toLocaleString('es-CR')}`);
         }
 
+        // Actualizar el pago en la API bancaria
         const newAssignments = await updatePaymentAssignments(
             payment,
             [{ invoiceNumber: invoice.NumeroFactura, amount: amountToApply }]
         );
 
+        // Actualizar la factura
         const updateData = {
             Estado: newStatus,
             MontoMultas: finesUntilPayment,
@@ -97,10 +107,14 @@ async function applySinglePayment(payment, invoice, availableAmount) {
         }
 
         await updateInvoiceStatus(invoice.NumeroFactura, updateData);
+
+        // Actualizar datos locales
         Object.assign(invoice, updateData);
 
+        // Actualizar el pago localmente
         payment.FacturasAsignadas = formatAssignedInvoices(newAssignments);
 
+        // Si el pago está completamente asignado, removerlo de no asignados
         const totalAssigned = newAssignments.reduce((sum, a) => sum + a.amount, 0);
         const totalPayment = parsePaymentAmount(payment.Créditos, payment.BankSource);
 
@@ -113,8 +127,10 @@ async function applySinglePayment(payment, invoice, availableAmount) {
             }
         }
 
+        // Re-cargar y renderizar
         await reloadDataAndRender();
 
+        // Mostrar mensaje
         if (newStatus === 'Pagado') {
             showToast(`✅ Factura ${invoice.NumeroFactura} PAGADA completamente con ${payment.Referencia}`, 'success');
         } else {
@@ -129,47 +145,11 @@ async function applySinglePayment(payment, invoice, availableAmount) {
     }
 }
 
-// ===== FUNCIÓN CORREGIDA PARA ACTUALIZAR ASIGNACIONES =====
-async function updatePaymentAssignments(payment, newAssignments) {
-    try {
-        console.log('🔄 Actualizando asignaciones de pago:', payment.Referencia);
-
-        const formattedAssignments = formatAssignedInvoices(newAssignments);
-        const url = `${API_CONFIG.PAYMENTS}/Referencia/${payment.Referencia}?sheet=${payment.BankSource}`;
-        const body = {
-            FacturasAsignadas: formattedAssignments,
-            FechaAsignacion: formatDateForStorage(new Date())
-        };
-
-        console.log('📤 Datos a actualizar:', body);
-        console.log('PATCH URL:', url);
-
-        const response = await fetch(url, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-
-        const result = await response.json();
-        console.log('✅ Asignaciones actualizadas correctamente:', result);
-
-        return newAssignments;
-
-    } catch (error) {
-        console.error('❌ Error al actualizar asignaciones:', error);
-        throw error;
-    }
-}
-
 // ===== MODAL DE DISTRIBUCIÓN DE PAGOS =====
 async function showPaymentDistributionModal(payment, eligibleInvoices, availableAmount) {
     currentPaymentForDistribution = payment;
 
+    // Preparar datos de distribución
     paymentDistributionData = eligibleInvoices.map(invoice => {
         const baseAmount = parseFloat(invoice.MontoBase || 0);
         const finesUntilPayment = calculateFinesUntilDate(invoice, payment.Fecha);
@@ -180,11 +160,12 @@ async function showPaymentDistributionModal(payment, eligibleInvoices, available
             baseAmount: baseAmount,
             fines: finesUntilPayment,
             totalOwed: totalOwed,
-            assignedAmount: 0,
+            assignedAmount: 0, // Usuario asignará manualmente
             remainingBalance: totalOwed
         };
     });
 
+    // Crear modal si no existe
     if (!document.getElementById('paymentDistributionModal')) {
         createPaymentDistributionModal();
     }
@@ -206,25 +187,32 @@ function createPaymentDistributionModal() {
                     <h3>💰 Distribución de Pago Múltiple</h3>
                     <button class="modal-close" onclick="closePaymentDistributionModal()">✕</button>
                 </div>
+               
                 <div class="modal-body">
                     <div id="paymentDistributionInfo"></div>
                     <div id="invoicesDistributionList"></div>
                     <div id="distributionSummary"></div>
+                    
                     <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" onclick="closePaymentDistributionModal()">Cancelar</button>
-                        <button type="button" class="btn btn-primary" id="confirmDistributionBtn" onclick="confirmPaymentDistribution()">✅ Aplicar Distribución</button>
+                        <button type="button" class="btn btn-secondary" onclick="closePaymentDistributionModal()">
+                            Cancelar
+                        </button>
+                        <button type="button" class="btn btn-primary" id="confirmDistributionBtn" onclick="confirmPaymentDistribution()">
+                            ✅ Aplicar Distribución
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     `;
+
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
-// ===== RENDER MODAL =====
 function renderPaymentDistributionModal(payment, availableAmount) {
     const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
 
+    // Información del pago
     document.getElementById('paymentDistributionInfo').innerHTML = `
         <div style="background: #e6f3ff; border: 2px solid #007aff; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
             <h4 style="margin: 0 0 8px 0; color: #007aff;">💳 ${payment.Referencia} - ${getBankDisplayName(payment.BankSource)}</h4>
@@ -234,9 +222,16 @@ function renderPaymentDistributionModal(payment, availableAmount) {
                 <div><strong>Fecha:</strong><br>${formatDateForDisplay(payment.Fecha)}</div>
             </div>
         </div>
+        
+        <div style="margin-bottom: 16px;">
+            <h4 style="color: #1d1d1f; margin-bottom: 8px;">📋 Distribuya el pago entre las siguientes facturas:</h4>
+            <p style="color: #666; font-size: 0.9rem; margin: 0;">Ingrese el monto a aplicar a cada factura. El sistema calculará automáticamente el estado final.</p>
+        </div>
     `;
 
-    document.getElementById('invoicesDistributionList').innerHTML = paymentDistributionData.map((item, index) => {
+    // Lista de facturas para distribución
+    const distributionList = document.getElementById('invoicesDistributionList');
+    distributionList.innerHTML = paymentDistributionData.map((item, index) => {
         const invoice = item.invoice;
         const statusClass = invoice.Estado.toLowerCase();
 
@@ -255,8 +250,12 @@ function renderPaymentDistributionModal(payment, availableAmount) {
                     </div>
                     <div class="amount-input-container">
                         <span class="currency-label">₡</span>
-                        <input type="number" class="amount-input" id="amount-${index}"
-                               min="0" max="${Math.min(availableAmount, item.totalOwed)}" step="0.01"
+                        <input type="number" 
+                               class="amount-input" 
+                               id="amount-${index}"
+                               min="0" 
+                               max="${Math.min(availableAmount, item.totalOwed)}"
+                               step="0.01"
                                placeholder="0.00"
                                onchange="updateDistributionCalculation(${index})"
                                oninput="updateDistributionCalculation(${index})">
@@ -267,92 +266,960 @@ function renderPaymentDistributionModal(payment, availableAmount) {
         `;
     }).join('');
 
+    // Resumen inicial
     updateDistributionSummary(availableAmount);
 }
 
-// ===== CALCULAR DISTRIBUCIÓN =====
 function updateDistributionCalculation(index) {
     const input = document.getElementById(`amount-${index}`);
     const assignedAmount = parseFloat(input.value) || 0;
     const item = paymentDistributionData[index];
 
+    // Actualizar datos
     item.assignedAmount = assignedAmount;
     item.remainingBalance = Math.max(0, item.totalOwed - assignedAmount);
 
+    // Determinar nuevo estado
     let newStatus = item.invoice.Estado;
     let resultText = '';
+    let resultColor = '#666';
 
     if (assignedAmount === 0) {
         resultText = 'No se aplicará pago a esta factura';
     } else if (assignedAmount >= item.totalOwed) {
         newStatus = 'Pagado';
         resultText = `✅ Factura será marcada como PAGADA`;
+        resultColor = '#34c759';
+
+        if (assignedAmount > item.totalOwed) {
+            const excess = assignedAmount - item.totalOwed;
+            resultText += ` (Exceso: ₡${excess.toLocaleString('es-CR')})`;
+            resultColor = '#ff9500';
+        }
     } else {
-        resultText = `⚠️ Pago parcial, saldo: ₡${item.remainingBalance.toLocaleString('es-CR')}`;
+        resultText = `⚠️ Pago parcial - Saldo restante: ₡${item.remainingBalance.toLocaleString('es-CR')}`;
+        resultColor = '#ff9500';
     }
 
-    document.getElementById(`result-${index}`).textContent = resultText;
+    // Mostrar resultado
+    const resultDiv = document.getElementById(`result-${index}`);
+    resultDiv.innerHTML = resultText;
+    resultDiv.style.color = resultColor;
+
+    // Actualizar resumen
     updateDistributionSummary();
 }
 
-// ===== RESUMEN DE DISTRIBUCIÓN =====
-function updateDistributionSummary(availableAmount) {
-    const totalAssigned = paymentDistributionData.reduce((sum, item) => sum + item.assignedAmount, 0);
-    const remaining = availableAmount - totalAssigned;
+function updateDistributionSummary() {
+    const availableAmount = parsePaymentAmount(currentPaymentForDistribution.Créditos, currentPaymentForDistribution.BankSource);
+    const previousAssignments = parseAssignedInvoices(currentPaymentForDistribution.FacturasAsignadas || '');
+    const previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+    const actualAvailable = availableAmount - previouslyAssignedAmount;
 
-    document.getElementById('distributionSummary').innerHTML = `
-        <div style="font-size: 0.9rem;">
-            <strong>Total asignado:</strong> ₡${totalAssigned.toLocaleString('es-CR')}<br>
-            <strong>Restante:</strong> ₡${remaining.toLocaleString('es-CR')}
+    const totalAssigned = paymentDistributionData.reduce((sum, item) => sum + item.assignedAmount, 0);
+    const remaining = actualAvailable - totalAssigned;
+
+    let summaryHTML = `
+        <div class="total-summary">
+            <div class="summary-row">
+                <span>Monto Disponible:</span>
+                <span>₡${actualAvailable.toLocaleString('es-CR')}</span>
+            </div>
+            <div class="summary-row">
+                <span>Total Asignado:</span>
+                <span>₡${totalAssigned.toLocaleString('es-CR')}</span>
+            </div>
+            <div class="summary-row">
+                <span>Restante:</span>
+                <span style="color: ${remaining >= 0 ? '#34c759' : '#ff3b30'}">₡${remaining.toLocaleString('es-CR')}</span>
+            </div>
         </div>
     `;
+
+    // Mensajes de validación
+    if (remaining < 0) {
+        summaryHTML += `
+            <div class="error-message">
+                ❌ <strong>Error:</strong> Ha asignado más dinero del disponible (₡${Math.abs(remaining).toLocaleString('es-CR')} de exceso)
+            </div>
+        `;
+    } else if (remaining > 0 && totalAssigned > 0) {
+        summaryHTML += `
+            <div class="warning-message">
+                ⚠️ <strong>Nota:</strong> Quedarán ₡${remaining.toLocaleString('es-CR')} disponibles para futuras asignaciones
+            </div>
+        `;
+    }
+
+    document.getElementById('distributionSummary').innerHTML = summaryHTML;
+
+    // Habilitar/deshabilitar botón de confirmar
+    const confirmBtn = document.getElementById('confirmDistributionBtn');
+    const hasAssignments = totalAssigned > 0;
+    const isValid = remaining >= 0;
+
+    confirmBtn.disabled = !hasAssignments || !isValid;
 }
 
-// ===== CONFIRMAR DISTRIBUCIÓN =====
 async function confirmPaymentDistribution() {
     try {
-        console.log('💾 Confirmando distribución de pago...');
+        const confirmBtn = document.getElementById('confirmDistributionBtn');
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = '⏳ Aplicando...';
 
-        const assignments = paymentDistributionData
-            .filter(item => item.assignedAmount > 0)
-            .map(item => ({ invoiceNumber: item.invoice.NumeroFactura, amount: item.assignedAmount }));
+        // Filtrar solo asignaciones con monto > 0
+        const validAssignments = paymentDistributionData.filter(item => item.assignedAmount > 0);
 
+        if (validAssignments.length === 0) {
+            throw new Error('Debe asignar al menos un monto a una factura');
+        }
+
+        console.log(`🎯 Aplicando distribución a ${validAssignments.length} facturas`);
+
+        // Preparar asignaciones para el pago
+        const assignments = validAssignments.map(item => ({
+            invoiceNumber: item.invoice.NumeroFactura,
+            amount: item.assignedAmount
+        }));
+
+        // Actualizar el pago con las asignaciones
         const newAssignments = await updatePaymentAssignments(currentPaymentForDistribution, assignments);
 
-        for (const item of paymentDistributionData) {
-            if (item.assignedAmount > 0) {
-                const updateData = {
-                    Estado: item.assignedAmount >= item.totalOwed ? 'Pagado' : item.invoice.Estado,
-                    MontoMultas: item.fines,
-                    MontoTotal: item.remainingBalance
-                };
-                if (updateData.Estado === 'Pagado') {
-                    updateData.FechaPago = formatDateForStorage(new Date(currentPaymentForDistribution.Fecha));
-                }
-                await updateInvoiceStatus(item.invoice.NumeroFactura, updateData);
-                Object.assign(item.invoice, updateData);
+        // Actualizar cada factura
+        for (const item of validAssignments) {
+            const invoice = item.invoice;
+            const amountApplied = item.assignedAmount;
+            const totalOwed = item.totalOwed;
+
+            let newStatus = invoice.Estado;
+            let newBalance = totalOwed - amountApplied;
+
+            if (amountApplied >= totalOwed) {
+                newStatus = 'Pagado';
+                newBalance = 0;
+            }
+
+            const updateData = {
+                Estado: newStatus,
+                MontoMultas: item.fines,
+                MontoTotal: newBalance > 0 ? newBalance : totalOwed
+            };
+
+            if (newStatus === 'Pagado') {
+                updateData.FechaPago = formatDateForStorage(new Date(currentPaymentForDistribution.Fecha));
+            }
+
+            await updateInvoiceStatus(invoice.NumeroFactura, updateData);
+
+            // Actualizar localmente
+            Object.assign(invoice, updateData);
+        }
+
+        // Actualizar el pago localmente
+        currentPaymentForDistribution.FacturasAsignadas = formatAssignedInvoices(newAssignments);
+
+        // Verificar si el pago está completamente asignado
+        const totalAssigned = newAssignments.reduce((sum, a) => sum + a.amount, 0);
+        const totalPayment = parsePaymentAmount(currentPaymentForDistribution.Créditos, currentPaymentForDistribution.BankSource);
+
+        if (Math.abs(totalAssigned - totalPayment) < 0.01) {
+            const paymentIndex = unassignedPayments.findIndex(p =>
+                p.Referencia === currentPaymentForDistribution.Referencia &&
+                p.BankSource === currentPaymentForDistribution.BankSource
+            );
+            if (paymentIndex > -1) {
+                unassignedPayments.splice(paymentIndex, 1);
             }
         }
 
+        // Cerrar modal y recargar datos
         closePaymentDistributionModal();
         await reloadDataAndRender();
-        showToast('✅ Distribución de pago aplicada correctamente', 'success');
 
-        if (typeof window.resolveDistribution === 'function') {
+        // Mensaje de éxito
+        const paidCount = validAssignments.filter(item => item.assignedAmount >= item.totalOwed).length;
+        const partialCount = validAssignments.length - paidCount;
+
+        let message = `✅ Pago ${currentPaymentForDistribution.Referencia} distribuido exitosamente`;
+        if (paidCount > 0) message += ` - ${paidCount} factura(s) PAGADA(s)`;
+        if (partialCount > 0) message += ` - ${partialCount} pago(s) parcial(es)`;
+
+        showToast(message, 'success');
+
+        if (window.resolveDistribution) {
             window.resolveDistribution(true);
         }
+
     } catch (error) {
-        console.error('❌ Error al confirmar distribución de pago:', error);
+        console.error('❌ Error en confirmPaymentDistribution:', error);
         showToast('Error al aplicar distribución: ' + error.message, 'error');
 
-        if (typeof window.rejectDistribution === 'function') {
+        // Restaurar botón
+        const confirmBtn = document.getElementById('confirmDistributionBtn');
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = '✅ Aplicar Distribución';
+
+        if (window.rejectDistribution) {
             window.rejectDistribution(error);
         }
     }
 }
 
-// ===== CERRAR MODAL =====
 function closePaymentDistributionModal() {
     const modal = document.getElementById('paymentDistributionModal');
-    if (modal) modal.classList.remove('show');
+    if (modal) {
+        modal.classList.remove('show');
+        currentPaymentForDistribution = null;
+        paymentDistributionData = [];
+    }
 }
+
+// ===== FUNCIONES DE MANEJO DE ASIGNACIONES EN BD (VERSIÓN CORREGIDA PARA SHEETDB) =====
+async function updatePaymentAssignments(payment, newAssignments) {
+    try {
+        console.log('🔄 Actualizando asignaciones de pago:', payment.Referencia);
+
+        // Obtener asignaciones previas
+        const previousAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+
+        // Combinar asignaciones (las nuevas reemplazan las existentes para las mismas facturas)
+        const combinedAssignments = [...previousAssignments];
+
+        newAssignments.forEach(newAssignment => {
+            const existingIndex = combinedAssignments.findIndex(a => a.invoiceNumber === newAssignment.invoiceNumber);
+            if (existingIndex > -1) {
+                // Actualizar asignación existente
+                combinedAssignments[existingIndex].amount += newAssignment.amount;
+            } else {
+                // Agregar nueva asignación
+                combinedAssignments.push(newAssignment);
+            }
+        });
+
+        // Formatear para la base de datos
+        const formattedAssignments = formatAssignedInvoices(combinedAssignments);
+
+        console.log('📝 Asignaciones formateadas:', formattedAssignments);
+
+        // ✅ MÉTODO CORREGIDO PARA SHEETDB: Usar URL correcta para actualización
+        // 1. Verificar que el pago existe usando el endpoint correcto
+        const searchUrl = `${API_CONFIG.PAYMENTS}/search?sheet=${payment.BankSource}&Referencia=${encodeURIComponent(payment.Referencia)}`;
+        console.log('🔍 Buscando pago con URL:', searchUrl);
+
+        const searchResponse = await fetch(searchUrl);
+
+        if (!searchResponse.ok) {
+            throw new Error(`Error al buscar el pago: HTTP ${searchResponse.status}`);
+        }
+
+        const existingPayments = await searchResponse.json();
+
+        if (!Array.isArray(existingPayments) || existingPayments.length === 0) {
+            throw new Error(`Pago ${payment.Referencia} no encontrado en la hoja ${payment.BankSource}`);
+        }
+
+        console.log('✅ Pago encontrado:', existingPayments.length, 'registros');
+
+        // 2. Actualizar usando la URL correcta de SheetDB
+        const updateData = {
+            FacturasAsignadas: formattedAssignments,
+            FechaAsignacion: formatDateForStorage(new Date())
+        };
+
+        console.log('📤 Datos a actualizar:', updateData);
+
+        // ✅ MÉTODO PRINCIPAL: PATCH con URL que incluye el campo/valor a actualizar
+        const updateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
+
+        console.log('🚀 Enviando actualización a:', updateUrl);
+
+        const response = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(updateData).toString()
+        });
+
+        let updateSuccess = false;
+
+        if (response.ok) {
+            console.log('✅ Actualización exitosa con método principal (URL directa)');
+            updateSuccess = true;
+        } else {
+            console.log('⚠️ Método principal falló, intentando método JSON...');
+
+            // ✅ MÉTODO ALTERNATIVO: PATCH con JSON body
+            const jsonResponse = await fetch(updateUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (jsonResponse.ok) {
+                console.log('✅ Actualización exitosa con método JSON');
+                updateSuccess = true;
+            } else {
+                console.log('⚠️ Método JSON falló, intentando PUT...');
+
+                // ✅ MÉTODO FALLBACK: PUT con form data
+                const putResponse = await fetch(updateUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(updateData).toString()
+                });
+
+                if (putResponse.ok) {
+                    console.log('✅ Actualización exitosa con método PUT');
+                    updateSuccess = true;
+                } else {
+                    // ✅ ÚLTIMO INTENTO: Método de actualización bulk
+                    console.log('⚠️ PUT falló, intentando método bulk...');
+
+                    const bulkUrl = `${API_CONFIG.PAYMENTS}?sheet=${payment.BankSource}`;
+                    const bulkResponse = await fetch(bulkUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify([{
+                            Referencia: payment.Referencia,
+                            ...updateData
+                        }])
+                    });
+
+                    if (bulkResponse.ok) {
+                        console.log('✅ Actualización exitosa con método bulk');
+                        updateSuccess = true;
+                    } else {
+                        const errorText = await bulkResponse.text();
+                        throw new Error(`Todos los métodos fallaron. Último error: HTTP ${bulkResponse.status}: ${errorText}`);
+                    }
+                }
+            }
+        }
+
+        if (updateSuccess) {
+            console.log(`✅ Asignaciones actualizadas en BD: ${formattedAssignments}`);
+            return combinedAssignments;
+        } else {
+            throw new Error('No se pudo actualizar el pago con ningún método');
+        }
+
+    } catch (error) {
+        console.error('❌ Error al actualizar asignaciones:', error);
+
+        // Información adicional para debugging
+        console.error('🔍 Información de debugging:');
+        console.error('  - Referencia del pago:', payment.Referencia);
+        console.error('  - Banco:', payment.BankSource);
+        console.error('  - Nuevas asignaciones:', newAssignments);
+        console.error('  - API URL base:', API_CONFIG.PAYMENTS);
+        console.error('  - URL de actualización intentada:', `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`);
+
+        throw error;
+    }
+}
+
+// ===== FUNCIONES DE PARSEO DE ASIGNACIONES =====
+function parseAssignedInvoices(assignedString) {
+    if (!assignedString || assignedString.trim() === '') return [];
+
+    try {
+        // Formato esperado: "FAC-001:15000;FAC-002:25000"
+        return assignedString.split(';').map(assignment => {
+            const [invoiceNumber, amount] = assignment.split(':');
+            return {
+                invoiceNumber: invoiceNumber.trim(),
+                amount: parseFloat(amount) || 0
+            };
+        }).filter(assignment => assignment.invoiceNumber && assignment.amount > 0);
+    } catch (error) {
+        console.error('Error al parsear asignaciones:', error);
+        return [];
+    }
+}
+
+function formatAssignedInvoices(assignments) {
+    if (!assignments || assignments.length === 0) return '';
+
+    // Formato: "FAC-001:15000;FAC-002:25000"
+    return assignments
+        .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
+        .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}`)
+        .join(';');
+}
+
+// ===== FUNCIÓN PARA DESASIGNAR PAGOS =====
+async function unassignPaymentFromInvoice(paymentReference, bankSource, invoiceNumber) {
+    try {
+        console.log(`🔄 Desasignando pago ${paymentReference} (${bankSource}) de factura ${invoiceNumber}`);
+
+        // Encontrar el pago
+        const payment = assignedPayments.find(p =>
+            p.Referencia === paymentReference && p.BankSource === bankSource
+        );
+
+        if (!payment) {
+            throw new Error('Pago no encontrado en asignados');
+        }
+
+        // Parsear asignaciones actuales
+        const currentAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+
+        // Remover la asignación específica
+        const updatedAssignments = currentAssignments.filter(a => a.invoiceNumber !== invoiceNumber);
+
+        // Actualizar en la base de datos usando la función corregida
+        await updatePaymentAssignmentsRaw(payment, updatedAssignments);
+
+        // Actualizar la factura - recalcular estado
+        const invoice = clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
+        if (invoice) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const dueDateStr = invoice.FechaVencimiento;
+            let newStatus = 'Pendiente';
+            let currentFines = 0;
+
+            if (dueDateStr) {
+                const dueDate = parseDate(dueDateStr);
+                if (dueDate) {
+                    dueDate.setHours(0, 0, 0, 0);
+
+                    if (today > dueDate) {
+                        newStatus = 'Vencido';
+                        currentFines = calculateFinesUntilDate(invoice, formatDateForStorage(today));
+                    }
+                }
+            }
+
+            const baseAmount = parseFloat(invoice.MontoBase || 0);
+            const newTotal = baseAmount + currentFines;
+
+            // Actualizar en la API
+            await updateInvoiceStatus(invoiceNumber, {
+                Estado: newStatus,
+                FechaPago: '',
+                MontoMultas: currentFines,
+                MontoTotal: newTotal
+            });
+
+            // Actualizar localmente
+            invoice.Estado = newStatus;
+            invoice.FechaPago = '';
+            invoice.MontoMultas = currentFines;
+            invoice.MontoTotal = newTotal;
+        }
+
+        // Recargar y renderizar
+        await reloadDataAndRender();
+
+        showToast(`✅ Pago ${paymentReference} desasignado de ${invoiceNumber}`, 'success');
+
+    } catch (error) {
+        console.error('❌ Error al desasignar pago:', error);
+        showToast('Error al desasignar el pago: ' + error.message, 'error');
+        throw error;
+    }
+}
+
+// ===== FUNCIÓN AUXILIAR PARA ACTUALIZACIÓN RAW DE ASIGNACIONES (CORREGIDA) =====
+async function updatePaymentAssignmentsRaw(payment, assignments) {
+    try {
+        const formattedAssignments = formatAssignedInvoices(assignments);
+        console.log('🔄 Actualización RAW para:', payment.Referencia, 'con asignaciones:', formattedAssignments);
+
+        const updateData = {
+            FacturasAsignadas: formattedAssignments,
+            FechaAsignacion: assignments.length > 0 ? formatDateForStorage(new Date()) : ''
+        };
+
+        // ✅ MISMA LÓGICA CORREGIDA QUE LA FUNCIÓN PRINCIPAL
+        // 1. Verificar que el pago existe usando search
+        const searchUrl = `${API_CONFIG.PAYMENTS}/search?sheet=${payment.BankSource}&Referencia=${encodeURIComponent(payment.Referencia)}`;
+        console.log('🔍 Verificando pago RAW con URL:', searchUrl);
+
+        const searchResponse = await fetch(searchUrl);
+
+        if (!searchResponse.ok) {
+            throw new Error(`Error al buscar el pago: HTTP ${searchResponse.status}`);
+        }
+
+        const existingPayments = await searchResponse.json();
+
+        if (!Array.isArray(existingPayments) || existingPayments.length === 0) {
+            throw new Error(`Pago ${payment.Referencia} no encontrado en la hoja ${payment.BankSource}`);
+        }
+
+        console.log('✅ Pago RAW encontrado, actualizando...');
+
+        // 2. Actualizar usando la URL correcta de SheetDB
+        const updateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
+
+        console.log('🚀 Enviando actualización RAW a:', updateUrl);
+
+        const response = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(updateData).toString()
+        });
+
+        let updateSuccess = false;
+
+        if (response.ok) {
+            console.log('✅ Actualización RAW exitosa con método principal');
+            updateSuccess = true;
+        } else {
+            console.log('⚠️ Método principal RAW falló, intentando JSON...');
+
+            const jsonResponse = await fetch(updateUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (jsonResponse.ok) {
+                console.log('✅ Actualización RAW exitosa con JSON');
+                updateSuccess = true;
+            } else {
+                console.log('⚠️ JSON RAW falló, intentando PUT...');
+
+                const putResponse = await fetch(updateUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(updateData).toString()
+                });
+
+                if (putResponse.ok) {
+                    console.log('✅ Actualización RAW exitosa con PUT');
+                    updateSuccess = true;
+                } else {
+                    console.log('⚠️ PUT RAW falló, intentando método bulk...');
+
+                    const bulkUrl = `${API_CONFIG.PAYMENTS}?sheet=${payment.BankSource}`;
+                    const bulkResponse = await fetch(bulkUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify([{
+                            Referencia: payment.Referencia,
+                            ...updateData
+                        }])
+                    });
+
+                    if (bulkResponse.ok) {
+                        console.log('✅ Actualización RAW exitosa con método bulk');
+                        updateSuccess = true;
+                    } else {
+                        const errorText = await bulkResponse.text();
+                        throw new Error(`Todos los métodos RAW fallaron. Último error: HTTP ${bulkResponse.status}: ${errorText}`);
+                    }
+                }
+            }
+        }
+
+        if (updateSuccess) {
+            console.log(`✅ Asignaciones RAW actualizadas: ${formattedAssignments}`);
+            return assignments;
+        } else {
+            throw new Error('No se pudo actualizar el pago RAW con ningún método');
+        }
+
+    } catch (error) {
+        console.error('❌ Error en updatePaymentAssignmentsRaw:', error);
+        console.error('🔍 Debugging RAW:');
+        console.error('  - Payment:', payment.Referencia);
+        console.error('  - Bank:', payment.BankSource);
+        console.error('  - Assignments:', assignments);
+        console.error('  - URL intentada:', `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`);
+        throw error;
+    }
+}
+
+// ===== FUNCIÓN AUXILIAR PARA RECARGAR DATOS =====
+async function reloadDataAndRender() {
+    try {
+        // Recargar pagos no asignados y asignados
+        await loadUnassignedPayments(currentClientId);
+        await loadAssignedPayments(currentClientId);
+
+        // Re-renderizar la página
+        if (typeof renderPage === 'function') {
+            renderPage();
+        }
+    } catch (error) {
+        console.error('Error al recargar datos:', error);
+    }
+}
+
+// ===== FUNCIONES DE CARGA DE PAGOS =====
+async function loadUnassignedPayments(clientId) {
+    console.log('🎯 Cargando pagos no asignados...');
+
+    try {
+        unassignedPayments = [];
+        window.unassignedPayments = []; // Sincronizar
+        const sheets = ['BAC', 'BN', 'HuberBN'];
+
+        for (const sheet of sheets) {
+            try {
+                console.log(`📋 Consultando pagos en ${sheet}...`);
+                const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
+                const response = await fetch(url);
+
+                if (response.ok) {
+                    const paymentsData = await response.json();
+                    const payments = Array.isArray(paymentsData) ? paymentsData : [];
+
+                    // Filtrar pagos relacionados al cliente
+                    const clientRelatedPayments = payments.filter(payment => {
+                        // Caso 1: ID_Cliente coincide directamente
+                        if (payment.ID_Cliente && payment.ID_Cliente.toString() === clientId.toString()) {
+                            payment._matchReason = 'ID_Cliente directo';
+                            return true;
+                        }
+
+                        // Caso 2: ID_Cliente está en Observaciones
+                        if (payment.Observaciones &&
+                            isClientIdInObservations(payment.Observaciones, clientId)) {
+                            payment._matchReason = 'ID en Observaciones';
+                            return true;
+                        }
+
+                        return false;
+                    });
+
+                    // Filtrar solo los que NO están completamente asignados
+                    const unassignedFromSheet = clientRelatedPayments.filter(payment => {
+                        const paymentAmount = parsePaymentAmount(payment.Créditos, sheet);
+                        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+                        const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+
+                        // Si no tiene asignaciones O tiene monto disponible
+                        return assignments.length === 0 || (paymentAmount - assignedAmount) > 0.01;
+                    });
+
+                    // Agregar información de la fuente (banco)
+                    const paymentsWithSource = unassignedFromSheet.map(payment => ({
+                        ...payment,
+                        BankSource: sheet
+                    }));
+
+                    unassignedPayments.push(...paymentsWithSource);
+                    console.log(`✅ ${sheet}: ${unassignedFromSheet.length} pagos no asignados`);
+
+                } else if (response.status !== 404) {
+                    console.warn(`Error al cargar pagos de ${sheet}:`, response.status);
+                }
+
+            } catch (error) {
+                console.warn(`No se pudieron cargar pagos de ${sheet}:`, error);
+            }
+        }
+
+        // Ordenar pagos por fecha (más recientes primero)
+        unassignedPayments.sort((a, b) => {
+            const dateA = parseDate(a.Fecha);
+            const dateB = parseDate(b.Fecha);
+
+            if (dateA && dateB) {
+                return dateB.getTime() - dateA.getTime();
+            }
+            return 0;
+        });
+
+        // Sincronizar globalmente
+        window.unassignedPayments = unassignedPayments;
+
+        console.log(`✅ Total pagos no asignados: ${unassignedPayments.length}`);
+
+    } catch (error) {
+        console.error('Error en loadUnassignedPayments:', error);
+        throw error;
+    }
+}
+
+async function loadAssignedPayments(clientId) {
+    console.log('📋 Cargando pagos asignados...');
+
+    try {
+        assignedPayments = [];
+        window.assignedPayments = []; // Sincronizar
+        const sheets = ['BAC', 'BN', 'HuberBN'];
+
+        for (const sheet of sheets) {
+            try {
+                const url = `${API_CONFIG.PAYMENTS}/search?sheet=${sheet}&ID_Cliente=${clientId}`;
+                const response = await fetch(url);
+
+                if (response.ok) {
+                    const paymentsData = await response.json();
+                    const payments = Array.isArray(paymentsData) ? paymentsData : [];
+
+                    // Filtrar pagos que SÍ tienen asignaciones
+                    const assigned = payments.filter(payment =>
+                        payment.FacturasAsignadas && payment.FacturasAsignadas.trim() !== ''
+                    );
+
+                    // Agregar información de la fuente y facturas relacionadas
+                    const paymentsWithInfo = assigned.map(payment => {
+                        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+                        const relatedInvoices = assignments.map(assignment =>
+                            clientInvoices.find(inv => inv.NumeroFactura === assignment.invoiceNumber)
+                        ).filter(inv => inv);
+
+                        return {
+                            ...payment,
+                            BankSource: sheet,
+                            Assignments: assignments,
+                            RelatedInvoices: relatedInvoices
+                        };
+                    });
+
+                    assignedPayments.push(...paymentsWithInfo);
+                    console.log(`${sheet}: ${assigned.length} pagos asignados`);
+
+                } else if (response.status !== 404) {
+                    console.warn(`Error al cargar pagos asignados de ${sheet}:`, response.status);
+                }
+
+            } catch (error) {
+                console.warn(`No se pudieron cargar pagos asignados de ${sheet}:`, error);
+            }
+        }
+
+        // Ordenar por fecha del comprobante bancario (más recientes primero)
+        assignedPayments.sort((a, b) => {
+            const dateA = parseDate(a.Fecha);
+            const dateB = parseDate(b.Fecha);
+
+            if (dateA && dateB) {
+                return dateB.getTime() - dateA.getTime();
+            }
+            return 0;
+        });
+
+        // Sincronizar globalmente
+        window.assignedPayments = assignedPayments;
+
+        console.log(`✅ Total pagos asignados: ${assignedPayments.length}`);
+
+    } catch (error) {
+        console.error('Error en loadAssignedPayments:', error);
+        throw error;
+    }
+}
+
+// ===== FUNCIONES DE ACTUALIZACIÓN DE FACTURAS =====
+async function updateInvoiceStatus(invoiceNumber, updateData) {
+    try {
+        const params = new URLSearchParams(updateData);
+        params.append('sheet', 'Facturas');
+
+        const response = await fetch(`${API_CONFIG.INVOICES}/NumeroFactura/${invoiceNumber}?${params.toString()}`, {
+            method: 'PATCH'
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        return true;
+
+    } catch (error) {
+        console.error('Error al actualizar estado de factura:', error);
+        throw error;
+    }
+}
+
+// ===== FUNCIONES DE CONFIRMACIÓN =====
+function showUnassignConfirmation(paymentReference, bankSource, invoiceNumber) {
+    const confirmed = confirm(`¿Está seguro de que desea desasignar el pago ${paymentReference} de la factura ${invoiceNumber}?\n\nEsto actualizará el estado de la factura según las multas actuales.`);
+
+    if (confirmed) {
+        unassignPaymentFromInvoice(paymentReference, bankSource, invoiceNumber);
+    }
+}
+
+// ===== FUNCIONES DE DEBUGGING PARA SHEETDB =====
+async function testSheetDBConnection(paymentReference, bankSource) {
+    console.log('🧪 === PRUEBA DE CONEXIÓN SHEETDB CORREGIDA ===');
+    console.log(`Probando pago: ${paymentReference} en banco: ${bankSource}`);
+
+    try {
+        // 1. Probar búsqueda
+        const searchUrl = `${API_CONFIG.PAYMENTS}/search?sheet=${bankSource}&Referencia=${encodeURIComponent(paymentReference)}`;
+        console.log('🔍 Probando búsqueda:', searchUrl);
+
+        const searchResponse = await fetch(searchUrl);
+        console.log('📡 Respuesta búsqueda:', searchResponse.status, searchResponse.statusText);
+
+        if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            console.log('✅ Datos encontrados:', searchData.length, 'registros');
+            console.log('📋 Primer registro:', searchData[0]);
+
+            if (searchData.length > 0) {
+                // 2. Probar actualización de prueba con URL corregida
+                const testUpdateData = {
+                    FacturasAsignadas: 'TEST-UPDATE',
+                    FechaAsignacion: formatDateForStorage(new Date())
+                };
+
+                // ✅ URL CORREGIDA para actualización
+                const updateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(paymentReference)}?sheet=${bankSource}`;
+                console.log('🔄 Probando actualización con URL corregida:', updateUrl);
+                console.log('📦 Datos de prueba:', testUpdateData);
+
+                const updateResponse = await fetch(updateUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(testUpdateData).toString()
+                });
+
+                console.log('📡 Respuesta actualización:', updateResponse.status, updateResponse.statusText);
+
+                if (updateResponse.ok) {
+                    console.log('✅ Actualización de prueba exitosa');
+
+                    // 3. Revertir cambio de prueba
+                    const revertData = {
+                        FacturasAsignadas: searchData[0].FacturasAsignadas || '',
+                        FechaAsignacion: searchData[0].FechaAsignacion || ''
+                    };
+
+                    await fetch(updateUrl, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams(revertData).toString()
+                    });
+
+                    console.log('🔄 Cambios revertidos');
+                } else {
+                    const errorText = await updateResponse.text();
+                    console.error('❌ Error en actualización:', errorText);
+
+                    // Probar método alternativo
+                    console.log('🔄 Probando método JSON...');
+                    const jsonResponse = await fetch(updateUrl, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(testUpdateData)
+                    });
+
+                    console.log('📡 Respuesta JSON:', jsonResponse.status, jsonResponse.statusText);
+
+                    if (jsonResponse.ok) {
+                        console.log('✅ Actualización JSON exitosa');
+
+                        // Revertir con JSON
+                        await fetch(updateUrl, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                FacturasAsignadas: searchData[0].FacturasAsignadas || '',
+                                FechaAsignacion: searchData[0].FechaAsignacion || ''
+                            })
+                        });
+
+                        console.log('🔄 Cambios JSON revertidos');
+                    } else {
+                        const jsonErrorText = await jsonResponse.text();
+                        console.error('❌ Error en actualización JSON:', jsonErrorText);
+                    }
+                }
+            }
+
+        } else {
+            const errorText = await searchResponse.text();
+            console.error('❌ Error en búsqueda:', errorText);
+        }
+
+    } catch (error) {
+        console.error('❌ Error en prueba de conexión:', error);
+    }
+
+    console.log('🧪 === FIN DE PRUEBA ===');
+}
+
+// Función para probar URLs manualmente
+function testSheetDBUrls() {
+    console.log('🧪 === PRUEBA DE URLs SHEETDB CORREGIDAS ===');
+    console.log('Base URL:', API_CONFIG.PAYMENTS);
+
+    const testReference = '18475172';
+    const testBank = 'BN';
+
+    console.log('URLs CORREGIDAS para probar:');
+    console.log('1. Búsqueda:', `${API_CONFIG.PAYMENTS}/search?sheet=${testBank}&Referencia=${testReference}`);
+    console.log('2. Actualización:', `${API_CONFIG.PAYMENTS}/Referencia/${testReference}?sheet=${testBank}`);
+    console.log('3. Lista todos:', `${API_CONFIG.PAYMENTS}?sheet=${testBank}`);
+
+    console.log('\n✅ URLS CORRECTAS vs ❌ URLS INCORRECTAS:');
+    console.log('✅ CORRECTO (para actualizar):');
+    console.log(`   PATCH ${API_CONFIG.PAYMENTS}/Referencia/${testReference}?sheet=${testBank}`);
+    console.log('❌ INCORRECTO (lo que estábamos usando):');
+    console.log(`   PATCH ${API_CONFIG.PAYMENTS}?sheet=${testBank}`);
+
+    console.log('\nPrueba manual de búsqueda:');
+    console.log(`fetch("${API_CONFIG.PAYMENTS}/search?sheet=${testBank}&Referencia=${testReference}").then(r=>r.json()).then(console.log)`);
+
+    console.log('\nPrueba manual de actualización:');
+    console.log(`fetch("${API_CONFIG.PAYMENTS}/Referencia/${testReference}?sheet=${testBank}", {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ FacturasAsignadas: 'TEST' }).toString()
+}).then(r => r.text()).then(console.log)`);
+
+    console.log('\nEjecuta esta función para probar conexión completa:');
+    console.log(`testSheetDBConnection("${testReference}", "${testBank}")`);
+}
+
+// ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
+window.assignPaymentToInvoice = assignPaymentToInvoice;
+window.unassignPaymentFromInvoice = unassignPaymentFromInvoice;
+window.showUnassignConfirmation = showUnassignConfirmation;
+window.loadUnassignedPayments = loadUnassignedPayments;
+window.loadAssignedPayments = loadAssignedPayments;
+window.updateInvoiceStatus = updateInvoiceStatus;
+
+// Funciones de distribución
+window.showPaymentDistributionModal = showPaymentDistributionModal;
+window.closePaymentDistributionModal = closePaymentDistributionModal;
+window.confirmPaymentDistribution = confirmPaymentDistribution;
+window.updateDistributionCalculation = updateDistributionCalculation;
+
+// Funciones de parseo
+window.parseAssignedInvoices = parseAssignedInvoices;
+window.formatAssignedInvoices = formatAssignedInvoices;
+
+// ✅ FUNCIONES DE DEBUGGING EXPUESTAS
+window.testSheetDBConnection = testSheetDBConnection;
+window.testSheetDBUrls = testSheetDBUrls;
+
+console.log('✅ payment-management.js CORREGIDO - Sistema de pagos con API SheetDB corregida');
+console.log('🧪 Funciones de debugging disponibles:');
+console.log('  - testSheetDBUrls() - Muestra URLs para probar');
+console.log('  - testSheetDBConnection(referencia, banco) - Prueba conexión completa');
