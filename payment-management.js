@@ -474,7 +474,7 @@ function closePaymentDistributionModal() {
     }
 }
 
-// ===== FUNCIONES DE MANEJO DE ASIGNACIONES EN BD (VERSIÓN CORREGIDA) =====
+// ===== FUNCIONES DE MANEJO DE ASIGNACIONES EN BD (VERSIÓN CORREGIDA PARA SHEETDB) =====
 async function updatePaymentAssignments(payment, newAssignments) {
     try {
         console.log('🔄 Actualizando asignaciones de pago:', payment.Referencia);
@@ -501,73 +501,115 @@ async function updatePaymentAssignments(payment, newAssignments) {
 
         console.log('📝 Asignaciones formateadas:', formattedAssignments);
 
-        // ✅ MÉTODO CORREGIDO: Buscar primero, luego actualizar
-        // 1. Verificar que el pago existe
-        const checkUrl = `${API_CONFIG.PAYMENTS}?sheet=${payment.BankSource}&Referencia=${encodeURIComponent(payment.Referencia)}`;
-        console.log('🔍 Verificando existencia del pago:', checkUrl);
+        // ✅ MÉTODO CORREGIDO PARA SHEETDB: Usar search para encontrar, luego update
+        // 1. Verificar que el pago existe usando el endpoint correcto
+        const searchUrl = `${API_CONFIG.PAYMENTS}/search?sheet=${payment.BankSource}&Referencia=${encodeURIComponent(payment.Referencia)}`;
+        console.log('🔍 Buscando pago con URL:', searchUrl);
 
-        const checkResponse = await fetch(checkUrl);
+        const searchResponse = await fetch(searchUrl);
 
-        if (!checkResponse.ok) {
-            throw new Error(`No se pudo verificar el pago: HTTP ${checkResponse.status}`);
+        if (!searchResponse.ok) {
+            throw new Error(`Error al buscar el pago: HTTP ${searchResponse.status}`);
         }
 
-        const existingPayments = await checkResponse.json();
+        const existingPayments = await searchResponse.json();
 
         if (!Array.isArray(existingPayments) || existingPayments.length === 0) {
             throw new Error(`Pago ${payment.Referencia} no encontrado en la hoja ${payment.BankSource}`);
         }
 
-        console.log('✅ Pago encontrado, procediendo con actualización');
+        console.log('✅ Pago encontrado:', existingPayments.length, 'registros');
 
         // 2. Actualizar usando el método correcto de SheetDB
-        const updateUrl = `${API_CONFIG.PAYMENTS}?sheet=${payment.BankSource}`;
-
         const updateData = {
             FacturasAsignadas: formattedAssignments,
             FechaAsignacion: formatDateForStorage(new Date())
         };
 
-        // Usar el método search/update de SheetDB
+        console.log('📤 Datos a actualizar:', updateData);
+
+        // ✅ MÉTODO PRINCIPAL: PATCH con condition en el body (formato SheetDB v2)
+        const updateUrl = `${API_CONFIG.PAYMENTS}?sheet=${payment.BankSource}`;
+
+        const requestBody = {
+            data: updateData,
+            condition: {
+                Referencia: payment.Referencia
+            }
+        };
+
+        console.log('🚀 Enviando actualización a:', updateUrl);
+        console.log('📦 Body:', JSON.stringify(requestBody, null, 2));
+
         const response = await fetch(updateUrl, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                data: updateData,
-                condition: {
-                    Referencia: payment.Referencia
-                }
-            })
+            body: JSON.stringify(requestBody)
         });
 
-        if (!response.ok) {
-            // Si el método anterior falla, intentar con el método original pero URL-encoded
-            console.log('⚠️ Método 1 falló, intentando método alternativo...');
+        let updateSuccess = false;
 
-            const alternativeUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
+        if (response.ok) {
+            console.log('✅ Actualización exitosa con método principal');
+            updateSuccess = true;
+        } else {
+            console.log('⚠️ Método principal falló, intentando método alternativo...');
 
-            const altResponse = await fetch(alternativeUrl, {
-                method: 'PATCH',
+            // ✅ MÉTODO ALTERNATIVO: PUT con URL tradicional
+            const putUrl = `${API_CONFIG.PAYMENTS}?sheet=${payment.BankSource}`;
+
+            const putResponse = await fetch(putUrl, {
+                method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Type': 'application/json',
                 },
-                body: new URLSearchParams(updateData).toString()
+                body: JSON.stringify({
+                    data: [updateData],
+                    condition: {
+                        Referencia: payment.Referencia
+                    }
+                })
             });
 
-            if (!altResponse.ok) {
-                const errorText = await altResponse.text();
-                throw new Error(`Ambos métodos fallaron. Último error: HTTP ${altResponse.status}: ${errorText}`);
-            }
+            if (putResponse.ok) {
+                console.log('✅ Actualización exitosa con método PUT');
+                updateSuccess = true;
+            } else {
+                console.log('⚠️ Método PUT falló, intentando método form-encoded...');
 
-            console.log('✅ Actualización exitosa con método alternativo');
-        } else {
-            console.log('✅ Actualización exitosa con método principal');
+                // ✅ MÉTODO FALLBACK: POST con form data (compatible con versiones antiguas)
+                const formUrl = `${API_CONFIG.PAYMENTS}?sheet=${payment.BankSource}`;
+
+                const formResponse = await fetch(formUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        ...updateData,
+                        '_method': 'PATCH',
+                        '_condition': `Referencia=${payment.Referencia}`
+                    }).toString()
+                });
+
+                if (formResponse.ok) {
+                    console.log('✅ Actualización exitosa con método form-encoded');
+                    updateSuccess = true;
+                } else {
+                    const errorText = await formResponse.text();
+                    throw new Error(`Todos los métodos fallaron. Último error: HTTP ${formResponse.status}: ${errorText}`);
+                }
+            }
         }
 
-        console.log(`✅ Asignaciones actualizadas en BD: ${formattedAssignments}`);
-        return combinedAssignments;
+        if (updateSuccess) {
+            console.log(`✅ Asignaciones actualizadas en BD: ${formattedAssignments}`);
+            return combinedAssignments;
+        } else {
+            throw new Error('No se pudo actualizar el pago con ningún método');
+        }
 
     } catch (error) {
         console.error('❌ Error al actualizar asignaciones:', error);
@@ -577,6 +619,7 @@ async function updatePaymentAssignments(payment, newAssignments) {
         console.error('  - Referencia del pago:', payment.Referencia);
         console.error('  - Banco:', payment.BankSource);
         console.error('  - Nuevas asignaciones:', newAssignments);
+        console.error('  - API URL base:', API_CONFIG.PAYMENTS);
 
         throw error;
     }
@@ -686,68 +729,116 @@ async function unassignPaymentFromInvoice(paymentReference, bankSource, invoiceN
     }
 }
 
-// ===== FUNCIÓN AUXILIAR PARA ACTUALIZACIÓN RAW DE ASIGNACIONES =====
+// ===== FUNCIÓN AUXILIAR PARA ACTUALIZACIÓN RAW DE ASIGNACIONES (CORREGIDA) =====
 async function updatePaymentAssignmentsRaw(payment, assignments) {
     try {
         const formattedAssignments = formatAssignedInvoices(assignments);
+        console.log('🔄 Actualización RAW para:', payment.Referencia, 'con asignaciones:', formattedAssignments);
 
         const updateData = {
             FacturasAsignadas: formattedAssignments,
             FechaAsignacion: assignments.length > 0 ? formatDateForStorage(new Date()) : ''
         };
 
-        // Usar el mismo método corregido que la función principal
-        const checkUrl = `${API_CONFIG.PAYMENTS}?sheet=${payment.BankSource}&Referencia=${encodeURIComponent(payment.Referencia)}`;
-        const checkResponse = await fetch(checkUrl);
+        // ✅ USAR EL MISMO MÉTODO CORREGIDO QUE LA FUNCIÓN PRINCIPAL
+        // 1. Verificar que el pago existe usando search
+        const searchUrl = `${API_CONFIG.PAYMENTS}/search?sheet=${payment.BankSource}&Referencia=${encodeURIComponent(payment.Referencia)}`;
+        console.log('🔍 Verificando pago RAW con URL:', searchUrl);
 
-        if (!checkResponse.ok) {
-            throw new Error(`No se pudo verificar el pago: HTTP ${checkResponse.status}`);
+        const searchResponse = await fetch(searchUrl);
+
+        if (!searchResponse.ok) {
+            throw new Error(`Error al buscar el pago: HTTP ${searchResponse.status}`);
         }
 
-        const existingPayments = await checkResponse.json();
+        const existingPayments = await searchResponse.json();
 
         if (!Array.isArray(existingPayments) || existingPayments.length === 0) {
             throw new Error(`Pago ${payment.Referencia} no encontrado en la hoja ${payment.BankSource}`);
         }
 
-        // Actualizar usando el método correcto
+        console.log('✅ Pago RAW encontrado, actualizando...');
+
+        // 2. Actualizar usando el método principal
         const updateUrl = `${API_CONFIG.PAYMENTS}?sheet=${payment.BankSource}`;
+
+        const requestBody = {
+            data: updateData,
+            condition: {
+                Referencia: payment.Referencia
+            }
+        };
 
         const response = await fetch(updateUrl, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                data: updateData,
-                condition: {
-                    Referencia: payment.Referencia
-                }
-            })
+            body: JSON.stringify(requestBody)
         });
 
-        if (!response.ok) {
-            const alternativeUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
+        let updateSuccess = false;
 
-            const altResponse = await fetch(alternativeUrl, {
-                method: 'PATCH',
+        if (response.ok) {
+            console.log('✅ Actualización RAW exitosa con método principal');
+            updateSuccess = true;
+        } else {
+            console.log('⚠️ Método principal RAW falló, intentando PUT...');
+
+            const putResponse = await fetch(updateUrl, {
+                method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Type': 'application/json',
                 },
-                body: new URLSearchParams(updateData).toString()
+                body: JSON.stringify({
+                    data: [updateData],
+                    condition: {
+                        Referencia: payment.Referencia
+                    }
+                })
             });
 
-            if (!altResponse.ok) {
-                const errorText = await altResponse.text();
-                throw new Error(`Error en actualización: HTTP ${altResponse.status}: ${errorText}`);
+            if (putResponse.ok) {
+                console.log('✅ Actualización RAW exitosa con PUT');
+                updateSuccess = true;
+            } else {
+                console.log('⚠️ PUT RAW falló, intentando form-encoded...');
+
+                const formResponse = await fetch(updateUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        ...updateData,
+                        '_method': 'PATCH',
+                        '_condition': `Referencia=${payment.Referencia}`
+                    }).toString()
+                });
+
+                if (formResponse.ok) {
+                    console.log('✅ Actualización RAW exitosa con form-encoded');
+                    updateSuccess = true;
+                } else {
+                    const errorText = await formResponse.text();
+                    throw new Error(`Todos los métodos RAW fallaron. Último error: HTTP ${formResponse.status}: ${errorText}`);
+                }
             }
         }
 
-        console.log(`✅ Asignaciones actualizadas: ${formattedAssignments}`);
-        return assignments;
+        if (updateSuccess) {
+            console.log(`✅ Asignaciones RAW actualizadas: ${formattedAssignments}`);
+            return assignments;
+        } else {
+            throw new Error('No se pudo actualizar el pago RAW con ningún método');
+        }
 
     } catch (error) {
         console.error('❌ Error en updatePaymentAssignmentsRaw:', error);
+        console.error('🔍 Debugging RAW:');
+        console.error('  - Payment:', payment.Referencia);
+        console.error('  - Bank:', payment.BankSource);
+        console.error('  - Assignments:', assignments);
         throw error;
     }
 }
@@ -958,6 +1049,111 @@ function showUnassignConfirmation(paymentReference, bankSource, invoiceNumber) {
     }
 }
 
+// ===== FUNCIONES DE DEBUGGING PARA SHEETDB =====
+async function testSheetDBConnection(paymentReference, bankSource) {
+    console.log('🧪 === PRUEBA DE CONEXIÓN SHEETDB ===');
+    console.log(`Probando pago: ${paymentReference} en banco: ${bankSource}`);
+
+    try {
+        // 1. Probar búsqueda
+        const searchUrl = `${API_CONFIG.PAYMENTS}/search?sheet=${bankSource}&Referencia=${encodeURIComponent(paymentReference)}`;
+        console.log('🔍 Probando búsqueda:', searchUrl);
+
+        const searchResponse = await fetch(searchUrl);
+        console.log('📡 Respuesta búsqueda:', searchResponse.status, searchResponse.statusText);
+
+        if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            console.log('✅ Datos encontrados:', searchData.length, 'registros');
+            console.log('📋 Primer registro:', searchData[0]);
+
+            if (searchData.length > 0) {
+                // 2. Probar actualización de prueba
+                const testUpdateData = {
+                    data: {
+                        FacturasAsignadas: 'TEST-UPDATE',
+                        FechaAsignacion: formatDateForStorage(new Date())
+                    },
+                    condition: {
+                        Referencia: paymentReference
+                    }
+                };
+
+                const updateUrl = `${API_CONFIG.PAYMENTS}?sheet=${bankSource}`;
+                console.log('🔄 Probando actualización:', updateUrl);
+                console.log('📦 Datos de prueba:', testUpdateData);
+
+                const updateResponse = await fetch(updateUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testUpdateData)
+                });
+
+                console.log('📡 Respuesta actualización:', updateResponse.status, updateResponse.statusText);
+
+                if (updateResponse.ok) {
+                    console.log('✅ Actualización de prueba exitosa');
+
+                    // 3. Revertir cambio de prueba
+                    const revertData = {
+                        data: {
+                            FacturasAsignadas: searchData[0].FacturasAsignadas || '',
+                            FechaAsignacion: searchData[0].FechaAsignacion || ''
+                        },
+                        condition: {
+                            Referencia: paymentReference
+                        }
+                    };
+
+                    await fetch(updateUrl, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(revertData)
+                    });
+
+                    console.log('🔄 Cambios revertidos');
+                } else {
+                    const errorText = await updateResponse.text();
+                    console.error('❌ Error en actualización:', errorText);
+                }
+            }
+
+        } else {
+            const errorText = await searchResponse.text();
+            console.error('❌ Error en búsqueda:', errorText);
+        }
+
+    } catch (error) {
+        console.error('❌ Error en prueba de conexión:', error);
+    }
+
+    console.log('🧪 === FIN DE PRUEBA ===');
+}
+
+// Función para probar URLs manualmente
+function testSheetDBUrls() {
+    console.log('🧪 === PRUEBA DE URLs SHEETDB ===');
+    console.log('Base URL:', API_CONFIG.PAYMENTS);
+
+    const testReference = '18475172';
+    const testBank = 'BN';
+
+    console.log('URLs para probar:');
+    console.log('1. Búsqueda:', `${API_CONFIG.PAYMENTS}/search?sheet=${testBank}&Referencia=${testReference}`);
+    console.log('2. Actualización:', `${API_CONFIG.PAYMENTS}?sheet=${testBank}`);
+    console.log('3. Lista todos:', `${API_CONFIG.PAYMENTS}?sheet=${testBank}`);
+
+    console.log('\nPrueba manual de búsqueda:');
+    console.log(`fetch("${API_CONFIG.PAYMENTS}/search?sheet=${testBank}&Referencia=${testReference}").then(r=>r.json()).then(console.log)`);
+
+    console.log('\nEjecuta esta función para probar conexión completa:');
+    console.log(`testSheetDBConnection("${testReference}", "${testBank}")`);
+}
+
 // ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
 window.assignPaymentToInvoice = assignPaymentToInvoice;
 window.unassignPaymentFromInvoice = unassignPaymentFromInvoice;
@@ -976,4 +1172,11 @@ window.updateDistributionCalculation = updateDistributionCalculation;
 window.parseAssignedInvoices = parseAssignedInvoices;
 window.formatAssignedInvoices = formatAssignedInvoices;
 
-console.log('✅ payment-management.js CORREGIDO - Sistema de pagos con manejo robusto de API');
+// ✅ FUNCIONES DE DEBUGGING EXPUESTAS
+window.testSheetDBConnection = testSheetDBConnection;
+window.testSheetDBUrls = testSheetDBUrls;
+
+console.log('✅ payment-management.js CORREGIDO - Sistema de pagos con API SheetDB corregida');
+console.log('🧪 Funciones de debugging disponibles:');
+console.log('  - testSheetDBUrls() - Muestra URLs para probar');
+console.log('  - testSheetDBConnection(referencia, banco) - Prueba conexión completa');
