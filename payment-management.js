@@ -479,6 +479,20 @@ async function updatePaymentAssignments(payment, newAssignments) {
     try {
         console.log('🔄 Actualizando asignaciones de pago según documentación oficial:', payment.Referencia);
 
+        // VALIDACIÓN PREVIA: Verificar unicidad de la referencia en la hoja
+        const searchUrl = `${API_CONFIG.PAYMENTS}/search?Referencia=${encodeURIComponent(payment.Referencia)}&sheet=${payment.BankSource}`;
+        const searchResponse = await fetch(searchUrl);
+        if (!searchResponse.ok) {
+            throw new Error(`No se pudo verificar la unicidad del pago (HTTP ${searchResponse.status})`);
+        }
+        const searchData = await searchResponse.json();
+        if (searchData.length === 0) {
+            throw new Error(`El pago ${payment.Referencia} no existe en la hoja ${payment.BankSource}`);
+        }
+        if (searchData.length > 1) {
+            throw new Error(`No se puede actualizar el pago porque la referencia '${payment.Referencia}' aparece más de una vez en la hoja '${payment.BankSource}'. Debe ser única para poder modificar el registro. Corrija los duplicados en la hoja de Google Sheets.`);
+        }
+
         // Obtener asignaciones previas
         const previousAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
 
@@ -537,26 +551,8 @@ async function updatePaymentAssignments(payment, newAssignments) {
         if (response.status === 404) {
             console.log('🔍 Error 404 - Verificando si el pago existe...');
 
-            // Verificar que el pago existe con una búsqueda
-            const searchUrl = `${API_CONFIG.PAYMENTS}/search?Referencia=${encodeURIComponent(payment.Referencia)}&sheet=${payment.BankSource}`;
-            const searchResponse = await fetch(searchUrl);
-
-            if (searchResponse.ok) {
-                const searchData = await searchResponse.json();
-                console.log('🔍 Resultado de búsqueda:', searchData.length, 'registros encontrados');
-
-                if (searchData.length === 0) {
-                    throw new Error(`El pago ${payment.Referencia} no existe en la hoja ${payment.BankSource}`);
-                } else {
-                    console.log('⚠️ El pago existe pero no se puede actualizar. Posibles causas:');
-                    console.log('  1. El campo "Referencia" no es único en la hoja');
-                    console.log('  2. La cuenta no tiene permisos de escritura');
-                    console.log('  3. La hoja está protegida');
-                    throw new Error(`Error 404 al actualizar: El pago existe pero no se puede modificar. Verifique permisos y unicidad del campo "Referencia"`);
-                }
-            } else {
-                throw new Error(`Error de conectividad: No se puede verificar la existencia del pago (HTTP ${searchResponse.status})`);
-            }
+            // Ya se verificó unicidad antes, así que solo mostrar mensaje genérico
+            throw new Error(`Error 404 al actualizar: El pago existe pero no se puede modificar. Verifique permisos y unicidad del campo "Referencia"`);
         }
 
         throw new Error(`Actualización fallida: HTTP ${response.status} - ${errorText}`);
