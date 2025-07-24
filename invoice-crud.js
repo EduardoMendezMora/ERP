@@ -73,6 +73,9 @@ async function createManualInvoice(invoiceData) {
         const newInvoice = { ...invoicePayload };
         clientInvoices.unshift(newInvoice); // Agregar al principio del array
 
+        // Sincronizar variables globales
+        window.clientInvoices = clientInvoices;
+
         // Re-renderizar la página
         if (typeof renderPage === 'function') {
             renderPage();
@@ -170,6 +173,9 @@ async function updateInvoice(invoiceData) {
             Object.assign(invoice, invoiceData);
         }
 
+        // Sincronizar variables globales
+        window.clientInvoices = clientInvoices;
+
         return true;
 
     } catch (error) {
@@ -242,6 +248,9 @@ async function confirmDeleteInvoice() {
             clientInvoices.splice(index, 1);
         }
 
+        // Sincronizar variables globales
+        window.clientInvoices = clientInvoices;
+
         // Re-renderizar página
         if (typeof renderPage === 'function') {
             renderPage();
@@ -287,6 +296,9 @@ async function markAsPaid(invoiceNumber) {
             invoice.FechaPago = formatDateForStorage(new Date());
         }
 
+        // Sincronizar variables globales
+        window.clientInvoices = clientInvoices;
+
         // Re-renderizar solo las secciones afectadas
         if (typeof renderPage === 'function') {
             renderPage();
@@ -318,12 +330,26 @@ async function loadClientAndInvoices(clientId) {
         const clientsData = await clientResponse.json();
         const clients = Array.isArray(clientsData) ? clientsData : [];
 
-        currentClient = clients.find(c => c.ID && c.ID.toString() === clientId.toString());
-        if (!currentClient) {
+        // ✅ FIX CRÍTICO: Encontrar cliente y sincronizar AMBAS variables
+        const foundClient = clients.find(c => c.ID && c.ID.toString() === clientId.toString());
+
+        if (!foundClient) {
             throw new Error('Cliente no encontrado con ID: ' + clientId);
         }
 
-        console.log('✅ Cliente encontrado:', currentClient.Nombre);
+        // ✅ SINCRONIZAR VARIABLES LOCALES Y GLOBALES
+        currentClient = foundClient;           // Variable local
+        window.currentClient = foundClient;    // Variable global ⭐ CRÍTICO
+        currentClientId = clientId;            // ID local
+        window.currentClientId = clientId;     // ID global ⭐ CRÍTICO
+
+        console.log('✅ Cliente encontrado:', foundClient.Nombre);
+        console.log('🔧 Variables sincronizadas:', {
+            local: !!currentClient,
+            global: !!window.currentClient,
+            idLocal: currentClientId,
+            idGlobal: window.currentClientId
+        });
 
         // Cargar facturas
         let invoicesData = [];
@@ -424,7 +450,21 @@ async function loadClientAndInvoices(clientId) {
             return weekA - weekB;
         });
 
+        // ✅ SINCRONIZAR FACTURAS GLOBALMENTE
+        window.clientInvoices = clientInvoices;
+
         console.log(`📋 Facturas cargadas: ${clientInvoices.length} (sin pendientes futuras)`);
+
+        // ✅ VERIFICACIÓN FINAL DE SINCRONIZACIÓN
+        if (window.currentClient && window.currentClient.ID) {
+            console.log('✅ Sincronización verificada exitosamente');
+        } else {
+            console.warn('⚠️ Problema de sincronización detectado');
+            // Forzar sincronización
+            window.currentClient = currentClient;
+            window.currentClientId = currentClientId;
+            window.clientInvoices = clientInvoices;
+        }
 
     } catch (error) {
         console.error('❌ Error en loadClientAndInvoices:', error);
@@ -434,11 +474,19 @@ async function loadClientAndInvoices(clientId) {
 
 // ===== FUNCIONES DE RENDERIZADO =====
 function renderClientDetails() {
+    // ✅ USAR VARIABLE SEGURA
+    const client = window.currentClient || currentClient;
+
+    if (!client) {
+        console.error('❌ No hay cliente disponible para renderizar detalles');
+        return;
+    }
+
     const detailsContainer = document.getElementById('clientDetails');
     const details = [];
 
-    if (currentClient.numeroTelefono) {
-        const formattedPhone = currentClient.numeroTelefono.toString()
+    if (client.numeroTelefono) {
+        const formattedPhone = client.numeroTelefono.toString()
             .replace(/^(506)(\d{4})(\d{4})$/, '$1 $2 $3');
         details.push({
             label: 'Teléfono',
@@ -446,39 +494,39 @@ function renderClientDetails() {
         });
     }
 
-    if (currentClient.Placa) {
+    if (client.Placa) {
         details.push({
             label: 'Placa',
-            value: currentClient.Placa
+            value: client.Placa
         });
     }
 
-    if (currentClient.diaPago) {
+    if (client.diaPago) {
         details.push({
             label: 'Día de Pago',
-            value: currentClient.diaPago
+            value: client.diaPago
         });
     }
 
-    if (currentClient.montoContrato) {
-        const amount = parseFloat(currentClient.montoContrato);
+    if (client.montoContrato) {
+        const amount = parseFloat(client.montoContrato);
         details.push({
             label: 'Monto Semanal',
             value: `₡${amount.toLocaleString('es-CR')}`
         });
     }
 
-    if (currentClient.fechaContrato) {
+    if (client.fechaContrato) {
         details.push({
             label: 'Fecha Inicio',
-            value: formatDateForDisplay(currentClient.fechaContrato)
+            value: formatDateForDisplay(client.fechaContrato)
         });
     }
 
-    if (currentClient.plazoContrato) {
+    if (client.plazoContrato) {
         details.push({
             label: 'Duración',
-            value: `${currentClient.plazoContrato} semanas`
+            value: `${client.plazoContrato} semanas`
         });
     }
 
@@ -948,4 +996,4 @@ window.renderClientDetails = renderClientDetails;
 window.updateStatsWithoutPending = updateStatsWithoutPending;
 window.renderInvoicesSection = renderInvoicesSection;
 
-console.log('✅ invoice-crud.js cargado - Sistema CRUD de facturas');
+console.log('✅ invoice-crud.js cargado - Sistema CRUD de facturas con sincronización mejorada');
