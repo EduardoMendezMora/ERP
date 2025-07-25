@@ -46,7 +46,7 @@ function setupClientEventListeners() {
     }
 }
 
-function renderClients(clientsToRender) {
+function renderClients(clientsToRender, selectedClientId = null) {
     const grid = document.getElementById('clientsGrid');
     const emptyState = document.getElementById('emptyState');
     if (!grid || !emptyState) return;
@@ -57,7 +57,7 @@ function renderClients(clientsToRender) {
     }
     emptyState.style.display = 'none';
     grid.innerHTML = clientsToRender.map(client => `
-        <div class="client-card" id="card-${client.ID}">
+        <div class="client-card${selectedClientId && client.ID.toString() === selectedClientId.toString() ? ' selected' : ''}" id="card-${client.ID}">
             <div class="client-header">
                 <div class="client-info">
                     <div class="client-name">${client.Nombre || 'Sin nombre'}</div>
@@ -137,6 +137,7 @@ async function saveClient() {
         if (!response.ok) throw new Error('Error al guardar cliente');
         cancelEdit();
         await loadClients();
+        renderClients(clients, formData.ID); // Resalta el cliente recién guardado
         showToast(isEditing ? 'Cliente actualizado' : 'Cliente creado', 'success');
     } catch (error) {
         showToast('Error al guardar cliente: ' + error.message, 'error');
