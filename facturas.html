@@ -472,7 +472,7 @@
 <script>
 const ULTRAMSG_TOKEN = 'wp98xs1qrfhqg9ya';
 const ULTRAMSG_INSTANCE_ID = 'instance112077';
-const ULTRAMSG_API_URL = `https://api.ultramsg.com/${ULTRAMSG_INSTANCE_ID}/messages/chat`;
+const ULTRAMSG_API_URL = `https://api.ultramsg.com/${ULTRAMSG_INSTANCE_ID}/messages/chat?token=${ULTRAMSG_TOKEN}`;
 // Enviar estado de cuenta al cliente por UltraMSG
 function sendAccountStatement() {
     const fechaHoy = new Date().toLocaleDateString('es-CR');
@@ -524,8 +524,7 @@ function sendAccountStatement() {
     fetch(ULTRAMSG_API_URL, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${ULTRAMSG_TOKEN}`
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             to: destino.id,
