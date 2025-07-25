@@ -82,6 +82,12 @@
     </style>
 </head>
 <body>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('clientId')) {
+        window.location.href = `/facturas.html?clientId=${params.get('clientId')}`;
+      }
+    </script>
     <div class="main-container">
         <img src="./Logotipo EasyCars Fondo Blanco con Slogan - Copy.jpg" alt="EasyCars Logo" class="logo">
         <div class="title">ERP de EasyCars</div>
