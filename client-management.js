@@ -190,8 +190,7 @@ function selectClient(clientId) {
 }
 
 function viewInvoices(clientId) {
-    // Redirigir a la página de facturas del sistema propio
-    window.location.href = `https://arrendautos.app/?clientId=${clientId}`;
+    window.location.href = `/facturas.html?clientId=${clientId}`;
 }
 
 function showToast(message, type) {
