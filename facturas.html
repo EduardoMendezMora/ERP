@@ -3,170 +3,468 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facturas del Cliente - ERP EasyCars</title>
-    <style>
-        body {
-            background: #f5f5f7;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            max-width: 900px;
-            margin: 40px auto;
-            background: #fff;
-            border-radius: 20px;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.10);
-            padding: 32px 24px 40px 24px;
-        }
-        .header {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-            margin-bottom: 24px;
-        }
-        .logo {
-            max-width: 90px;
-        }
-        .title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #1d1d1f;
-            flex: 1;
-        }
-        .back-btn {
-            background: #f2f2f7;
-            color: #1d1d1f;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .back-btn:hover {
-            background: #e8e8ed;
-        }
-        .facturas-section {
-            margin-top: 32px;
-        }
-        .loading, .error {
-            text-align: center;
-            color: #86868b;
-            margin: 40px 0;
-            font-size: 1.2rem;
-        }
-        .factura-card {
-            background: #f9f9f9;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            padding: 20px 18px;
-            margin-bottom: 18px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .factura-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
-        .factura-status {
-            padding: 4px 12px;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: #fff;
-        }
-        .status-pagado { background: #22c55e; }
-        .status-pendiente { background: #ff9500; }
-        .status-vencido { background: #ff3b30; }
-        .factura-details {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px 24px;
-            font-size: 1rem;
-        }
-        .factura-label { color: #86868b; font-size: 0.95rem; }
-        .factura-value { color: #1d1d1f; font-weight: 500; }
-        @media (max-width: 700px) {
-            .container { padding: 12px 2px 24px 2px; }
-            .header { flex-direction: column; gap: 8px; }
-            .title { font-size: 1.2rem; }
-            .factura-details { grid-template-columns: 1fr; }
-        }
-    </style>
+    <title>ERP - Facturas del Cliente</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Local Stylesheets -->
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <img src="./Logotipo EasyCars Fondo Blanco con Slogan - Copy.jpg" alt="EasyCars Logo" class="logo">
-            <div class="title">Facturas del Cliente</div>
-            <button class="back-btn" onclick="window.location.href='/clientes.html'">← Volver a Clientes</button>
+<div class="container">
+    <!-- Navigation -->
+    <div class="navigation">
+        <button class="btn btn-secondary btn-large" onclick="goBackToClients()">
+            ← Volver a Clientes
+        </button>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>Facturas del Cliente</h1>
+        <p id="clientName">Cargando información del cliente...</p>
+    </div>
+
+    <!-- Section Controls -->
+    <div class="section-controls">
+        <div class="controls-header">
+            <div class="controls-title">
+                🎛️ Control de Vista
+            </div>
+            <div class="quick-actions">
+                <button class="btn-control" onclick="toggleAllSections(true)">
+                    👁️ Mostrar Todo
+                </button>
+                <button class="btn-control" onclick="toggleAllSections(false)">
+                    🙈 Ocultar Todo
+                </button>
+                <button class="btn-control" onclick="showOnlyActive()">
+                    ⚡ Solo Activos
+                </button>
+            </div>
         </div>
-        <div class="facturas-section" id="facturasSection">
-            <div class="loading" id="loadingFacturas">Cargando facturas del cliente...</div>
-            <div class="error" id="errorFacturas" style="display:none;"></div>
-            <div id="facturasGrid"></div>
+
+        <div class="controls-grid">
+            <div class="control-item active" id="control-unassigned" onclick="toggleSection('unassigned')">
+                <div class="control-info">
+                    <div class="control-icon">💰</div>
+                    <div class="control-text">
+                        <div class="control-label">Pagos Sin Asignar</div>
+                        <div class="control-count" id="control-count-unassigned">0 pagos pendientes</div>
+                    </div>
+                </div>
+                <div class="control-toggle active" id="toggle-unassigned"></div>
+            </div>
+
+            <div class="control-item active" id="control-overdue" onclick="toggleSection('overdue')">
+                <div class="control-info">
+                    <div class="control-icon">🔴</div>
+                    <div class="control-text">
+                        <div class="control-label">Facturas Vencidas</div>
+                        <div class="control-count" id="control-count-overdue">0 facturas vencidas</div>
+                    </div>
+                </div>
+                <div class="control-toggle active" id="toggle-overdue"></div>
+            </div>
+
+            <div class="control-item active" id="control-assigned" onclick="toggleSection('assigned')">
+                <div class="control-info">
+                    <div class="control-icon">✅</div>
+                    <div class="control-text">
+                        <div class="control-label">Pagos Aplicados</div>
+                        <div class="control-count" id="control-count-assigned">0 pagos aplicados</div>
+                    </div>
+                </div>
+                <div class="control-toggle active" id="toggle-assigned"></div>
+            </div>
+
+            <div class="control-item active" id="control-paid" onclick="toggleSection('paid')">
+                <div class="control-info">
+                    <div class="control-icon">🟢</div>
+                    <div class="control-text">
+                        <div class="control-label">Facturas Pagadas</div>
+                        <div class="control-count" id="control-count-paid">0 facturas pagadas</div>
+                    </div>
+                </div>
+                <div class="control-toggle active" id="toggle-paid"></div>
+            </div>
         </div>
     </div>
-    <script>
-        const API_URL_INVOICES = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
-        const urlParams = new URLSearchParams(window.location.search);
-        const clientId = urlParams.get('clientId') || urlParams.get('id') || urlParams.get('cliente');
-        const loading = document.getElementById('loadingFacturas');
-        const errorDiv = document.getElementById('errorFacturas');
-        const grid = document.getElementById('facturasGrid');
 
-        async function loadFacturas() {
-            if (!clientId) {
-                loading.style.display = 'none';
-                errorDiv.style.display = 'block';
-                errorDiv.textContent = 'No se proporcionó un ID de cliente en la URL.';
-                return;
-            }
-            try {
-                const response = await fetch(`${API_URL_INVOICES}?sheet=Facturas&ID_Cliente=${clientId}`);
-                if (!response.ok) throw new Error('No se pudieron cargar las facturas.');
-                const data = await response.json();
-                loading.style.display = 'none';
-                if (!Array.isArray(data) || data.length === 0) {
-                    errorDiv.style.display = 'block';
-                    errorDiv.textContent = 'No se encontraron facturas para este cliente.';
-                    return;
-                }
-                renderFacturas(data);
-            } catch (err) {
-                loading.style.display = 'none';
-                errorDiv.style.display = 'block';
-                errorDiv.textContent = 'Error al cargar las facturas: ' + err.message;
-            }
-        }
+    <!-- Loading State -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Cargando facturas y pagos aplicados...</p>
+    </div>
 
-        function renderFacturas(facturas) {
-            grid.innerHTML = facturas.map(f => `
-                <div class="factura-card">
-                    <div class="factura-header">
-                        <span>Factura: <b>${f.NumeroFactura || '-'}</b></span>
-                        <span class="factura-status status-${(f.Estado||'').toLowerCase()}">${f.Estado || '-'}</span>
-                    </div>
-                    <div class="factura-details">
-                        <div><span class="factura-label">Monto Base:</span> <span class="factura-value">₡${parseFloat(f.MontoBase||0).toLocaleString('es-CR')}</span></div>
-                        <div><span class="factura-label">Multas:</span> <span class="factura-value">₡${parseFloat(f.MontoMultas||0).toLocaleString('es-CR')}</span></div>
-                        <div><span class="factura-label">Total:</span> <span class="factura-value">₡${parseFloat(f.MontoTotal||0).toLocaleString('es-CR')}</span></div>
-                        <div><span class="factura-label">Vencimiento:</span> <span class="factura-value">${f.FechaVencimiento||'-'}</span></div>
-                        <div><span class="factura-label">Estado:</span> <span class="factura-value">${f.Estado||'-'}</span></div>
-                        <div><span class="factura-label">Fecha Pago:</span> <span class="factura-value">${f.FechaPago||'-'}</span></div>
-                    </div>
-                    <div style="margin-top:8px; color:#86868b; font-size:0.95rem;">${f.Observaciones||''}</div>
+    <!-- Error State -->
+    <div class="error-state" id="errorState" style="display: none;">
+        <h3>❌ Error al cargar datos</h3>
+        <p id="errorMessage">No se pudieron cargar las facturas del cliente</p>
+        <button class="btn btn-primary" onclick="retryLoad()" style="margin-top: 16px;">
+            🔄 Reintentar
+        </button>
+    </div>
+
+    <!-- Main Content -->
+    <div id="mainContent" style="display: none;">
+        <!-- Client Information -->
+        <div class="client-info">
+            <div class="client-header">
+                <div>
+                    <h2 id="clientNameDetail">Cliente</h2>
+                    <p id="clientIdDetail" style="color: #86868b;">ID: </p>
                 </div>
-            `).join('');
-        }
+            </div>
+            <div class="client-details" id="clientDetails">
+                <!-- Se llenará dinámicamente -->
+            </div>
+        </div>
 
-        loadFacturas();
-    </script>
+        <!-- Summary Statistics -->
+        <div class="stats-summary">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value stat-paid" id="statPaid">0</div>
+                    <div class="stat-label">Pagadas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value stat-pending" id="statPending">0</div>
+                    <div class="stat-label">Pendientes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value stat-overdue" id="statOverdue">0</div>
+                    <div class="stat-label">Vencidas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value stat-fines" id="statFines">₡0</div>
+                    <div class="stat-label">Total Multas</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="actions-section">
+            <button class="btn btn-primary btn-large" onclick="openManualInvoiceModal()">
+                ➕ Crear Factura Manual
+            </button>
+        </div>
+
+        <!-- Unassigned Payments Section -->
+        <div class="invoices-section" id="unassignedPaymentsSection">
+            <div class="section-header">
+                <h3 class="section-title">
+                    💰 Pagos Relacionados No Asignados
+                    <span class="section-count" id="unassignedPaymentsCount">0</span>
+                </h3>
+                <small style="color: #86868b; font-size: 0.8rem;">Pagos encontrados por ID_Cliente directo O ID en Observaciones</small>
+            </div>
+            <div class="invoices-grid" id="unassignedPayments"></div>
+            <div class="empty-section" id="emptyUnassignedPayments" style="display: none;">
+                <h4>📋 No hay pagos sin asignar</h4>
+                <p>Todos los pagos están correctamente asignados a facturas</p>
+            </div>
+        </div>
+
+        <!-- Overdue Invoices Section -->
+        <div class="invoices-section section-overdue" id="overdueSection">
+            <div class="section-header">
+                <h3 class="section-title">
+                    🔴 Facturas Vencidas
+                    <span class="section-count" id="overdueCount">0</span>
+                </h3>
+                <small style="color: #86868b; font-size: 0.8rem;">Incluye facturas que vencen HOY (sin multa) y las ya vencidas (con multa)</small>
+            </div>
+            <div class="invoices-grid" id="overdueInvoices"></div>
+            <div class="empty-section" id="emptyOverdue" style="display: none;">
+                <h4>✅ No hay facturas vencidas</h4>
+                <p>No hay facturas que venzan hoy o ya vencidas</p>
+            </div>
+        </div>
+
+        <!-- Assigned Payments Section -->
+        <div class="invoices-section" id="assignedPaymentsSection">
+            <div class="section-header">
+                <h3 class="section-title">
+                    ✅ Pagos Aplicados
+                    <span class="section-count section-paid" id="assignedPaymentsCount">0</span>
+                </h3>
+                <small style="color: #86868b; font-size: 0.8rem;">Pagos ya asignados a facturas - Ordenados por fecha del comprobante bancario</small>
+            </div>
+            <div class="invoices-grid" id="assignedPayments"></div>
+            <div class="empty-section" id="emptyAssignedPayments" style="display: none;">
+                <h4>📄 No hay pagos aplicados</h4>
+                <p>Aún no se han asignado pagos a facturas</p>
+            </div>
+        </div>
+
+        <!-- Paid Invoices Section -->
+        <div class="invoices-section section-paid" id="paidSection">
+            <div class="section-header">
+                <h3 class="section-title">
+                    🟢 Facturas Pagadas
+                    <span class="section-count" id="paidCount">0</span>
+                </h3>
+                <small style="color: #86868b; font-size: 0.8rem;">Ordenadas por fecha de pago (más recientes primero)</small>
+            </div>
+            <div class="invoices-grid" id="paidInvoices"></div>
+            <div class="empty-section" id="emptyPaid" style="display: none;">
+                <h4>📄 No hay facturas pagadas</h4>
+                <p>Aún no se han registrado pagos</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <h4 style="margin-bottom: 8px; color: #25d366;">🚀 Enviando al Grupo de WhatsApp</h4>
+        <p style="color: #666; margin: 0;">Generando PDF del recibo y enviando automáticamente...</p>
+        <small style="color: #999; margin-top: 8px; display: block;">Powered by ULTRAMSG</small>
+    </div>
+</div>
+
+<!-- Receipt Modal -->
+<div class="modal-overlay" id="receiptModal" onclick="closeReceiptModal()">
+    <div class="modal-content receipt-modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>🧾 Recibo de Pago</h3>
+            <button class="modal-close" onclick="closeReceiptModal()">✕</button>
+        </div>
+
+        <div class="modal-body" style="padding: 0;">
+            <div class="receipt-container" id="receiptContent">
+                <!-- Receipt content generated dynamically -->
+            </div>
+
+            <div class="receipt-modal-actions">
+                <div class="receipt-actions-left">
+                    <button type="button" class="btn btn-secondary" onclick="closeReceiptModal()">
+                        Cerrar
+                    </button>
+                    <button type="button" class="btn btn-download" onclick="downloadReceiptPDF()">
+                        📄 Descargar PDF
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="sendToWhatsAppManual()">
+                        📱 Envío Manual
+                    </button>
+                </div>
+                <div class="receipt-actions-right">
+                    <button type="button" class="btn btn-primary" onclick="printReceipt()">
+                        🖨️ Imprimir
+                    </button>
+                    <button type="button" class="btn btn-whatsapp" onclick="sendToWhatsApp()">
+                        🚀 Enviar a Grupo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Invoice Modal -->
+<div class="modal-overlay" id="editInvoiceModal" onclick="closeEditInvoiceModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>✏️ Editar Factura</h3>
+            <button class="modal-close" onclick="closeEditInvoiceModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+            <form id="editInvoiceForm">
+                <input type="hidden" id="editInvoiceNumber" />
+
+                <div class="form-group">
+                    <label>Número de Factura</label>
+                    <input type="text" id="editInvoiceNumberDisplay" disabled>
+                </div>
+
+                <div class="form-group">
+                    <label for="editInvoiceConcept">Concepto *</label>
+                    <select id="editInvoiceConcept" required>
+                        <option value="">Seleccione un concepto</option>
+                        <option value="Arrendamiento Semanal">Arrendamiento Semanal</option>
+                        <option value="Multa por Retraso">Multa por Retraso</option>
+                        <option value="Mantenimiento">Mantenimiento</option>
+                        <option value="Seguro">Seguro</option>
+                        <option value="Combustible">Combustible</option>
+                        <option value="Reparación">Reparación</option>
+                        <option value="Limpieza">Limpieza</option>
+                        <option value="Documentos">Tramites de Documentos</option>
+                        <option value="Multa de Tránsito">Multa de Tránsito</option>
+                        <option value="Otros">Otros</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="editInvoiceDescription">Descripción</label>
+                    <textarea id="editInvoiceDescription" placeholder="Descripción detallada del concepto"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editInvoiceAmount">Monto Base (₡) *</label>
+                        <input type="number" id="editInvoiceAmount" min="1" step="0.01" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editInvoiceDueDate">Fecha de Vencimiento *</label>
+                        <input type="date" id="editInvoiceDueDate" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editInvoiceStatus">Estado *</label>
+                        <select id="editInvoiceStatus" required>
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Vencido">Vencido</option>
+                            <option value="Pagado">Pagado</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="editPaymentDateGroup" style="display: none;">
+                        <label for="editInvoicePaymentDate">Fecha de Pago</label>
+                        <input type="date" id="editInvoicePaymentDate">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditInvoiceModal()">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        💾 Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Invoice Modal -->
+<div class="modal-overlay" id="deleteInvoiceModal" onclick="closeDeleteInvoiceModal()">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>🗑️ Eliminar Factura</h3>
+            <button class="modal-close" onclick="closeDeleteInvoiceModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="font-size: 3rem; margin-bottom: 16px;">⚠️</div>
+                <h4 style="margin-bottom: 8px;">¿Está seguro?</h4>
+                <p style="color: #86868b; margin-bottom: 16px;">
+                    Esta acción eliminará permanentemente la factura:
+                </p>
+                <div style="background: #f9f9f9; padding: 12px; border-radius: 8px; font-weight: 600;" id="deleteInvoiceInfo">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+            </div>
+
+            <div class="form-actions" style="margin-top: 0; border: none; padding: 0;">
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteInvoiceModal()">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteInvoice()" id="confirmDeleteBtn">
+                    🗑️ Eliminar Factura
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Manual Invoice Modal -->
+<div class="modal-overlay" id="manualInvoiceModal" onclick="closeManualInvoiceModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>➕ Crear Factura Manual</h3>
+            <button class="modal-close" onclick="closeManualInvoiceModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+            <form id="manualInvoiceForm">
+                <div class="form-group">
+                    <label for="invoiceConcept">Concepto *</label>
+                    <select id="invoiceConcept" required>
+                        <option value="">Seleccione un concepto</option>
+                        <option value="Arrendamiento Semanal">Arrendamiento Semanal</option>
+                        <option value="Multa por Retraso">Multa por Retraso</option>
+                        <option value="Mantenimiento">Mantenimiento</option>
+                        <option value="Seguro">Seguro</option>
+                        <option value="Combustible">Combustible</option>
+                        <option value="Reparación">Reparación</option>
+                        <option value="Limpieza">Limpieza</option>
+                        <option value="Documentos">Tramites de Documentos</option>
+                        <option value="Multa de Tránsito">Multa de Tránsito</option>
+                        <option value="Otros">Otros</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="invoiceDescription">Descripción</label>
+                    <textarea id="invoiceDescription" placeholder="Descripción detallada del concepto (opcional)"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="invoiceAmount">Monto (₡) *</label>
+                        <input type="number" id="invoiceAmount" min="1" step="0.01" placeholder="0.00" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="invoiceDueDate">Fecha de Vencimiento *</label>
+                        <input type="date" id="invoiceDueDate" required>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeManualInvoiceModal()">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        ✅ Crear Factura
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Distribution Modal -->
+<div class="modal-overlay" id="paymentDistributionModal" onclick="closePaymentDistributionModal()">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3>💰 Distribución de Pago</h3>
+            <button class="modal-close" onclick="closePaymentDistributionModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+            <div id="paymentDistributionInfo"></div>
+            <div id="invoicesDistributionList"></div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closePaymentDistributionModal()">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" id="confirmDistributionBtn" onclick="confirmPaymentDistribution()">
+                    ✅ Aplicar Distribución
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="utils.js"></script>
+<script src="payment-management.js"></script>
+<script src="invoice-crud.js"></script>
+<script src="receipt-whatsapp.js"></script>
+<script src="main.js"></script>
+<script src="client-management.js"></script>
 </body>
 </html> 
