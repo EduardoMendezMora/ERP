@@ -914,15 +914,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Validar fecha (no puede ser en el pasado)
+            // Validar fecha (permitir cualquier fecha)
             const selectedDate = new Date(dueDate);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            if (selectedDate < today) {
-                showToast('La fecha de vencimiento no puede ser en el pasado', 'error');
-                return;
-            }
 
             // Deshabilitar botón de envío
             const submitButton = form.querySelector('button[type="submit"]');
