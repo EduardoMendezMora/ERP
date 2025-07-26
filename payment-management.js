@@ -363,6 +363,15 @@ function updateDistributionSummary() {
 }
 
 async function confirmPaymentDistribution() {
+    const modal = document.getElementById('paymentDistributionModal');
+    if (!modal || !modal.classList.contains('show')) {
+        showToast('No se puede confirmar: el modal no está abierto.', 'error');
+        return;
+    }
+    if (!currentPaymentForDistribution) {
+        showToast('Error interno: No hay pago seleccionado para distribuir.', 'error');
+        return;
+    }
     try {
         const confirmBtn = document.getElementById('confirmDistributionBtn');
         confirmBtn.disabled = true;
@@ -471,8 +480,12 @@ function closePaymentDistributionModal() {
     const modal = document.getElementById('paymentDistributionModal');
     if (modal) {
         modal.classList.remove('show');
+        // Limpiar variable solo al cerrar/cancelar
         currentPaymentForDistribution = null;
         paymentDistributionData = [];
+        // Deshabilitar el botón de confirmar
+        const confirmBtn = document.getElementById('confirmDistributionBtn');
+        if (confirmBtn) confirmBtn.disabled = true;
     }
 }
 
