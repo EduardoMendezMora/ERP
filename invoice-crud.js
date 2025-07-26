@@ -69,11 +69,11 @@ async function createManualInvoice(invoiceData) {
         const result = await response.json();
         console.log('✅ Factura creada exitosamente:', result);
 
-        // Agregar la nueva factura localmente para actualizar la UI inmediatamente
-        const newInvoice = { ...invoicePayload };
-        clientInvoices.unshift(newInvoice); // Agregar al principio del array
-
-        // Re-renderizar la página
+        // Recargar datos completos desde la API para mostrar la nueva factura
+        console.log('🔄 Recargando datos para mostrar la nueva factura...');
+        await loadClientAndInvoices(currentClientId);
+        
+        // Re-renderizar la página con los datos actualizados
         if (typeof renderPage === 'function') {
             renderPage();
         }
@@ -242,13 +242,11 @@ async function confirmDeleteInvoice() {
 
         console.log('✅ Factura eliminada exitosamente');
 
-        // Remover factura localmente
-        const index = clientInvoices.findIndex(inv => inv.NumeroFactura === currentDeletingInvoice.NumeroFactura);
-        if (index > -1) {
-            clientInvoices.splice(index, 1);
-        }
-
-        // Re-renderizar página
+        // Recargar datos completos desde la API para mostrar los cambios
+        console.log('🔄 Recargando datos después de eliminar factura...');
+        await loadClientAndInvoices(currentClientId);
+        
+        // Re-renderizar página con los datos actualizados
         if (typeof renderPage === 'function') {
             renderPage();
         }
@@ -286,14 +284,11 @@ async function markAsPaid(invoiceNumber) {
 
         await updateInvoiceStatus(invoiceNumber, updateData);
 
-        // Actualizar la factura localmente
-        const invoice = clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
-        if (invoice) {
-            invoice.Estado = 'Pagado';
-            invoice.FechaPago = formatDateForStorage(new Date());
-        }
-
-        // Re-renderizar solo las secciones afectadas
+        // Recargar datos completos desde la API para mostrar los cambios
+        console.log('🔄 Recargando datos después de marcar como pagada...');
+        await loadClientAndInvoices(currentClientId);
+        
+        // Re-renderizar la página con los datos actualizados
         if (typeof renderPage === 'function') {
             renderPage();
         }
@@ -867,7 +862,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 await updateInvoice(updateData);
 
-                // Re-renderizar la página
+                // Recargar datos completos desde la API para mostrar los cambios
+                console.log('🔄 Recargando datos después de actualizar factura...');
+                await loadClientAndInvoices(currentClientId);
+                
+                // Re-renderizar la página con los datos actualizados
                 if (typeof renderPage === 'function') {
                     renderPage();
                 }

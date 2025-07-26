@@ -758,6 +758,11 @@ async function reloadDataAndRender() {
         await loadUnassignedPayments(currentClientId);
         await loadAssignedPayments(currentClientId);
 
+        // Recargar facturas del cliente para mostrar cambios de estado
+        if (typeof loadClientAndInvoices === 'function') {
+            await loadClientAndInvoices(currentClientId);
+        }
+
         // Re-renderizar la página
         if (typeof renderPage === 'function') {
             renderPage();
