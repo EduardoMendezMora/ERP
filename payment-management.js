@@ -860,7 +860,7 @@ async function loadUnassignedPayments(clientId) {
 }
 
 async function loadAssignedPayments(clientId) {
-    console.log('📋 Cargando pagos asignados...');
+    console.log(`📋 Cargando pagos asignados para cliente ID: ${clientId}...`);
 
     try {
         assignedPayments = [];
@@ -869,17 +869,42 @@ async function loadAssignedPayments(clientId) {
 
         for (const sheet of sheets) {
             try {
-                const url = `${API_CONFIG.PAYMENTS}/search?ID_Cliente=${clientId}&sheet=${sheet}`;
+                console.log(`📋 Consultando pagos asignados en ${sheet}...`);
+                const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
                 const response = await fetch(url);
 
                 if (response.ok) {
                     const paymentsData = await response.json();
                     const payments = Array.isArray(paymentsData) ? paymentsData : [];
 
+                    // Filtrar pagos relacionados al cliente (misma lógica que loadUnassignedPayments)
+                    const clientRelatedPayments = payments.filter(payment => {
+                        // Caso 1: ID_Cliente coincide directamente
+                        if (payment.ID_Cliente && payment.ID_Cliente.toString() === clientId.toString()) {
+                            payment._matchReason = 'ID_Cliente directo';
+                            console.log(`🔍 Pago ${payment.Referencia} encontrado por ID_Cliente directo`);
+                            return true;
+                        }
+
+                        // Caso 2: ID_Cliente está en Observaciones
+                        if (payment.Observaciones &&
+                            isClientIdInObservations(payment.Observaciones, clientId)) {
+                            payment._matchReason = 'ID en Observaciones';
+                            console.log(`🔍 Pago ${payment.Referencia} encontrado por ID en Observaciones`);
+                            return true;
+                        }
+
+                        return false;
+                    });
+
                     // Filtrar pagos que SÍ tienen asignaciones
-                    const assigned = payments.filter(payment =>
-                        payment.FacturasAsignadas && payment.FacturasAsignadas.trim() !== ''
-                    );
+                    const assigned = clientRelatedPayments.filter(payment => {
+                        const hasAssignments = payment.FacturasAsignadas && payment.FacturasAsignadas.trim() !== '';
+                        if (hasAssignments) {
+                            console.log(`✅ Pago ${payment.Referencia} tiene asignaciones: "${payment.FacturasAsignadas}"`);
+                        }
+                        return hasAssignments;
+                    });
 
                     // Agregar información de la fuente y facturas relacionadas
                     const paymentsWithInfo = assigned.map(payment => {
@@ -897,7 +922,7 @@ async function loadAssignedPayments(clientId) {
                     });
 
                     assignedPayments.push(...paymentsWithInfo);
-                    console.log(`${sheet}: ${assigned.length} pagos asignados`);
+                    console.log(`✅ ${sheet}: ${assigned.length} pagos asignados`);
 
                 } else if (response.status !== 404) {
                     console.warn(`Error al cargar pagos asignados de ${sheet}:`, response.status);
