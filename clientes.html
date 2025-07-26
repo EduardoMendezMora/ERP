@@ -1571,6 +1571,27 @@
 
                 cancelEdit();
                 await loadClients();
+                
+                // Mejorar experiencia de usuario: filtrar y mostrar solo el cliente recién guardado
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    // Llenar el campo de búsqueda con el nombre del cliente
+                    searchInput.value = formData.Nombre;
+                    // Filtrar la lista para mostrar solo este cliente
+                    filterClients(formData.Nombre);
+                }
+                
+                // Hacer scroll hacia la tarjeta del cliente
+                setTimeout(() => {
+                    const clientCard = document.getElementById(`card-${formData.ID}`);
+                    if (clientCard) {
+                        clientCard.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'center' 
+                        });
+                    }
+                }, 100);
+                
                 showToast(isEditing ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente', 'success');
             } catch (error) {
                 console.error('Error:', error);

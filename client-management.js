@@ -137,7 +137,30 @@ async function saveClient() {
         if (!response.ok) throw new Error('Error al guardar cliente');
         cancelEdit();
         await loadClients();
-        renderClients(clients, formData.ID); // Resalta el cliente recién guardado
+        
+        // Mejorar experiencia de usuario: filtrar y mostrar solo el cliente recién guardado
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            // Llenar el campo de búsqueda con el nombre del cliente
+            searchInput.value = formData.Nombre;
+            // Filtrar la lista para mostrar solo este cliente
+            filterClients(formData.Nombre);
+        }
+        
+        // Resaltar el cliente recién guardado
+        renderClients(clients, formData.ID);
+        
+        // Hacer scroll hacia la tarjeta del cliente
+        setTimeout(() => {
+            const clientCard = document.getElementById(`card-${formData.ID}`);
+            if (clientCard) {
+                clientCard.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+            }
+        }, 100);
+        
         showToast(isEditing ? 'Cliente actualizado' : 'Cliente creado', 'success');
     } catch (error) {
         showToast('Error al guardar cliente: ' + error.message, 'error');
