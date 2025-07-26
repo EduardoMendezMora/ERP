@@ -1812,7 +1812,8 @@ _Sistema Inteligente de Transacciones_`;
                     const updateUrl = `${this.apiUrl}/Referencia/${transaction.Referencia}?sheet=${sheetName}`;
                    
                     const requestBody = {
-                        Observaciones: newObservations
+                        Observaciones: newObservations,
+                        ID_Cliente: newObservations // Guardar el mismo valor en ID_Cliente
                     };
                    
                     const response = await fetch(updateUrl, {
@@ -1827,6 +1828,7 @@ _Sistema Inteligente de Transacciones_`;
                     if (response.ok) {
                         // Actualizar la transacción localmente
                         transaction.Observaciones = newObservations;
+                        transaction.ID_Cliente = newObservations; // Actualizar también localmente
                         this.updateTransactionInArrays(transaction);
                        
                         // Remover sugerencia si existe
@@ -3691,6 +3693,8 @@ _Sistema Inteligente de Transacciones_`;
                     // Agregar campo Observaciones si no existe
                     if (this.allTransactions.length > 0) {
                         const hasObservaciones = this.allTransactions.some(t => 'Observaciones' in t);
+                        const hasIDCliente = this.allTransactions.some(t => 'ID_Cliente' in t);
+                        
                         if (!hasObservaciones) {
                             console.warn('⚠️ El campo "Observaciones" no existe en la API. Agregando campo vacío por defecto.');
                             this.allTransactions.forEach(t => t.Observaciones = '');
@@ -3699,6 +3703,16 @@ _Sistema Inteligente de Transacciones_`;
                             this.huberBNTransactions.forEach(t => t.Observaciones = '');
                             this.autosubastasTransactions.forEach(t => t.Observaciones = '');
                             this.autosubastasBNTransactions.forEach(t => t.Observaciones = '');
+                        }
+                        
+                        if (!hasIDCliente) {
+                            console.warn('⚠️ El campo "ID_Cliente" no existe en la API. Agregando campo vacío por defecto.');
+                            this.allTransactions.forEach(t => t.ID_Cliente = '');
+                            this.bacTransactions.forEach(t => t.ID_Cliente = '');
+                            this.bnTransactions.forEach(t => t.ID_Cliente = '');
+                            this.huberBNTransactions.forEach(t => t.ID_Cliente = '');
+                            this.autosubastasTransactions.forEach(t => t.ID_Cliente = '');
+                            this.autosubastasBNTransactions.forEach(t => t.ID_Cliente = '');
                         }
                     }
 
