@@ -1148,6 +1148,26 @@
                 renderClients(clients);
                 updateStats();
                 
+                // Mejorar experiencia de usuario: filtrar y mostrar solo el cliente facturado
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    // Llenar el campo de búsqueda con el nombre del cliente
+                    searchInput.value = client.Nombre;
+                    // Filtrar la lista para mostrar solo este cliente
+                    filterClients(client.Nombre);
+                }
+                
+                // Hacer scroll hacia la tarjeta del cliente
+                setTimeout(() => {
+                    const clientCard = document.getElementById(`card-${clientId}`);
+                    if (clientCard) {
+                        clientCard.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'center' 
+                        });
+                    }
+                }, 100);
+                
                 showToast(`✅ Cliente facturado exitosamente: ${invoicesData.length} facturas generadas`, 'success');
                 
             } catch (error) {
