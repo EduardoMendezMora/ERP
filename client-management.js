@@ -186,12 +186,12 @@ function selectClient(clientId) {
     currentClient = client;
     window.currentClient = client;
     showToast(`Cliente seleccionado: ${client.Nombre}`, 'success');
-    // Redirigir a la página de facturas del sistema propio
-    window.location.href = `/?clientId=${clientId}`;
+    // Redirigir a la página de facturas
+    window.location.href = `https://arrendautos.app/facturas.html?clientId=${clientId}`;
 }
 
 function viewInvoices(clientId) {
-    window.location.href = `/facturas.html?clientId=${clientId}`;
+    window.location.href = `https://arrendautos.app/facturas.html?clientId=${clientId}`;
 }
 
 function showToast(message, type) {

@@ -695,7 +695,7 @@ function generateInvoiceNumber() {
 
 // ===== FUNCIONES DE NAVEGACIÓN =====
 function goBackToClients() {
-    window.location.href = 'https://arrendautos.app/';
+    window.location.href = 'https://arrendautos.app/clientes.html';
 }
 
 // ===== FUNCIONES DE HELPER PARA ASIGNACIONES =====
