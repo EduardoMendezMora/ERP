@@ -330,6 +330,11 @@
             box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.1);
         }
 
+        .form-input.uppercase {
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
         .field-help {
             color: #86868b;
             font-size: 0.8rem;
@@ -536,7 +541,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Nombre Completo <span class="required">*</span></label>
-                            <input type="text" class="form-input" id="Nombre" required placeholder="Nombre del cliente">
+                            <input type="text" class="form-input uppercase" id="Nombre" required placeholder="NOMBRE DEL CLIENTE (se convierte a mayúsculas)">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Número de Teléfono</label>
@@ -545,7 +550,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Placa del Vehículo</label>
-                            <input type="text" class="form-input" id="Placa" placeholder="ABC123">
+                            <input type="text" class="form-input uppercase" id="Placa" placeholder="ABC123 (se convierte a mayúsculas)">
                         </div>
                         <div class="form-group">
                             <label class="form-label">ID Grupo WhatsApp</label>
@@ -731,6 +736,17 @@
             // Validación en tiempo real del ID de WhatsApp
             document.getElementById('idGrupoWhatsapp').addEventListener('input', function(e) {
                 validateWhatsAppID(e.target);
+            });
+
+            // ===== NUEVO: CONVERSIÓN AUTOMÁTICA A MAYÚSCULAS =====
+            // Nombre del cliente
+            document.getElementById('Nombre').addEventListener('input', function(e) {
+                e.target.value = e.target.value.toUpperCase();
+            });
+
+            // Placa del vehículo
+            document.getElementById('Placa').addEventListener('input', function(e) {
+                e.target.value = e.target.value.toUpperCase();
             });
         }
 
@@ -1533,10 +1549,10 @@
         async function saveClient() {
             const formData = {
                 ID: document.getElementById('ID').value.trim(),
-                Nombre: document.getElementById('Nombre').value.trim(),
+                Nombre: document.getElementById('Nombre').value.trim().toUpperCase(),
                 numeroTelefono: document.getElementById('numeroTelefono').value.trim(),
                 idGrupoWhatsapp: document.getElementById('idGrupoWhatsapp').value.trim(),
-                Placa: document.getElementById('Placa').value.trim(),
+                Placa: document.getElementById('Placa').value.trim().toUpperCase(),
                 montoContrato: document.getElementById('montoContrato').value.trim(),
                 fechaContrato: document.getElementById('fechaContrato').value.trim(),
                 plazoContrato: document.getElementById('plazoContrato').value.trim(),
