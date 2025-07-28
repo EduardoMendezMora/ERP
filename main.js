@@ -1112,7 +1112,14 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
 
         // Parsear el monto de la transacción
         const creditValue = transaction.Créditos || '0';
+        console.log('🔍 DEBUG PARSEO DE MONTO:');
+        console.log('   - Valor original:', creditValue);
+        console.log('   - Tipo de dato:', typeof creditValue);
+        console.log('   - Banco de transacción:', transaction.banco);
+        
         const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
+        console.log('   - Valor limpio:', cleanValue);
+        
         let amount = 0;
 
         // Usar el campo banco real de la transacción para el parseo
@@ -1132,6 +1139,10 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
             }
         }
 
+        console.log('   - Monto parseado:', amount);
+        console.log('   - Es NaN:', isNaN(amount));
+        console.log('   - Es <= 0:', amount <= 0);
+        
         if (isNaN(amount) || amount <= 0) {
             throw new Error('Monto de transacción inválido');
         }
