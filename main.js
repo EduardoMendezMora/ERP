@@ -595,6 +595,7 @@ window.currentClient = currentClient;
         window.switchPaymentTab = switchPaymentTab;
         window.loadTransactionsTab = loadTransactionsTab;
         window.switchInvoiceTab = switchInvoiceTab;
+        window.selectTransaction = selectTransaction;
 
 // Funciones de selección
 window.selectInvoiceForPayment = selectInvoiceForPayment;
@@ -815,7 +816,11 @@ async function loadTransactionsTab() {
                 const description = transaction.Descripción || transaction.Descripcion || transaction.Description || transaction.Detalle || transaction.Concepto || 'Sin descripción';
                 
                 return `
-                    <div class="transaction-item" style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: white;">
+                    <div class="transaction-item" 
+                         style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: white; cursor: pointer; transition: all 0.3s ease;"
+                         onclick="selectTransaction('${reference}', '${bank}', ${amount}, '${description}')"
+                         onmouseover="this.style.borderColor='#007aff'; this.style.boxShadow='0 2px 8px rgba(0,122,255,0.1)'"
+                         onmouseout="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <div style="flex: 1;">
                                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
@@ -859,4 +864,54 @@ async function loadTransactionsTab() {
     }
 }
 
-console.log('✅ main.js cargado - Controlador principal de la aplicación');
+// ===== FUNCIÓN PARA SELECCIONAR TRANSACCIONES =====
+function selectTransaction(reference, bank, amount, description) {
+    console.log('🎯 Transacción seleccionada:', { reference, bank, amount, description });
+    
+    // Remover selección anterior
+    document.querySelectorAll('.transaction-item').forEach(item => {
+        item.style.background = 'white';
+        item.style.borderColor = '#e0e0e0';
+    });
+    
+    // Marcar como seleccionada
+    event.target.closest('.transaction-item').style.background = '#e6f3ff';
+    event.target.closest('.transaction-item').style.borderColor = '#007aff';
+    
+    // Guardar la transacción seleccionada
+    window.selectedTransaction = {
+        reference: reference,
+        bank: bank,
+        amount: amount,
+        description: description
+    };
+    
+    // Mostrar información de la transacción seleccionada
+    const transactionsInfo = document.getElementById('transactionsInfo');
+    if (transactionsInfo) {
+        const currentInfo = transactionsInfo.innerHTML;
+        const selectionInfo = `
+            <div style="background: #e6f3ff; border: 2px solid #007aff; border-radius: 8px; padding: 12px; margin-top: 12px;">
+                <h5 style="margin: 0 0 8px 0; color: #007aff;">✅ Transacción Seleccionada</h5>
+                <div style="font-size: 0.9rem;">
+                    <strong>Referencia:</strong> ${reference}<br>
+                    <strong>Banco:</strong> ${bank}<br>
+                    <strong>Monto:</strong> ₡${amount.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<br>
+                    <strong>Descripción:</strong> ${description}
+                </div>
+            </div>
+        `;
+        
+        // Agregar la información de selección al final
+        transactionsInfo.innerHTML = currentInfo + selectionInfo;
+    }
+    
+    // Habilitar botón de confirmar si estamos en el modal de pagos
+    const confirmBtn = document.getElementById('confirmAssignPaymentBtn');
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = '✅ Asignar Transacción';
+    }
+    
+    showToast(`✅ Transacción ${reference} seleccionada`, 'success');
+}
