@@ -1122,17 +1122,23 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         
         let amount = 0;
 
-        // Usar el campo banco real de la transacción para el parseo
-        const transactionBank = transaction.banco;
-        if (transactionBank === 'BAC') {
+        // Usar la misma lógica de parseo que en loadTransactionsTab
+        const bank = transaction.banco || 'BAC';
+        
+        // Convertir a número según el banco (misma lógica que loadTransactionsTab)
+        if (bank === 'BAC') {
+            // BAC usa comas como separador decimal (ej: 20.000,00)
             if (cleanValue.includes(',')) {
+                // Reemplazar punto por nada y coma por punto
                 const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
                 amount = parseFloat(normalizedValue);
             } else {
                 amount = parseFloat(cleanValue);
             }
         } else {
+            // Otros bancos usan punto como separador decimal
             if (cleanValue.includes(',')) {
+                // Si tiene coma, reemplazarla por punto
                 amount = parseFloat(cleanValue.replace(',', '.'));
             } else {
                 amount = parseFloat(cleanValue);
@@ -1171,7 +1177,7 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         } else {
             // Pago parcial
             amountToApply = amount;
-            newStatus = invoice.Estado; // Mantener estado actual
+            newStatus = 'Pendiente'; // Mantener como Pendiente hasta que saldo llegue a 0
             newBalance = totalOwed - amountToApply;
             console.log(`⚠️ Pago parcial - Saldo restante: ₡${newBalance.toLocaleString('es-CR')}`);
         }
