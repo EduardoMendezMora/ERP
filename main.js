@@ -538,9 +538,9 @@ async function confirmAssignInvoice() {
             invoice: currentInvoiceForAssignment.NumeroFactura
         });
 
-        await assignPaymentToInvoice(
+        await assignTransactionToInvoice(
             window.selectedTransaction.reference,
-            window.selectedTransaction.bank, // El banco ya viene como 'BAC', 'BN', etc.
+            window.selectedTransaction.bank,
             currentInvoiceForAssignment.NumeroFactura
         );
 
@@ -616,6 +616,7 @@ window.currentClient = currentClient;
         window.selectTransaction = selectTransaction;
         window.filterTransactions = filterTransactions;
         window.clearTransactionSearch = clearTransactionSearch;
+        window.assignTransactionToInvoice = assignTransactionToInvoice;
 
 // Funciones de selección
 window.selectInvoiceForPayment = selectInvoiceForPayment;
@@ -1051,5 +1052,128 @@ function clearTransactionSearch() {
     if (searchInput) {
         searchInput.value = '';
         filterTransactions('');
+    }
+}
+
+// ===== FUNCIÓN PARA ASIGNAR TRANSACCIONES BANCARIAS =====
+async function assignTransactionToInvoice(transactionReference, bank, invoiceNumber) {
+    try {
+        console.log(`🎯 Iniciando asignación de transacción: ${transactionReference} (${bank}) → Factura ${invoiceNumber}`);
+
+        // Encontrar la factura
+        const invoice = clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
+        if (!invoice) {
+            throw new Error('Factura no encontrada');
+        }
+
+        // Obtener datos de la transacción desde la API
+        const transactionResponse = await fetch('https://sheetdb.io/api/v1/a7oekivxzreg7');
+        if (!transactionResponse.ok) {
+            throw new Error('Error al obtener datos de transacciones');
+        }
+
+        const transactions = await transactionResponse.json();
+        const transaction = transactions.find(t => t.Referencia === transactionReference && t.banco === bank);
+        
+        if (!transaction) {
+            throw new Error('Transacción no encontrada en la base de datos');
+        }
+
+        // Parsear el monto de la transacción
+        const creditValue = transaction.Créditos || '0';
+        const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
+        let amount = 0;
+
+        if (bank === 'BAC') {
+            if (cleanValue.includes(',')) {
+                const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
+                amount = parseFloat(normalizedValue);
+            } else {
+                amount = parseFloat(cleanValue);
+            }
+        } else {
+            if (cleanValue.includes(',')) {
+                amount = parseFloat(cleanValue.replace(',', '.'));
+            } else {
+                amount = parseFloat(cleanValue);
+            }
+        }
+
+        if (isNaN(amount) || amount <= 0) {
+            throw new Error('Monto de transacción inválido');
+        }
+
+        console.log(`💰 Monto de transacción: ₡${amount.toLocaleString('es-CR')}`);
+
+        // Calcular multas hasta la fecha de la transacción
+        const transactionDate = transaction.Fecha;
+        const baseAmount = parseFloat(invoice.MontoBase || 0);
+        const finesUntilTransaction = calculateFinesUntilDate(invoice, transactionDate);
+        const totalOwed = baseAmount + finesUntilTransaction;
+
+        console.log(`📊 Análisis de asignación:`);
+        console.log(`   - Monto base: ₡${baseAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Multas hasta transacción: ₡${finesUntilTransaction.toLocaleString('es-CR')}`);
+        console.log(`   - Total adeudado: ₡${totalOwed.toLocaleString('es-CR')}`);
+        console.log(`   - Monto transacción: ₡${amount.toLocaleString('es-CR')}`);
+
+        let amountToApply, newStatus, newBalance = 0;
+
+        if (amount >= totalOwed) {
+            // Pago completo
+            amountToApply = totalOwed;
+            newStatus = 'Pagado';
+            console.log('✅ Pago completo - Factura será marcada como PAGADA');
+        } else {
+            // Pago parcial
+            amountToApply = amount;
+            newStatus = invoice.Estado; // Mantener estado actual
+            newBalance = totalOwed - amountToApply;
+            console.log(`⚠️ Pago parcial - Saldo restante: ₡${newBalance.toLocaleString('es-CR')}`);
+        }
+
+        // Actualizar la transacción en la API (marcar como conciliada)
+        const updateTransactionData = {
+            ID_Cliente: currentClient.ID_Cliente,
+            Observaciones: `Conciliada con factura ${invoiceNumber} - Monto aplicado: ₡${amountToApply.toLocaleString('es-CR')}`
+        };
+
+        // Aquí necesitarías actualizar la transacción en la API
+        // Por ahora, solo actualizamos la factura
+        console.log('📝 Actualizando transacción en API...');
+        // TODO: Implementar actualización de transacción en API
+
+        // Actualizar la factura
+        const updateData = {
+            Estado: newStatus,
+            MontoMultas: finesUntilTransaction,
+            MontoTotal: newBalance > 0 ? newBalance : totalOwed
+        };
+
+        if (newStatus === 'Pagado') {
+            updateData.FechaPago = transactionDate || '';
+        }
+
+        await updateInvoiceStatus(invoice.NumeroFactura, updateData);
+
+        // Actualizar datos locales
+        Object.assign(invoice, updateData);
+
+        // Re-cargar y renderizar
+        await reloadDataAndRender();
+
+        // Mostrar mensaje
+        if (newStatus === 'Pagado') {
+            showToast(`✅ Factura ${invoice.NumeroFactura} PAGADA completamente con transacción ${transactionReference}`, 'success');
+        } else {
+            showToast(`⚠️ Pago parcial aplicado a ${invoice.NumeroFactura}. Saldo: ₡${newBalance.toLocaleString('es-CR')}`, 'warning');
+        }
+
+        return true;
+
+    } catch (error) {
+        console.error('❌ Error en assignTransactionToInvoice:', error);
+        showToast('Error al asignar la transacción: ' + error.message, 'error');
+        throw error;
     }
 }
