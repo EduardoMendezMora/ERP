@@ -705,6 +705,10 @@ async function loadTransactionsTab() {
         
         // Filtrar transacciones pendientes de conciliar
         // NO mostrar las que tienen ID_Cliente, Observaciones o están conciliadas
+        // Solo mostrar desde el 10/07/2025
+        const cutoffDate = new Date('2025-07-10');
+        cutoffDate.setHours(0, 0, 0, 0);
+        
         const pendingTransactions = transactions.filter(t => {
             // Si tiene ID_Cliente asignado, está conciliada
             if (t.ID_Cliente && t.ID_Cliente.trim() !== '' && t.ID_Cliente !== 'undefined') {
@@ -716,7 +720,15 @@ async function loadTransactionsTab() {
                 return false;
             }
             
-            // Solo mostrar las que no están conciliadas
+            // Filtrar por fecha - solo desde 10/07/2025
+            if (t.Fecha) {
+                const transactionDate = new Date(t.Fecha);
+                if (transactionDate < cutoffDate) {
+                    return false;
+                }
+            }
+            
+            // Solo mostrar las que no están conciliadas y son desde la fecha límite
             return true;
         });
         
@@ -744,26 +756,44 @@ async function loadTransactionsTab() {
             `;
         } else {
             const transactionsHTML = pendingTransactions.slice(0, 20).map(transaction => {
-                // Parsear el monto correctamente, manteniendo decimales si existen
+                // Parsear el monto correctamente
                 let amount = 0;
                 const creditValue = transaction.Créditos || '0';
                 
-                // Si el valor contiene decimales, mantenerlos
-                if (creditValue.includes('.') || creditValue.includes(',')) {
-                    amount = parseFloat(creditValue.replace(',', '.'));
+                // Debug: mostrar el valor original
+                console.log('🔍 Valor original:', creditValue, 'Tipo:', typeof creditValue);
+                
+                // Limpiar el valor de espacios y caracteres extraños
+                const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
+                
+                // Convertir a número
+                if (cleanValue.includes(',')) {
+                    // Si tiene coma, es formato europeo (comas para decimales)
+                    amount = parseFloat(cleanValue.replace(',', '.'));
+                } else if (cleanValue.includes('.')) {
+                    // Si tiene punto, es formato estándar
+                    amount = parseFloat(cleanValue);
                 } else {
-                    // Si es un número entero, convertirlo a decimal
-                    amount = parseFloat(creditValue);
+                    // Si no tiene separador decimal, es un entero
+                    amount = parseInt(cleanValue);
                 }
+                
+                // Verificar que sea un número válido
+                if (isNaN(amount)) {
+                    amount = 0;
+                }
+                
+                console.log('💰 Monto parseado:', amount);
                 
                 const date = transaction.Fecha || 'Sin fecha';
                 const reference = transaction.Referencia || 'Sin referencia';
                 const bank = transaction.banco || 'BAC';
                 
-                // Formatear el monto con decimales si es necesario
-                const formattedAmount = amount % 1 === 0 
-                    ? amount.toLocaleString('es-CR') 
-                    : amount.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                // Formatear el monto
+                const formattedAmount = amount.toLocaleString('es-CR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
                 
                 return `
                     <div class="transaction-item" style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: white;">
