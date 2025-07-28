@@ -95,6 +95,63 @@ function safeFormatDate(date) {
     return formatDateForStorage(new Date(date));
 }
 
+// ===== FUNCIÓN PARA FORMATEAR MONEDA CORRECTAMENTE =====
+function formatCurrency(amount) {
+    if (typeof amount !== 'number' || isNaN(amount)) {
+        return '₡0';
+    }
+    
+    // Forzar el formato de moneda costarricense
+    try {
+        return `₡${amount.toLocaleString('es-CR', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        })}`;
+    } catch (error) {
+        // Fallback si hay error en el formato
+        return `₡${Math.round(amount).toLocaleString()}`;
+    }
+}
+
+// ===== FUNCIÓN PARA FORMATEAR FECHA =====
+function formatDateForInput(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[0];
+}
+
+function formatDateForDisplay(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('es-CR');
+}
+
+function formatDateForStorage(date) {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function parseDate(dateString) {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return null;
+    return date;
+}
+
+function generateInvoiceNumber() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const sequence = String(today.getTime()).slice(-4); // Últimos 4 dígitos del timestamp
+    return `${year}-${month}-${day}-${sequence}`;
+}
+
 // ===== FUNCIONES PARA EDITAR FACTURA =====
 function editInvoice(invoiceNumber) {
     console.log('✏️ Editando factura:', invoiceNumber);
@@ -628,7 +685,7 @@ function renderInvoicesSection(status, invoices) {
             </div>
             <div class="invoice-detail">
                 <div class="invoice-detail-label">Monto Base</div>
-                <div class="invoice-detail-value">₡${baseAmount.toLocaleString('es-CR')}</div>
+                <div class="invoice-detail-value">${formatCurrency(baseAmount)}</div>
             </div>
         `;
 
@@ -654,7 +711,7 @@ function renderInvoicesSection(status, invoices) {
                     </div>
                     <div class="invoice-detail">
                         <div class="invoice-detail-label">Multas</div>
-                        <div class="invoice-detail-value overdue-highlight">₡${fines.toLocaleString('es-CR')}</div>
+                        <div class="invoice-detail-value overdue-highlight">${formatCurrency(fines)}</div>
                     </div>
                 `;
             }
@@ -663,7 +720,7 @@ function renderInvoicesSection(status, invoices) {
         detailsHtml += `
             <div class="invoice-detail">
                 <div class="invoice-detail-label">Total</div>
-                <div class="invoice-detail-value amount-highlight">₡${totalAmount.toLocaleString('es-CR')}</div>
+                <div class="invoice-detail-value amount-highlight">${formatCurrency(totalAmount)}</div>
             </div>
         `;
 
@@ -694,8 +751,8 @@ function renderInvoicesSection(status, invoices) {
                 partialPaymentWarning = `
                     <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 8px; border-radius: 6px; margin: 8px 0; font-size: 0.85rem;">
                         <strong>⚠️ Pagos parciales aplicados:</strong><br>
-                        Total aplicado: ₡${totalApplied.toLocaleString('es-CR')}<br>
-                        <strong>Saldo pendiente: ₡${remaining.toLocaleString('es-CR')}</strong>
+                        Total aplicado: ${formatCurrency(totalApplied)}<br>
+                        <strong>Saldo pendiente: ${formatCurrency(remaining)}</strong>
                     </div>
                 `;
             }
@@ -963,5 +1020,13 @@ window.loadClientAndInvoices = loadClientAndInvoices;
 window.renderClientDetails = renderClientDetails;
 window.updateStatsWithoutPending = updateStatsWithoutPending;
 window.renderInvoicesSection = renderInvoicesSection;
+
+// ✅ FUNCIONES DE FORMATEO
+window.formatCurrency = formatCurrency;
+window.formatDateForDisplay = formatDateForDisplay;
+window.formatDateForInput = formatDateForInput;
+window.formatDateForStorage = formatDateForStorage;
+window.parseDate = parseDate;
+window.generateInvoiceNumber = generateInvoiceNumber;
 
 console.log('✅ invoice-crud.js cargado - Sistema CRUD de facturas');

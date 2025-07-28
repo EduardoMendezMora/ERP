@@ -69,6 +69,17 @@
                 <div class="control-toggle active" id="toggle-overdue"></div>
             </div>
 
+            <div class="control-item active" id="control-pending" onclick="toggleSection('pending')">
+                <div class="control-info">
+                    <div class="control-icon">🟡</div>
+                    <div class="control-text">
+                        <div class="control-label">Facturas Pendientes</div>
+                        <div class="control-count" id="control-count-pending">0 facturas pendientes</div>
+                    </div>
+                </div>
+                <div class="control-toggle active" id="toggle-pending"></div>
+            </div>
+
             <div class="control-item active" id="control-assigned" onclick="toggleSection('assigned')">
                 <div class="control-info">
                     <div class="control-icon">✅</div>
@@ -172,6 +183,12 @@
                 <button class="btn btn-warning btn-sm" style="margin-left: 8px;" onclick="testTransactionSystem()">
                     🧪 Probar Sistema
                 </button>
+                <button class="btn btn-info btn-sm" style="margin-left: 8px;" onclick="testCurrencyFormat()">
+                    💰 Probar Moneda
+                </button>
+                <button class="btn btn-success btn-sm" style="margin-left: 8px;" onclick="testDynamicFiltering()">
+                    🔍 Probar Filtrado
+                </button>
             </div>
             <div class="invoices-grid" id="unassignedPayments"></div>
             <div class="empty-section" id="emptyUnassignedPayments" style="display: none;">
@@ -193,6 +210,22 @@
             <div class="empty-section" id="emptyOverdue" style="display: none;">
                 <h4>✅ No hay facturas vencidas</h4>
                 <p>No hay facturas que venzan hoy o ya vencidas</p>
+            </div>
+        </div>
+
+        <!-- Pending Invoices Section -->
+        <div class="invoices-section section-pending" id="pendingSection">
+            <div class="section-header">
+                <h3 class="section-title">
+                    🟡 Facturas Pendientes
+                    <span class="section-count" id="pendingCount">0</span>
+                </h3>
+                <small style="color: #86868b; font-size: 0.8rem;">Facturas que aún no han vencido</small>
+            </div>
+            <div class="invoices-grid" id="pendingInvoices"></div>
+            <div class="empty-section" id="emptyPending" style="display: none;">
+                <h4>📄 No hay facturas pendientes</h4>
+                <p>Todas las facturas han vencido o están pagadas</p>
             </div>
         </div>
 
@@ -634,6 +667,102 @@ async function syncWithBackend() {
         console.error('Error en sincronización:', error);
         showToast('❌ Error durante la sincronización: ' + error.message, 'error');
     }
+}
+
+// Función para probar el filtrado dinámico de facturas
+function testDynamicFiltering() {
+    console.log('🧪 PROBANDO FILTRADO DINÁMICO DE FACTURAS...');
+    
+    const clientInvoices = window.clientInvoices || [];
+    if (clientInvoices.length === 0) {
+        console.log('❌ No hay facturas para probar');
+        return;
+    }
+    
+    console.log(`📊 Total de facturas: ${clientInvoices.length}`);
+    
+    // Verificar que las funciones estén disponibles
+    console.log('🔍 Funciones disponibles:');
+    console.log('  - calculateInvoiceStatus:', typeof window.calculateInvoiceStatus);
+    console.log('  - getOverdueInvoices:', typeof window.getOverdueInvoices);
+    console.log('  - getPendingInvoices:', typeof window.getPendingInvoices);
+    console.log('  - getPaidInvoices:', typeof window.getPaidInvoices);
+    
+    // Probar clasificación dinámica
+    if (typeof window.calculateInvoiceStatus === 'function') {
+        console.log('📋 Clasificación individual de facturas:');
+        clientInvoices.forEach((invoice, index) => {
+            const calculatedStatus = window.calculateInvoiceStatus(invoice);
+            const originalStatus = invoice.Estado;
+            const dueDate = invoice.FechaVencimiento;
+            
+            console.log(`  ${index + 1}. ${invoice.NumeroFactura}:`);
+            console.log(`     - Estado original: ${originalStatus}`);
+            console.log(`     - Estado calculado: ${calculatedStatus}`);
+            console.log(`     - Fecha vencimiento: ${dueDate}`);
+            
+            if (calculatedStatus !== originalStatus) {
+                console.log(`     ⚠️ DIFERENCIA DETECTADA!`);
+            }
+        });
+    }
+    
+    // Probar filtros
+    if (typeof window.getOverdueInvoices === 'function') {
+        const overdue = window.getOverdueInvoices(clientInvoices);
+        console.log(`🔴 Facturas vencidas (dinámico): ${overdue.length}`);
+        overdue.forEach(inv => {
+            console.log(`  - ${inv.NumeroFactura} (${inv.FechaVencimiento})`);
+        });
+    }
+    
+    if (typeof window.getPendingInvoices === 'function') {
+        const pending = window.getPendingInvoices(clientInvoices);
+        console.log(`🟡 Facturas pendientes (dinámico): ${pending.length}`);
+        pending.forEach(inv => {
+            console.log(`  - ${inv.NumeroFactura} (${inv.FechaVencimiento})`);
+        });
+    }
+    
+    if (typeof window.getPaidInvoices === 'function') {
+        const paid = window.getPaidInvoices(clientInvoices);
+        console.log(`🟢 Facturas pagadas (dinámico): ${paid.length}`);
+        paid.forEach(inv => {
+            console.log(`  - ${inv.NumeroFactura} (${inv.FechaVencimiento})`);
+        });
+    }
+    
+    console.log('✅ PRUEBA DE FILTRADO DINÁMICO COMPLETADA');
+}
+
+// Función para probar el formato de moneda
+function testCurrencyFormat() {
+    console.log('🧪 PROBANDO FORMATO DE MONEDA...');
+    
+    const testAmounts = [115000, 336000, 220000, 214000, 94000, 40000];
+    
+    console.log('💰 Montos de prueba:');
+    testAmounts.forEach(amount => {
+        const formatted = formatCurrency(amount);
+        console.log(`  ${amount} → ${formatted}`);
+    });
+    
+    // Verificar que la función esté disponible
+    console.log('🔍 formatCurrency disponible:', typeof window.formatCurrency);
+    
+    // Probar con diferentes navegadores
+    console.log('🌐 Información del navegador:');
+    console.log('  - User Agent:', navigator.userAgent);
+    console.log('  - Language:', navigator.language);
+    console.log('  - Languages:', navigator.languages);
+    
+    // Probar formato nativo
+    console.log('📊 Formato nativo vs personalizado:');
+    testAmounts.forEach(amount => {
+        const native = amount.toLocaleString('es-CR');
+        const custom = formatCurrency(amount);
+        console.log(`  ${amount}: nativo="${native}" | custom="${custom}"`);
+    });
 }
 
 // Función para probar el sistema de transacciones

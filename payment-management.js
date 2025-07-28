@@ -2,6 +2,109 @@
 let currentPaymentForDistribution = null;
 let paymentDistributionData = [];
 
+// ===== FUNCIÓN PARA GENERAR SUGERENCIAS INTELIGENTES =====
+function generateSmartSuggestions(transaction, clientInvoices, clientData) {
+    if (!transaction || !clientInvoices || clientInvoices.length === 0) {
+        return [];
+    }
+
+    const suggestions = [];
+    const transactionAmount = parseFloat(transaction.creditos || 0);
+    const transactionDescription = (transaction.descripcion || '').toLowerCase();
+    
+    // Información del cliente para búsqueda
+    const clientName = (clientData?.Nombre || '').toLowerCase();
+    const clientId = clientData?.ID || '';
+    const clientPlate = (clientData?.Placa || '').toLowerCase();
+
+    clientInvoices.forEach(invoice => {
+        let score = 0;
+        const invoiceAmount = parseFloat(invoice.MontoTotal || invoice.MontoBase || 0);
+        const invoiceNumber = (invoice.NumeroFactura || '').toLowerCase();
+        const invoiceConcept = (invoice.Concepto || '').toLowerCase();
+        const invoiceDescription = (invoice.Descripcion || '').toLowerCase();
+        const invoiceWeek = (invoice.SemanaDescripcion || '').toLowerCase();
+        
+        // 1. Coincidencia exacta de monto (máxima puntuación)
+        if (Math.abs(transactionAmount - invoiceAmount) === 0) {
+            score += 100;
+        }
+        // 2. Coincidencia aproximada de monto (±5%)
+        else if (Math.abs(transactionAmount - invoiceAmount) / invoiceAmount <= 0.05) {
+            score += 80;
+        }
+        // 3. Coincidencia parcial de monto (±10%)
+        else if (Math.abs(transactionAmount - invoiceAmount) / invoiceAmount <= 0.10) {
+            score += 60;
+        }
+        // 4. Coincidencia de monto parcial (pago parcial)
+        else if (transactionAmount < invoiceAmount && transactionAmount > 0) {
+            score += 40;
+        }
+
+        // 5. Coincidencia de número de factura en descripción
+        if (transactionDescription.includes(invoiceNumber.replace('fac-', ''))) {
+            score += 50;
+        }
+
+        // 6. Coincidencia de conceptos clave
+        const keywords = ['arriendo', 'renta', 'alquiler', 'semana', 'semanal'];
+        keywords.forEach(keyword => {
+            if (transactionDescription.includes(keyword) && 
+                (invoiceConcept.includes(keyword) || invoiceDescription.includes(keyword))) {
+                score += 30;
+            }
+        });
+
+        // 7. Coincidencia de número de semana
+        const weekMatch = invoiceWeek.match(/semana\s*(\d+)/i);
+        if (weekMatch) {
+            const weekNumber = weekMatch[1];
+            if (transactionDescription.includes(weekNumber)) {
+                score += 25;
+            }
+        }
+
+        // 8. Coincidencia de nombre del cliente
+        if (clientName && transactionDescription.includes(clientName.split(' ')[0])) {
+            score += 20;
+        }
+
+        // 9. Coincidencia de ID del cliente
+        if (clientId && transactionDescription.includes(clientId)) {
+            score += 25;
+        }
+
+        // 10. Coincidencia de placa del vehículo
+        if (clientPlate && transactionDescription.includes(clientPlate)) {
+            score += 20;
+        }
+
+        // 11. Facturas vencidas (prioridad)
+        if (invoice.Estado === 'Vencido') {
+            score += 15;
+        }
+
+        // Solo incluir sugerencias con score mínimo
+        if (score >= 20) {
+            suggestions.push({
+                invoiceNumber: invoice.NumeroFactura,
+                amount: invoiceAmount,
+                concept: invoice.Concepto || invoice.Descripcion || '',
+                week: invoice.SemanaDescripcion || '',
+                status: invoice.Estado,
+                score: score,
+                daysOverdue: parseInt(invoice.DiasAtraso || 0),
+                isExactMatch: Math.abs(transactionAmount - invoiceAmount) === 0,
+                isCloseMatch: Math.abs(transactionAmount - invoiceAmount) / invoiceAmount <= 0.05
+            });
+        }
+    });
+
+    // Ordenar por score descendente
+    return suggestions.sort((a, b) => b.score - a.score);
+}
+
 // ===== FUNCIÓN PRINCIPAL MEJORADA PARA APLICAR PAGOS =====
 async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumber) {
     try {
@@ -1358,6 +1461,7 @@ window.showPaymentDistributionModal = showPaymentDistributionModal;
 window.closePaymentDistributionModal = closePaymentDistributionModal;
 window.confirmPaymentDistribution = confirmPaymentDistribution;
 window.updateDistributionCalculation = updateDistributionCalculation;
+window.updateDistributionSummary = updateDistributionSummary;
 
 // Funciones de parseo
 window.parseAssignedInvoices = parseAssignedInvoices;
@@ -2121,3 +2225,4 @@ window.isClientIdInObservations = isClientIdInObservations;
 window.showToast = showToast;
 
 console.log('🎉 Todas las funciones expuestas al scope global correctamente');
+

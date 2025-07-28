@@ -62,7 +62,56 @@ async function initializeApp() {
     }
 }
 
-// ===== FUNCIÓN PRINCIPAL DE RENDERIZADO =====
+// ===== FUNCIÓN PARA CALCULAR ESTADO DINÁMICO DE FACTURAS =====
+function calculateInvoiceStatus(invoice) {
+    if (!invoice.FechaVencimiento) {
+        return 'Pendiente';
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalizar a inicio del día
+    
+    const dueDate = new Date(invoice.FechaVencimiento);
+    dueDate.setHours(0, 0, 0, 0); // Normalizar a inicio del día
+    
+    const daysDifference = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+    
+    // Si ya está pagada, mantener estado pagado
+    if (invoice.Estado === 'Pagado') {
+        return 'Pagado';
+    }
+    
+    // Si vence hoy o ya venció
+    if (daysDifference >= 0) {
+        return 'Vencido';
+    }
+    
+    // Si aún no vence
+    return 'Pendiente';
+}
+
+// ===== FUNCIÓN PARA FILTRAR FACTURAS VENCIDAS DINÁMICAMENTE =====
+function getOverdueInvoices(invoices) {
+    return invoices.filter(invoice => {
+        const calculatedStatus = calculateInvoiceStatus(invoice);
+        return calculatedStatus === 'Vencido';
+    });
+}
+
+// ===== FUNCIÓN PARA FILTRAR FACTURAS PENDIENTES DINÁMICAMENTE =====
+function getPendingInvoices(invoices) {
+    return invoices.filter(invoice => {
+        const calculatedStatus = calculateInvoiceStatus(invoice);
+        return calculatedStatus === 'Pendiente';
+    });
+}
+
+// ===== FUNCIÓN PARA FILTRAR FACTURAS PAGADAS =====
+function getPaidInvoices(invoices) {
+    return invoices.filter(invoice => invoice.Estado === 'Pagado');
+}
+
+// ===== FUNCIÓN PARA RENDERIZAR PÁGINA =====
 function renderPage() {
     console.log('🎨 Renderizando página completa...');
 
@@ -73,15 +122,23 @@ function renderPage() {
         // Renderizar detalles del cliente
         renderClientDetails();
 
-        // Clasificar facturas por estado
-        const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
-        const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
+        // Clasificar facturas por estado (usando cálculo dinámico)
+        const overdueInvoices = getOverdueInvoices(clientInvoices);
+        const pendingInvoices = getPendingInvoices(clientInvoices);
+        const paidInvoices = getPaidInvoices(clientInvoices);
+        
+        console.log(`📊 Facturas clasificadas dinámicamente:`);
+        console.log(`  - Vencidas: ${overdueInvoices.length}`);
+        console.log(`  - Pendientes: ${pendingInvoices.length}`);
+        console.log(`  - Pagadas: ${paidInvoices.length}`);
+        console.log(`  - Total: ${clientInvoices.length}`);
 
         // Actualizar estadísticas
         updateStatsWithoutPending(overdueInvoices, paidInvoices);
 
         // Renderizar secciones de facturas
         renderInvoicesSection('overdue', overdueInvoices);
+        renderInvoicesSection('pending', pendingInvoices);
         renderInvoicesSection('paid', paidInvoices);
 
         // Renderizar secciones de pagos
@@ -562,5 +619,11 @@ window.selectPaymentForInvoice = selectPaymentForInvoice;
 // Funciones de confirmación
 window.confirmAssignPayment = confirmAssignPayment;
 window.confirmAssignInvoice = confirmAssignInvoice;
+
+// ✅ FUNCIONES DE FILTRADO DINÁMICO
+window.calculateInvoiceStatus = calculateInvoiceStatus;
+window.getOverdueInvoices = getOverdueInvoices;
+window.getPendingInvoices = getPendingInvoices;
+window.getPaidInvoices = getPaidInvoices;
 
 console.log('✅ main.js cargado - Controlador principal de la aplicación');
