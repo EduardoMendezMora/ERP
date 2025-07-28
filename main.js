@@ -563,7 +563,8 @@ async function confirmAssignInvoice() {
         await assignTransactionToInvoice(
             window.selectedTransaction.reference,
             sheetName,
-            currentInvoiceForAssignment.NumeroFactura
+            currentInvoiceForAssignment.NumeroFactura,
+            window.selectedTransaction.amount // Pasar el monto esperado
         );
 
         closeAssignInvoiceModal();
@@ -1078,9 +1079,12 @@ function clearTransactionSearch() {
 }
 
 // ===== FUNCIÓN PARA ASIGNAR TRANSACCIONES BANCARIAS =====
-async function assignTransactionToInvoice(transactionReference, bank, invoiceNumber) {
+async function assignTransactionToInvoice(transactionReference, bank, invoiceNumber, expectedAmount = null) {
     try {
         console.log(`🎯 Iniciando asignación de transacción: ${transactionReference} (${bank}) → Factura ${invoiceNumber}`);
+        if (expectedAmount) {
+            console.log(`💰 Monto esperado del modal: ₡${expectedAmount.toLocaleString('es-CR')}`);
+        }
 
         // Encontrar la factura
         const invoice = clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
@@ -1146,7 +1150,19 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
             throw new Error('Monto de transacción inválido');
         }
 
+        // ===== NUEVO: VALIDAR QUE EL MONTO COINCIDA =====
+        if (expectedAmount && Math.abs(amount - expectedAmount) > 0.01) {
+            console.error('❌ ERROR: Monto no coincide');
+            console.error(`   - Monto esperado: ₡${expectedAmount.toLocaleString('es-CR')}`);
+            console.error(`   - Monto real: ₡${amount.toLocaleString('es-CR')}`);
+            console.error(`   - Diferencia: ₡${Math.abs(amount - expectedAmount).toLocaleString('es-CR')}`);
+            throw new Error(`El monto de la transacción (₡${amount.toLocaleString('es-CR')}) no coincide con el monto seleccionado (₡${expectedAmount.toLocaleString('es-CR')})`);
+        }
+
         console.log(`💰 Monto de transacción: ₡${amount.toLocaleString('es-CR')}`);
+        if (expectedAmount) {
+            console.log(`✅ Monto validado correctamente`);
+        }
 
         // ===== NUEVO: LEER HISTORIAL DE PAGOS DE LA FACTURA =====
         console.log('📋 Leyendo historial de pagos de la factura...');
@@ -1226,7 +1242,7 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         const updateData = {
             Estado: newStatus,
             MontoMultas: finesUntilTransaction,
-            MontoTotal: newStatus === 'Pagado' ? 0 : newBalance,
+            MontoTotal: newStatus === 'Pagado' ? 0 : Math.round(newBalance), // Asegurar que sea número entero
             Pagos: formattedPayments
         };
 
@@ -1240,7 +1256,16 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         Object.assign(invoice, updateData);
 
         // ===== NUEVO: ACTUALIZAR TRANSACCIÓN EN LA API =====
+        console.log('🔄 Iniciando actualización de transacción en API...');
+        console.log('📋 Datos para actualizar:', {
+            transactionReference,
+            transactionBank,
+            formattedAssignments
+        });
+        
         await updateTransactionAssignments(transactionReference, transactionBank, formattedAssignments);
+        
+        console.log('✅ Actualización de transacción completada');
 
         // Re-cargar y renderizar
         await reloadDataAndRender();
@@ -1258,6 +1283,75 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         console.error('❌ Error en assignTransactionToInvoice:', error);
         showToast('Error al asignar la transacción: ' + error.message, 'error');
         throw error;
+    }
+}
+
+// Función para sincronizar pagos existentes que no están en la API de transacciones
+async function syncExistingPayments() {
+    try {
+        console.log('🔄 Sincronizando pagos existentes...');
+        
+        // Obtener todas las facturas con pagos
+        const invoicesWithPayments = clientInvoices.filter(invoice => 
+            invoice.Pagos && invoice.Pagos.trim() !== ''
+        );
+        
+        console.log(`📋 Encontradas ${invoicesWithPayments.length} facturas con pagos`);
+        
+        for (const invoice of invoicesWithPayments) {
+            const payments = parseInvoicePayments(invoice.Pagos);
+            
+            for (const payment of payments) {
+                console.log(`🔄 Sincronizando pago ${payment.reference} para factura ${invoice.NumeroFactura}`);
+                
+                try {
+                    // Buscar la transacción en la API
+                    const transactionResponse = await fetch('https://sheetdb.io/api/v1/a7oekivxzreg7');
+                    if (!transactionResponse.ok) continue;
+                    
+                    const transactions = await transactionResponse.json();
+                    const transaction = transactions.find(t => t.Referencia === payment.reference);
+                    
+                    if (transaction) {
+                        // Verificar si ya está actualizada
+                        const currentAssignments = parseTransactionAssignments(transaction.FacturasAsignadas || '');
+                        const hasAssignment = currentAssignments.some(a => a.invoiceNumber === invoice.NumeroFactura);
+                        
+                        if (!hasAssignment) {
+                            console.log(`📝 Actualizando transacción ${payment.reference} con asignación a ${invoice.NumeroFactura}`);
+                            
+                            // Agregar la asignación
+                            const newAssignments = [...currentAssignments, {
+                                invoiceNumber: invoice.NumeroFactura,
+                                amount: payment.amount
+                            }];
+                            
+                            const formattedAssignments = formatTransactionAssignments(newAssignments);
+                            
+                            // Determinar el banco de la transacción
+                            const bank = transaction.banco || 'BAC';
+                            
+                            // Actualizar la transacción
+                            await updateTransactionAssignments(payment.reference, bank, formattedAssignments);
+                            
+                            console.log(`✅ Transacción ${payment.reference} sincronizada`);
+                        } else {
+                            console.log(`✅ Transacción ${payment.reference} ya está actualizada`);
+                        }
+                    } else {
+                        console.warn(`⚠️ Transacción ${payment.reference} no encontrada en la API`);
+                    }
+                    
+                } catch (error) {
+                    console.error(`❌ Error sincronizando pago ${payment.reference}:`, error);
+                }
+            }
+        }
+        
+        console.log('✅ Sincronización de pagos completada');
+        
+    } catch (error) {
+        console.error('❌ Error en syncExistingPayments:', error);
     }
 }
 
@@ -1342,6 +1436,7 @@ function formatTransactionAssignments(assignments) {
 async function updateTransactionAssignments(transactionReference, bank, formattedAssignments) {
     try {
         console.log('🔄 Actualizando asignaciones de transacción:', transactionReference);
+        console.log('📋 Parámetros recibidos:', { transactionReference, bank, formattedAssignments });
         
         // Obtener el cliente correcto
         const client = window.currentClient || currentClient;
@@ -1350,8 +1445,11 @@ async function updateTransactionAssignments(transactionReference, bank, formatte
             return;
         }
         
+        console.log('👤 Cliente encontrado:', { ID: client.ID, ID_Cliente: client.ID_Cliente, Nombre: client.Nombre });
+        
         // URL para actualizar la transacción
         const updateUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/Referencia/${encodeURIComponent(transactionReference)}?sheet=${bank}`;
+        console.log('🌐 URL de actualización:', updateUrl);
         
         // Formatear fecha actual
         const today = new Date();
@@ -1365,6 +1463,7 @@ async function updateTransactionAssignments(transactionReference, bank, formatte
         };
         
         console.log('📝 Datos a enviar:', updateData);
+        console.log('📝 Body como URLSearchParams:', new URLSearchParams(updateData).toString());
         
         const response = await fetch(updateUrl, {
             method: 'PATCH',
@@ -1374,16 +1473,28 @@ async function updateTransactionAssignments(transactionReference, bank, formatte
             body: new URLSearchParams(updateData).toString()
         });
         
+        console.log('📡 Respuesta del servidor:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok
+        });
+        
         if (!response.ok) {
             console.warn('⚠️ No se pudo actualizar la transacción en la API:', response.status);
             const errorText = await response.text();
             console.warn('Error detallado:', errorText);
+            console.warn('URL que falló:', updateUrl);
+            console.warn('Datos que se intentaron enviar:', updateData);
         } else {
+            const responseText = await response.text();
             console.log('✅ Transacción actualizada en la API');
+            console.log('📄 Respuesta del servidor:', responseText);
         }
         
     } catch (error) {
         console.error('❌ Error al actualizar transacción:', error);
+        console.error('❌ Stack trace:', error.stack);
+        console.error('❌ Parámetros que causaron el error:', { transactionReference, bank, formattedAssignments });
         // No lanzar error para no interrumpir el proceso principal
     }
 }
@@ -1403,3 +1514,4 @@ window.formatInvoicePayments = formatInvoicePayments;
 window.parseTransactionAssignments = parseTransactionAssignments;
 window.formatTransactionAssignments = formatTransactionAssignments;
 window.updateTransactionAssignments = updateTransactionAssignments;
+window.syncExistingPayments = syncExistingPayments;
