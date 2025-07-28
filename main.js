@@ -538,9 +538,15 @@ async function confirmAssignInvoice() {
             invoice: currentInvoiceForAssignment.NumeroFactura
         });
 
+        // Mapear el banco al nombre de la hoja correcto (igual que en transacciones.html)
+        const sheetName = window.selectedTransaction.bank === 'BN' ? 'BN' :
+                         window.selectedTransaction.bank === 'HuberBN' ? 'HuberBN' :
+                         window.selectedTransaction.bank === 'AutosubastasBAC' ? 'AutosubastasBAC' :
+                         window.selectedTransaction.bank === 'AutosubastasBN' ? 'AutosubastasBN' : 'BAC';
+        
         await assignTransactionToInvoice(
             window.selectedTransaction.reference,
-            window.selectedTransaction.bank,
+            sheetName,
             currentInvoiceForAssignment.NumeroFactura
         );
 
@@ -1086,12 +1092,17 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
             Observaciones: t.Observaciones
         })));
         
-        const transaction = transactions.find(t => t.Referencia === transactionReference && t.banco === bank);
+        const transaction = transactions.find(t => t.Referencia === transactionReference);
         
         if (!transaction) {
             console.log('❌ Transacción no encontrada. Verificando todas las transacciones...');
             const allMatchingRef = transactions.filter(t => t.Referencia === transactionReference);
             console.log('🔍 Transacciones con referencia coincidente:', allMatchingRef);
+            console.log('🔍 Detalle de la transacción encontrada:', allMatchingRef[0]);
+            console.log('🔍 Campo banco de la transacción:', allMatchingRef[0]?.banco);
+            console.log('🔍 Tipo de dato del banco:', typeof allMatchingRef[0]?.banco);
+            console.log('🔍 Comparación exacta:', allMatchingRef[0]?.banco === bank);
+            console.log('🔍 Comparación ignorando mayúsculas:', allMatchingRef[0]?.banco?.toLowerCase() === bank.toLowerCase());
             
             const allMatchingBank = transactions.filter(t => t.banco === bank);
             console.log('🔍 Transacciones con banco coincidente:', allMatchingBank.slice(0, 3));
@@ -1104,7 +1115,9 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
         let amount = 0;
 
-        if (bank === 'BAC') {
+        // Usar el campo banco real de la transacción para el parseo
+        const transactionBank = transaction.banco;
+        if (transactionBank === 'BAC') {
             if (cleanValue.includes(',')) {
                 const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
                 amount = parseFloat(normalizedValue);
