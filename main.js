@@ -1334,14 +1334,28 @@ async function updateTransactionAssignments(transactionReference, bank, formatte
     try {
         console.log('🔄 Actualizando asignaciones de transacción:', transactionReference);
         
+        // Obtener el cliente correcto
+        const client = window.currentClient || currentClient;
+        if (!client) {
+            console.error('❌ No hay cliente disponible para actualizar transacción');
+            return;
+        }
+        
         // URL para actualizar la transacción
         const updateUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/Referencia/${encodeURIComponent(transactionReference)}?sheet=${bank}`;
         
+        // Formatear fecha actual
+        const today = new Date();
+        const formattedDate = today.toLocaleDateString('es-CR'); // DD/MM/YYYY
+        
         const updateData = {
             FacturasAsignadas: formattedAssignments,
-            ID_Cliente: currentClient.ID_Cliente,
-            Observaciones: `Conciliada - ${formattedAssignments}`
+            ID_Cliente: client.ID || client.ID_Cliente,
+            FechaAsignacion: formattedDate,
+            Observaciones: `Conciliada con factura - ${formattedAssignments}`
         };
+        
+        console.log('📝 Datos a enviar:', updateData);
         
         const response = await fetch(updateUrl, {
             method: 'PATCH',
@@ -1353,6 +1367,8 @@ async function updateTransactionAssignments(transactionReference, bank, formatte
         
         if (!response.ok) {
             console.warn('⚠️ No se pudo actualizar la transacción en la API:', response.status);
+            const errorText = await response.text();
+            console.warn('Error detallado:', errorText);
         } else {
             console.log('✅ Transacción actualizada en la API');
         }
