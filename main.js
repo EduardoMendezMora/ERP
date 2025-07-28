@@ -596,6 +596,8 @@ window.currentClient = currentClient;
         window.loadTransactionsTab = loadTransactionsTab;
         window.switchInvoiceTab = switchInvoiceTab;
         window.selectTransaction = selectTransaction;
+        window.filterTransactions = filterTransactions;
+        window.clearTransactionSearch = clearTransactionSearch;
 
 // Funciones de selección
 window.selectInvoiceForPayment = selectInvoiceForPayment;
@@ -753,6 +755,24 @@ async function loadTransactionsTab() {
                     <div><strong>Conciliadas:</strong> ${transactions.length - pendingTransactions.length} transacciones</div>
                 </div>
             </div>
+            
+            <!-- Campo de búsqueda -->
+            <div style="margin-bottom: 16px;">
+                <div style="position: relative;">
+                    <input type="text" 
+                           id="transactionSearch" 
+                           placeholder="🔍 Buscar transacciones por referencia, descripción o monto..."
+                           style="width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.3s ease;"
+                           onkeyup="filterTransactions(this.value)"
+                           onfocus="this.style.borderColor='#007aff'"
+                           onblur="this.style.borderColor='#e0e0e0'">
+                    <button onclick="clearTransactionSearch()" 
+                            style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #666; cursor: pointer; font-size: 16px;"
+                            title="Limpiar búsqueda">
+                        ✕
+                    </button>
+                </div>
+            </div>
         `;
         
         // Mostrar lista de transacciones
@@ -868,6 +888,46 @@ async function loadTransactionsTab() {
 function selectTransaction(reference, bank, amount, description) {
     console.log('🎯 Transacción seleccionada:', { reference, bank, amount, description });
     
+    const clickedItem = event.target.closest('.transaction-item');
+    const isCurrentlySelected = clickedItem.style.background === 'rgb(230, 243, 255)' || 
+                               clickedItem.style.backgroundColor === 'rgb(230, 243, 255)';
+    
+    // Si ya está seleccionada, deseleccionar
+    if (isCurrentlySelected) {
+        console.log('🔄 Deseleccionando transacción:', reference);
+        
+        // Remover selección
+        clickedItem.style.background = 'white';
+        clickedItem.style.borderColor = '#e0e0e0';
+        
+        // Limpiar transacción seleccionada
+        window.selectedTransaction = null;
+        
+        // Remover información de selección
+        const transactionsInfo = document.getElementById('transactionsInfo');
+        if (transactionsInfo) {
+            const selectionDiv = transactionsInfo.querySelector('div[style*="background: #e6f3ff"]');
+            if (selectionDiv) {
+                selectionDiv.remove();
+            }
+        }
+        
+        // Deshabilitar botón de confirmar
+        const confirmPaymentBtn = document.getElementById('confirmAssignPaymentBtn');
+        const confirmInvoiceBtn = document.getElementById('confirmAssignInvoiceBtn');
+        
+        if (confirmPaymentBtn) {
+            confirmPaymentBtn.disabled = true;
+            confirmPaymentBtn.textContent = '✅ Asignar Pago';
+        } else if (confirmInvoiceBtn) {
+            confirmInvoiceBtn.disabled = true;
+            confirmInvoiceBtn.textContent = '✅ Asignar Factura';
+        }
+        
+        showToast(`❌ Transacción ${reference} deseleccionada`, 'warning');
+        return;
+    }
+    
     // Remover selección anterior
     document.querySelectorAll('.transaction-item').forEach(item => {
         item.style.background = 'white';
@@ -875,8 +935,8 @@ function selectTransaction(reference, bank, amount, description) {
     });
     
     // Marcar como seleccionada
-    event.target.closest('.transaction-item').style.background = '#e6f3ff';
-    event.target.closest('.transaction-item').style.borderColor = '#007aff';
+    clickedItem.style.background = '#e6f3ff';
+    clickedItem.style.borderColor = '#007aff';
     
     // Guardar la transacción seleccionada
     window.selectedTransaction = {
@@ -937,4 +997,41 @@ function selectTransaction(reference, bank, amount, description) {
     });
     
     showToast(`✅ Transacción ${reference} seleccionada`, 'success');
+}
+
+// ===== FUNCIONES DE BÚSQUEDA DE TRANSACCIONES =====
+function filterTransactions(searchTerm) {
+    console.log('🔍 Buscando:', searchTerm);
+    
+    const transactionItems = document.querySelectorAll('.transaction-item');
+    let visibleCount = 0;
+    
+    transactionItems.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        const search = searchTerm.toLowerCase();
+        
+        if (searchTerm === '' || text.includes(search)) {
+            item.style.display = 'block';
+            visibleCount++;
+        } else {
+            item.style.display = 'none';
+        }
+    });
+    
+    // Actualizar contador
+    const countElement = document.querySelector('small');
+    if (countElement && countElement.textContent.includes('transacciones')) {
+        const totalTransactions = document.querySelectorAll('.transaction-item').length;
+        countElement.textContent = `Mostrando ${visibleCount} de ${totalTransactions} transacciones pendientes`;
+    }
+    
+    console.log(`📊 Transacciones visibles: ${visibleCount}`);
+}
+
+function clearTransactionSearch() {
+    const searchInput = document.getElementById('transactionSearch');
+    if (searchInput) {
+        searchInput.value = '';
+        filterTransactions('');
+    }
 }
