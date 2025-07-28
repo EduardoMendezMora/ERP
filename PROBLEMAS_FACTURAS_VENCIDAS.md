@@ -3,8 +3,8 @@
 ## 🔍 Problemas Identificados
 
 ### 1. **Inconsistencia en Formato de Fechas**
-- **Problema**: Las fechas vienen en formato `DD/MM/YYYY` (ej: `10/2/2025` = 10 de Febrero)
-- **Error**: El sistema las interpretaba como `MM/DD/YYYY` (ej: `10/2/2025` = 2 de Octubre)
+- **Problema**: Las fechas vienen en formato `MM/DD/YYYY` (ej: `10/2/2025` = 2 de Octubre)
+- **Error**: El sistema las interpretaba como `DD/MM/YYYY` (ej: `10/2/2025` = 10 de Febrero)
 - **Consecuencia**: Las facturas aparecían como vencidas cuando no deberían
 
 ### 2. **Cálculo Incorrecto de Días de Atraso**
@@ -31,8 +31,8 @@ const dueDate = new Date(invoice.FechaVencimiento);
 // Después (correcto)
 if (fechaStr.includes('/')) {
     const parts = fechaStr.split('/');
-    const day = parseInt(parts[0]);
-    const month = parseInt(parts[1]) - 1; // Meses en JS van de 0-11
+    const month = parseInt(parts[0]) - 1; // Meses en JS van de 0-11
+    const day = parseInt(parts[1]);
     const year = parseInt(parts[2]);
     dueDate = new Date(year, month, day);
 }
@@ -120,11 +120,11 @@ Se agregaron los siguientes botones en la sección de "Quick Actions":
 
 Basándose en la imagen proporcionada, estas facturas tenían problemas:
 
-1. **FAC-229**: Fecha `10/2/2025` (10 de Febrero) - Interpretada incorrectamente como 2 de Octubre
-2. **FAC-225**: Fecha `9/4/2025` (9 de Abril) - Interpretada incorrectamente como 4 de Septiembre
-3. **FAC-238**: Fecha `12/4/2025` (12 de Abril) - Interpretada incorrectamente como 4 de Diciembre
-4. **FAC-234**: Fecha `11/6/2025` (11 de Junio) - Interpretada incorrectamente como 6 de Noviembre
-5. **FAC-221**: Fecha `8/7/2025` (8 de Julio) - Interpretada incorrectamente como 7 de Agosto
+1. **FAC-229**: Fecha `10/2/2025` (2 de Octubre) - Interpretada incorrectamente como 10 de Febrero
+2. **FAC-225**: Fecha `9/4/2025` (4 de Septiembre) - Interpretada incorrectamente como 9 de Abril
+3. **FAC-238**: Fecha `12/4/2025` (4 de Diciembre) - Interpretada incorrectamente como 12 de Abril
+4. **FAC-234**: Fecha `11/6/2025` (6 de Noviembre) - Interpretada incorrectamente como 11 de Junio
+5. **FAC-221**: Fecha `8/7/2025` (7 de Agosto) - Interpretada incorrectamente como 8 de Julio
 
 ## 🔄 Proceso de Corrección
 

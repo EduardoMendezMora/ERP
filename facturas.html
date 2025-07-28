@@ -1030,25 +1030,25 @@ function testDateParsing() {
     console.log('🧪 PROBANDO PARSEO DE FECHAS...');
     
     const testDates = [
-        '10/2/2025',  // 10 de Febrero
-        '9/4/2025',   // 9 de Abril
-        '12/4/2025',  // 12 de Abril
-        '11/6/2025',  // 11 de Junio
-        '8/7/2025',   // 8 de Julio
+        '10/2/2025',  // 2 de Octubre
+        '9/4/2025',   // 4 de Septiembre
+        '12/4/2025',  // 4 de Diciembre
+        '11/6/2025',  // 6 de Noviembre
+        '8/7/2025',   // 7 de Agosto
         '1/1/2025',   // 1 de Enero
-        '31/12/2025'  // 31 de Diciembre
+        '12/31/2025'  // 31 de Diciembre
     ];
     
     testDates.forEach(dateStr => {
         const parts = dateStr.split('/');
-        const day = parseInt(parts[0]);
-        const month = parseInt(parts[1]) - 1;
+        const month = parseInt(parts[0]) - 1;
+        const day = parseInt(parts[1]);
         const year = parseInt(parts[2]);
         
         const parsedDate = new Date(year, month, day);
         const formattedDate = parsedDate.toLocaleDateString('es-CR');
         
-        console.log(`📅 ${dateStr} -> ${formattedDate} (Día: ${day}, Mes: ${month + 1}, Año: ${year})`);
+        console.log(`📅 ${dateStr} -> ${formattedDate} (Mes: ${month + 1}, Día: ${day}, Año: ${year})`);
     });
     
     console.log('✅ Prueba de parseo completada');

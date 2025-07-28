@@ -75,12 +75,12 @@ function calculateInvoiceStatus(invoice) {
     let dueDate;
     const fechaStr = invoice.FechaVencimiento.toString();
     
-    // Si la fecha está en formato DD/MM/YYYY (como 10/2/2025 = 10 de Febrero)
+    // Si la fecha está en formato MM/DD/YYYY (como 10/2/2025 = 2 de Octubre)
     if (fechaStr.includes('/')) {
         const parts = fechaStr.split('/');
         if (parts.length === 3) {
-            const day = parseInt(parts[0]);
-            const month = parseInt(parts[1]) - 1; // Meses en JS van de 0-11
+            const month = parseInt(parts[0]) - 1; // Meses en JS van de 0-11
+            const day = parseInt(parts[1]);
             const year = parseInt(parts[2]);
             dueDate = new Date(year, month, day);
             
@@ -90,7 +90,7 @@ function calculateInvoiceStatus(invoice) {
                 return invoice.Estado || 'Pendiente'; // Mantener estado actual
             }
             
-            console.log(`  - Parseando DD/MM/YYYY: ${parts[0]}/${parts[1]}/${parts[2]} -> ${dueDate.toLocaleDateString('es-CR')}`);
+            console.log(`  - Parseando MM/DD/YYYY: ${parts[0]}/${parts[1]}/${parts[2]} -> ${dueDate.toLocaleDateString('es-CR')}`);
         } else {
             dueDate = new Date(invoice.FechaVencimiento);
         }

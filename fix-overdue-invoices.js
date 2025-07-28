@@ -48,18 +48,18 @@ function diagnoseOverdueInvoices() {
         console.log(`  - Multas originales: ₡${originalFines.toLocaleString('es-CR')}`);
         console.log(`  - Días atraso originales: ${originalDaysOverdue}`);
         
-        // Parsear fecha correctamente (asumiendo formato DD/MM/YYYY)
+        // Parsear fecha correctamente (asumiendo formato MM/DD/YYYY)
         let parsedDueDate = null;
         let parsingMethod = '';
         
         if (originalDueDate && originalDueDate.includes('/')) {
             const parts = originalDueDate.split('/');
             if (parts.length === 3) {
-                const day = parseInt(parts[0]);
-                const month = parseInt(parts[1]) - 1; // Meses en JS van de 0-11
+                const month = parseInt(parts[0]) - 1; // Meses en JS van de 0-11
+                const day = parseInt(parts[1]);
                 const year = parseInt(parts[2]);
                 parsedDueDate = new Date(year, month, day);
-                parsingMethod = 'DD/MM/YYYY';
+                parsingMethod = 'MM/DD/YYYY';
             }
         } else if (originalDueDate) {
             parsedDueDate = new Date(originalDueDate);
@@ -262,8 +262,8 @@ function verifyDataConsistency(clientId) {
         if (invoice.FechaVencimiento) {
             const parts = invoice.FechaVencimiento.split('/');
             if (parts.length === 3) {
-                const day = parseInt(parts[0]);
-                const month = parseInt(parts[1]) - 1;
+                const month = parseInt(parts[0]) - 1;
+                const day = parseInt(parts[1]);
                 const year = parseInt(parts[2]);
                 const dueDate = new Date(year, month, day);
                 dueDate.setHours(0, 0, 0, 0);
