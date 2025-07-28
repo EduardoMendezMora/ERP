@@ -3,11 +3,16 @@ const API_URL_CLIENTS = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
 
 // ===== VARIABLES GLOBALES =====
 let clients = [];
-let currentClient = null;
+// Verificar si currentClient ya existe antes de declararlo
+if (typeof currentClient === 'undefined') {
+    let currentClient = null;
+}
 let isEditing = false;
 
-// Exponer currentClient globalmente
-window.currentClient = currentClient;
+// Exponer currentClient globalmente si no existe
+if (typeof window.currentClient === 'undefined') {
+    window.currentClient = currentClient;
+}
 
 // ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', function() {
