@@ -1263,7 +1263,7 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
 
 // ===== FUNCIONES AUXILIARES PARA MANEJO DE PAGOS =====
 
-// Parsear pagos de una factura (formato: "REF:MONTO;REF:MONTO")
+// Parsear pagos de una factura (formato: "REF:MONTO:FECHA" o "REF:MONTO" para compatibilidad)
 function parseInvoicePayments(paymentsString) {
     if (!paymentsString || paymentsString.trim() === '') {
         return [];
@@ -1273,10 +1273,15 @@ function parseInvoicePayments(paymentsString) {
         return paymentsString.split(';')
             .filter(part => part.trim() !== '')
             .map(part => {
-                const [reference, amountStr] = part.split(':');
+                const parts = part.split(':');
+                const reference = parts[0]?.trim();
+                const amount = parseFloat(parts[1]) || 0;
+                const date = parts[2]?.trim() || new Date().toLocaleDateString('es-CR'); // Fecha por defecto si no existe
+                
                 return {
-                    reference: reference.trim(),
-                    amount: parseFloat(amountStr) || 0
+                    reference: reference,
+                    amount: amount,
+                    date: date
                 };
             })
             .filter(payment => payment.reference && payment.amount > 0);
@@ -1292,7 +1297,11 @@ function formatInvoicePayments(payments) {
     
     return payments
         .filter(payment => payment.reference && payment.amount > 0)
-        .map(payment => `${payment.reference}:${payment.amount}`)
+        .map(payment => {
+            // Formato: REF:MONTO:FECHA
+            const date = payment.date || new Date().toLocaleDateString('es-CR');
+            return `${payment.reference}:${payment.amount}:${date}`;
+        })
         .join(';');
 }
 
