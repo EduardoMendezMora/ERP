@@ -722,9 +722,17 @@ async function loadTransactionsTab() {
             
             // Filtrar por fecha - solo desde 10/07/2025
             if (t.Fecha) {
-                const transactionDate = new Date(t.Fecha);
-                if (transactionDate < cutoffDate) {
-                    return false;
+                // Parsear fecha en formato DD/MM/YYYY
+                const dateParts = t.Fecha.split('/');
+                if (dateParts.length === 3) {
+                    const day = parseInt(dateParts[0]);
+                    const month = parseInt(dateParts[1]) - 1; // Meses en JS van de 0-11
+                    const year = parseInt(dateParts[2]);
+                    const transactionDate = new Date(year, month, day);
+                    
+                    if (transactionDate < cutoffDate) {
+                        return false;
+                    }
                 }
             }
             
@@ -761,21 +769,29 @@ async function loadTransactionsTab() {
                 const creditValue = transaction.Créditos || '0';
                 
                 // Debug: mostrar el valor original
-                console.log('🔍 Valor original:', creditValue, 'Tipo:', typeof creditValue);
+                console.log('🔍 Valor original:', creditValue, 'Banco:', bank, 'Tipo:', typeof creditValue);
                 
                 // Limpiar el valor de espacios y caracteres extraños
                 const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
                 
-                // Convertir a número
-                if (cleanValue.includes(',')) {
-                    // Si tiene coma, es formato europeo (comas para decimales)
-                    amount = parseFloat(cleanValue.replace(',', '.'));
-                } else if (cleanValue.includes('.')) {
-                    // Si tiene punto, es formato estándar
-                    amount = parseFloat(cleanValue);
+                // Convertir a número según el banco
+                if (bank === 'BAC') {
+                    // BAC usa comas como separador decimal (ej: 20.000,00)
+                    if (cleanValue.includes(',')) {
+                        // Reemplazar punto por nada y coma por punto
+                        const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
+                        amount = parseFloat(normalizedValue);
+                    } else {
+                        amount = parseFloat(cleanValue);
+                    }
                 } else {
-                    // Si no tiene separador decimal, es un entero
-                    amount = parseInt(cleanValue);
+                    // Otros bancos usan punto como separador decimal
+                    if (cleanValue.includes(',')) {
+                        // Si tiene coma, reemplazarla por punto
+                        amount = parseFloat(cleanValue.replace(',', '.'));
+                    } else {
+                        amount = parseFloat(cleanValue);
+                    }
                 }
                 
                 // Verificar que sea un número válido
