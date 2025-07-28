@@ -1632,3 +1632,40 @@ body {
         justify-content: flex-end;
     }
 }
+
+/* ===== ESTILOS PARA TABS EN MODALES ===== */
+.modal-tabs {
+    display: flex;
+    border-bottom: 2px solid #e0e0e0;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 12px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+    color: #007aff;
+    background: #f8f9fa;
+}
+
+.tab-btn.active {
+    color: #007aff;
+    border-bottom-color: #007aff;
+    font-weight: 600;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}

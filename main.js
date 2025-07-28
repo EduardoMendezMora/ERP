@@ -194,15 +194,34 @@ function openAssignInvoiceModal(invoiceNumber) {
 function createAssignPaymentModal() {
     const modalHTML = `
         <div class="modal-overlay" id="assignPaymentModal" onclick="closeAssignPaymentModal()">
-            <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 900px;">
                 <div class="modal-header">
                     <h3>💰 Asignar Pago a Factura</h3>
                     <button class="modal-close" onclick="closeAssignPaymentModal()">✕</button>
                 </div>
                 
                 <div class="modal-body">
-                    <div id="paymentInfoForAssignment"></div>
-                    <div id="invoiceOptionsForPayment"></div>
+                    <!-- Tabs para navegación -->
+                    <div class="modal-tabs">
+                        <button class="tab-btn active" onclick="switchPaymentTab('payment')" id="tab-payment">
+                            💳 Pago Seleccionado
+                        </button>
+                        <button class="tab-btn" onclick="switchPaymentTab('transactions')" id="tab-transactions">
+                            🏦 Transacciones Bancarias
+                        </button>
+                    </div>
+                    
+                    <!-- Tab de pago seleccionado -->
+                    <div id="tab-content-payment" class="tab-content active">
+                        <div id="paymentInfoForAssignment"></div>
+                        <div id="invoiceOptionsForPayment"></div>
+                    </div>
+                    
+                    <!-- Tab de transacciones bancarias -->
+                    <div id="tab-content-transactions" class="tab-content">
+                        <div id="transactionsInfo"></div>
+                        <div id="transactionsList"></div>
+                    </div>
                     
                     <div class="form-actions">
                         <button type="button" class="btn btn-secondary" onclick="closeAssignPaymentModal()">
@@ -550,10 +569,129 @@ window.retryLoad = retryLoad;
 window.currentClient = currentClient;
 
 // Funciones de modales de asignación
-window.openAssignPaymentModal = openAssignPaymentModal;
-window.openAssignInvoiceModal = openAssignInvoiceModal;
-window.closeAssignPaymentModal = closeAssignPaymentModal;
-window.closeAssignInvoiceModal = closeAssignInvoiceModal;
+        window.openAssignPaymentModal = openAssignPaymentModal;
+        window.openAssignInvoiceModal = openAssignInvoiceModal;
+        window.closeAssignPaymentModal = closeAssignPaymentModal;
+        window.closeAssignInvoiceModal = closeAssignInvoiceModal;
+        window.switchPaymentTab = switchPaymentTab;
+        window.loadTransactionsTab = loadTransactionsTab;
+
+// ===== FUNCIONES PARA TABS DEL MODAL DE PAGOS =====
+function switchPaymentTab(tabName) {
+    // Ocultar todos los tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Mostrar tab seleccionado
+    document.getElementById(`tab-content-${tabName}`).classList.add('active');
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+    
+    // Si es el tab de transacciones, cargar datos
+    if (tabName === 'transactions') {
+        loadTransactionsTab();
+    }
+}
+
+// ===== FUNCIÓN PARA CARGAR TRANSACCIONES BANCARIAS =====
+async function loadTransactionsTab() {
+    try {
+        const transactionsInfo = document.getElementById('transactionsInfo');
+        const transactionsList = document.getElementById('transactionsList');
+        
+        // Mostrar loading
+        transactionsInfo.innerHTML = `
+            <div style="text-align: center; padding: 20px;">
+                <div style="color: #007aff; font-size: 24px; margin-bottom: 10px;">⏳</div>
+                <h4>Cargando transacciones bancarias...</h4>
+                <p>Buscando transacciones pendientes de conciliar</p>
+            </div>
+        `;
+        
+        // Cargar transacciones desde la API
+        const apiUrl = 'https://sheetdb.io/api/v1/a7oekivxzreg7';
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+            throw new Error('Error al cargar transacciones');
+        }
+        
+        const allTransactions = await response.json();
+        
+        // Filtrar transacciones pendientes de conciliar (sin ID_Cliente asignado)
+        const pendingTransactions = allTransactions.filter(t => 
+            !t.ID_Cliente || t.ID_Cliente.trim() === ''
+        );
+        
+        // Mostrar información
+        transactionsInfo.innerHTML = `
+            <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <h4 style="margin: 0 0 8px 0; color: #007aff;">🏦 Transacciones Pendientes de Conciliar</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; font-size: 0.9rem;">
+                    <div><strong>Total:</strong> ${allTransactions.length} transacciones</div>
+                    <div><strong>Pendientes:</strong> ${pendingTransactions.length} transacciones</div>
+                    <div><strong>Conciliadas:</strong> ${allTransactions.length - pendingTransactions.length} transacciones</div>
+                </div>
+            </div>
+        `;
+        
+        // Mostrar lista de transacciones pendientes
+        if (pendingTransactions.length === 0) {
+            transactionsList.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #86868b;">
+                    <h4>✅ No hay transacciones pendientes</h4>
+                    <p>Todas las transacciones han sido conciliadas.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const transactionsHTML = pendingTransactions.slice(0, 20).map(transaction => {
+            const amount = parseFloat(transaction.Créditos || '0');
+            const date = transaction.Fecha || 'Sin fecha';
+            const reference = transaction.Referencia || 'Sin referencia';
+            const bank = transaction.banco || 'BAC';
+            
+            return `
+                <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: white;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${reference}</strong>
+                            <div style="color: #666; font-size: 0.9rem;">${date}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-weight: bold; color: #007aff;">₡${amount.toLocaleString('es-CR')}</div>
+                            <div style="color: #666; font-size: 0.9rem;">${bank}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        transactionsList.innerHTML = `
+            <div style="max-height: 400px; overflow-y: auto;">
+                ${transactionsHTML}
+                ${pendingTransactions.length > 20 ? `
+                    <div style="text-align: center; padding: 10px; color: #666; font-size: 0.9rem;">
+                        Mostrando 20 de ${pendingTransactions.length} transacciones
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Error cargando transacciones:', error);
+        document.getElementById('transactionsInfo').innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #dc3545;">
+                <h4>❌ Error al cargar transacciones</h4>
+                <p>${error.message}</p>
+            </div>
+        `;
+    }
+}
 
 // Funciones de selección
 window.selectInvoiceForPayment = selectInvoiceForPayment;
@@ -562,5 +700,126 @@ window.selectPaymentForInvoice = selectPaymentForInvoice;
 // Funciones de confirmación
 window.confirmAssignPayment = confirmAssignPayment;
 window.confirmAssignInvoice = confirmAssignInvoice;
+
+// ===== FUNCIONES PARA TABS DEL MODAL DE ASIGNACIÓN =====
+function switchPaymentTab(tabName) {
+    // Ocultar todos los tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Mostrar tab seleccionado
+    document.getElementById(`tab-content-${tabName}`).classList.add('active');
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+    
+    // Si es el tab de transacciones, cargar datos
+    if (tabName === 'transactions') {
+        loadTransactionsTab();
+    }
+}
+
+// ===== FUNCIÓN PARA CARGAR TRANSACCIONES BANCARIAS =====
+async function loadTransactionsTab() {
+    const transactionsInfo = document.getElementById('transactionsInfo');
+    const transactionsList = document.getElementById('transactionsList');
+    
+    if (!transactionsInfo || !transactionsList) {
+        console.error('❌ Elementos del modal de transacciones no encontrados');
+        return;
+    }
+    
+    // Mostrar loading
+    transactionsInfo.innerHTML = `
+        <div style="text-align: center; padding: 20px;">
+            <div class="spinner"></div>
+            <p>Cargando transacciones bancarias...</p>
+        </div>
+    `;
+    
+    try {
+        // Cargar transacciones desde la API
+        const apiUrl = 'https://sheetdb.io/api/v1/a7oekivxzreg7';
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+            throw new Error('Error al cargar transacciones');
+        }
+        
+        const transactions = await response.json();
+        
+        // Filtrar transacciones pendientes de conciliar (sin ID_Cliente o ID_Cliente vacío)
+        const pendingTransactions = transactions.filter(t => 
+            !t.ID_Cliente || t.ID_Cliente === '' || t.ID_Cliente === 'undefined'
+        );
+        
+        // Mostrar información
+        transactionsInfo.innerHTML = `
+            <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <h4 style="margin: 0 0 8px 0;">🏦 Transacciones Pendientes de Conciliar</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; font-size: 0.9rem;">
+                    <div><strong>Total:</strong> ${transactions.length}</div>
+                    <div><strong>Pendientes:</strong> ${pendingTransactions.length}</div>
+                    <div><strong>Conciliadas:</strong> ${transactions.length - pendingTransactions.length}</div>
+                </div>
+            </div>
+        `;
+        
+        // Mostrar lista de transacciones
+        if (pendingTransactions.length === 0) {
+            transactionsList.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #86868b;">
+                    <h4>✅ No hay transacciones pendientes</h4>
+                    <p>Todas las transacciones han sido conciliadas.</p>
+                </div>
+            `;
+        } else {
+            const transactionsHTML = pendingTransactions.slice(0, 20).map(transaction => {
+                const amount = parseFloat(transaction.Créditos || 0);
+                const date = transaction.Fecha || 'Sin fecha';
+                const reference = transaction.Referencia || 'Sin referencia';
+                const bank = transaction.banco || 'BAC';
+                
+                return `
+                    <div class="transaction-item" style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: white;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>${reference}</strong>
+                                <br>
+                                <small style="color: #666;">${date} | ${bank}</small>
+                            </div>
+                            <div style="text-align: right;">
+                                <strong style="color: #007aff;">₡${amount.toLocaleString('es-CR')}</strong>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            transactionsList.innerHTML = `
+                <div style="max-height: 400px; overflow-y: auto;">
+                    ${transactionsHTML}
+                </div>
+                ${pendingTransactions.length > 20 ? `
+                    <div style="text-align: center; padding: 16px; color: #86868b;">
+                        <small>Mostrando 20 de ${pendingTransactions.length} transacciones</small>
+                    </div>
+                ` : ''}
+            `;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error cargando transacciones:', error);
+        transactionsInfo.innerHTML = `
+            <div style="background: #fee; border: 1px solid #fcc; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <h4 style="margin: 0 0 8px 0; color: #c33;">❌ Error al cargar transacciones</h4>
+                <p style="margin: 0; color: #666;">${error.message}</p>
+            </div>
+        `;
+        transactionsList.innerHTML = '';
+    }
+}
 
 console.log('✅ main.js cargado - Controlador principal de la aplicación');
