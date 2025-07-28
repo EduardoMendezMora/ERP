@@ -38,16 +38,32 @@ async function initializeApp() {
         showLoading(true);
 
         // Cargar datos del cliente y facturas
+        console.log('🔄 Iniciando carga de cliente y facturas...');
         await loadClientAndInvoices(clientId);
+        console.log('✅ Cliente y facturas cargados');
 
         // Cargar pagos no asignados y asignados
-        await Promise.all([
-            loadUnassignedPayments(clientId),
-            loadAssignedPayments(clientId)
-        ]);
+        console.log('🔄 Iniciando carga de pagos...');
+        try {
+            await Promise.all([
+                loadUnassignedPayments(clientId).catch(error => {
+                    console.error('❌ Error en loadUnassignedPayments:', error);
+                    return null;
+                }),
+                loadAssignedPayments(clientId).catch(error => {
+                    console.error('❌ Error en loadAssignedPayments:', error);
+                    return null;
+                })
+            ]);
+            console.log('✅ Pagos cargados (con posibles errores manejados)');
+        } catch (error) {
+            console.error('❌ Error general en carga de pagos:', error);
+        }
 
         // Renderizar la página completa
+        console.log('🔄 Iniciando renderizado de página...');
         renderPage();
+        console.log('✅ Página renderizada');
 
         // Mostrar contenido principal
         document.getElementById('mainContent').style.display = 'block';
