@@ -1073,9 +1073,29 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         }
 
         const transactions = await transactionResponse.json();
+        console.log('🔍 Total de transacciones en API:', transactions.length);
+        console.log('🔍 Buscando transacción:', { transactionReference, bank });
+        
+        // Mostrar algunas transacciones para debug
+        const sampleTransactions = transactions.slice(0, 5);
+        console.log('🔍 Primeras 5 transacciones:', sampleTransactions.map(t => ({
+            Referencia: t.Referencia,
+            banco: t.banco,
+            Fecha: t.Fecha,
+            ID_Cliente: t.ID_Cliente,
+            Observaciones: t.Observaciones
+        })));
+        
         const transaction = transactions.find(t => t.Referencia === transactionReference && t.banco === bank);
         
         if (!transaction) {
+            console.log('❌ Transacción no encontrada. Verificando todas las transacciones...');
+            const allMatchingRef = transactions.filter(t => t.Referencia === transactionReference);
+            console.log('🔍 Transacciones con referencia coincidente:', allMatchingRef);
+            
+            const allMatchingBank = transactions.filter(t => t.banco === bank);
+            console.log('🔍 Transacciones con banco coincidente:', allMatchingBank.slice(0, 3));
+            
             throw new Error('Transacción no encontrada en la base de datos');
         }
 
