@@ -576,123 +576,6 @@ window.currentClient = currentClient;
         window.switchPaymentTab = switchPaymentTab;
         window.loadTransactionsTab = loadTransactionsTab;
 
-// ===== FUNCIONES PARA TABS DEL MODAL DE PAGOS =====
-function switchPaymentTab(tabName) {
-    // Ocultar todos los tabs
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    // Mostrar tab seleccionado
-    document.getElementById(`tab-content-${tabName}`).classList.add('active');
-    document.getElementById(`tab-${tabName}`).classList.add('active');
-    
-    // Si es el tab de transacciones, cargar datos
-    if (tabName === 'transactions') {
-        loadTransactionsTab();
-    }
-}
-
-// ===== FUNCIÓN PARA CARGAR TRANSACCIONES BANCARIAS =====
-async function loadTransactionsTab() {
-    try {
-        const transactionsInfo = document.getElementById('transactionsInfo');
-        const transactionsList = document.getElementById('transactionsList');
-        
-        // Mostrar loading
-        transactionsInfo.innerHTML = `
-            <div style="text-align: center; padding: 20px;">
-                <div style="color: #007aff; font-size: 24px; margin-bottom: 10px;">⏳</div>
-                <h4>Cargando transacciones bancarias...</h4>
-                <p>Buscando transacciones pendientes de conciliar</p>
-            </div>
-        `;
-        
-        // Cargar transacciones desde la API
-        const apiUrl = 'https://sheetdb.io/api/v1/a7oekivxzreg7';
-        const response = await fetch(apiUrl);
-        
-        if (!response.ok) {
-            throw new Error('Error al cargar transacciones');
-        }
-        
-        const allTransactions = await response.json();
-        
-        // Filtrar transacciones pendientes de conciliar (sin ID_Cliente asignado)
-        const pendingTransactions = allTransactions.filter(t => 
-            !t.ID_Cliente || t.ID_Cliente.trim() === ''
-        );
-        
-        // Mostrar información
-        transactionsInfo.innerHTML = `
-            <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-                <h4 style="margin: 0 0 8px 0; color: #007aff;">🏦 Transacciones Pendientes de Conciliar</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; font-size: 0.9rem;">
-                    <div><strong>Total:</strong> ${allTransactions.length} transacciones</div>
-                    <div><strong>Pendientes:</strong> ${pendingTransactions.length} transacciones</div>
-                    <div><strong>Conciliadas:</strong> ${allTransactions.length - pendingTransactions.length} transacciones</div>
-                </div>
-            </div>
-        `;
-        
-        // Mostrar lista de transacciones pendientes
-        if (pendingTransactions.length === 0) {
-            transactionsList.innerHTML = `
-                <div style="text-align: center; padding: 20px; color: #86868b;">
-                    <h4>✅ No hay transacciones pendientes</h4>
-                    <p>Todas las transacciones han sido conciliadas.</p>
-                </div>
-            `;
-            return;
-        }
-        
-        const transactionsHTML = pendingTransactions.slice(0, 20).map(transaction => {
-            const amount = parseFloat(transaction.Créditos || '0');
-            const date = transaction.Fecha || 'Sin fecha';
-            const reference = transaction.Referencia || 'Sin referencia';
-            const bank = transaction.banco || 'BAC';
-            
-            return `
-                <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: white;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <strong>${reference}</strong>
-                            <div style="color: #666; font-size: 0.9rem;">${date}</div>
-                        </div>
-                        <div style="text-align: right;">
-                            <div style="font-weight: bold; color: #007aff;">₡${amount.toLocaleString('es-CR')}</div>
-                            <div style="color: #666; font-size: 0.9rem;">${bank}</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        transactionsList.innerHTML = `
-            <div style="max-height: 400px; overflow-y: auto;">
-                ${transactionsHTML}
-                ${pendingTransactions.length > 20 ? `
-                    <div style="text-align: center; padding: 10px; color: #666; font-size: 0.9rem;">
-                        Mostrando 20 de ${pendingTransactions.length} transacciones
-                    </div>
-                ` : ''}
-            </div>
-        `;
-        
-    } catch (error) {
-        console.error('Error cargando transacciones:', error);
-        document.getElementById('transactionsInfo').innerHTML = `
-            <div style="text-align: center; padding: 20px; color: #dc3545;">
-                <h4>❌ Error al cargar transacciones</h4>
-                <p>${error.message}</p>
-            </div>
-        `;
-    }
-}
-
 // Funciones de selección
 window.selectInvoiceForPayment = selectInvoiceForPayment;
 window.selectPaymentForInvoice = selectPaymentForInvoice;
@@ -701,8 +584,10 @@ window.selectPaymentForInvoice = selectPaymentForInvoice;
 window.confirmAssignPayment = confirmAssignPayment;
 window.confirmAssignInvoice = confirmAssignInvoice;
 
-// ===== FUNCIONES PARA TABS DEL MODAL DE ASIGNACIÓN =====
+// ===== FUNCIONES PARA TABS DEL MODAL DE PAGOS =====
 function switchPaymentTab(tabName) {
+    console.log('🔄 Cambiando a tab:', tabName);
+    
     // Ocultar todos los tabs
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
@@ -712,17 +597,26 @@ function switchPaymentTab(tabName) {
     });
     
     // Mostrar tab seleccionado
-    document.getElementById(`tab-content-${tabName}`).classList.add('active');
-    document.getElementById(`tab-${tabName}`).classList.add('active');
+    const tabContent = document.getElementById(`tab-content-${tabName}`);
+    const tabBtn = document.getElementById(`tab-${tabName}`);
     
-    // Si es el tab de transacciones, cargar datos
-    if (tabName === 'transactions') {
-        loadTransactionsTab();
+    if (tabContent && tabBtn) {
+        tabContent.classList.add('active');
+        tabBtn.classList.add('active');
+        
+        // Si es el tab de transacciones, cargar datos
+        if (tabName === 'transactions') {
+            loadTransactionsTab();
+        }
+    } else {
+        console.error('❌ Elementos del tab no encontrados:', tabName);
     }
 }
 
 // ===== FUNCIÓN PARA CARGAR TRANSACCIONES BANCARIAS =====
 async function loadTransactionsTab() {
+    console.log('🏦 Cargando transacciones bancarias...');
+    
     const transactionsInfo = document.getElementById('transactionsInfo');
     const transactionsList = document.getElementById('transactionsList');
     
@@ -734,35 +628,41 @@ async function loadTransactionsTab() {
     // Mostrar loading
     transactionsInfo.innerHTML = `
         <div style="text-align: center; padding: 20px;">
-            <div class="spinner"></div>
-            <p>Cargando transacciones bancarias...</p>
+            <div style="color: #007aff; font-size: 24px; margin-bottom: 10px;">⏳</div>
+            <h4>Cargando transacciones bancarias...</h4>
+            <p>Buscando transacciones pendientes de conciliar</p>
         </div>
     `;
     
     try {
         // Cargar transacciones desde la API
         const apiUrl = 'https://sheetdb.io/api/v1/a7oekivxzreg7';
+        console.log('📡 Conectando a:', apiUrl);
+        
         const response = await fetch(apiUrl);
         
         if (!response.ok) {
-            throw new Error('Error al cargar transacciones');
+            throw new Error(`Error HTTP: ${response.status}`);
         }
         
         const transactions = await response.json();
+        console.log('📊 Transacciones cargadas:', transactions.length);
         
         // Filtrar transacciones pendientes de conciliar (sin ID_Cliente o ID_Cliente vacío)
         const pendingTransactions = transactions.filter(t => 
             !t.ID_Cliente || t.ID_Cliente === '' || t.ID_Cliente === 'undefined'
         );
         
+        console.log('📋 Transacciones pendientes:', pendingTransactions.length);
+        
         // Mostrar información
         transactionsInfo.innerHTML = `
             <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-                <h4 style="margin: 0 0 8px 0;">🏦 Transacciones Pendientes de Conciliar</h4>
+                <h4 style="margin: 0 0 8px 0; color: #007aff;">🏦 Transacciones Pendientes de Conciliar</h4>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; font-size: 0.9rem;">
-                    <div><strong>Total:</strong> ${transactions.length}</div>
-                    <div><strong>Pendientes:</strong> ${pendingTransactions.length}</div>
-                    <div><strong>Conciliadas:</strong> ${transactions.length - pendingTransactions.length}</div>
+                    <div><strong>Total:</strong> ${transactions.length} transacciones</div>
+                    <div><strong>Pendientes:</strong> ${pendingTransactions.length} transacciones</div>
+                    <div><strong>Conciliadas:</strong> ${transactions.length - pendingTransactions.length} transacciones</div>
                 </div>
             </div>
         `;
@@ -809,6 +709,8 @@ async function loadTransactionsTab() {
                 ` : ''}
             `;
         }
+        
+        console.log('✅ Transacciones cargadas correctamente');
         
     } catch (error) {
         console.error('❌ Error cargando transacciones:', error);
