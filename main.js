@@ -811,16 +811,24 @@ async function loadTransactionsTab() {
                     maximumFractionDigits: 2
                 });
                 
+                // Obtener descripción de la transacción
+                const description = transaction.Descripción || transaction.Descripcion || transaction.Description || transaction.Detalle || transaction.Concepto || 'Sin descripción';
+                
                 return `
                     <div class="transaction-item" style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: white;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <strong>${reference}</strong>
-                                <br>
-                                <small style="color: #666;">${date} | ${bank}</small>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                    <strong style="color: #007aff;">${reference}</strong>
+                                    <span style="background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #666;">${bank}</span>
+                                </div>
+                                <div style="color: #333; font-size: 0.9rem; margin-bottom: 4px; line-height: 1.3;">
+                                    ${description}
+                                </div>
+                                <small style="color: #666;">${date}</small>
                             </div>
-                            <div style="text-align: right;">
-                                <strong style="color: #007aff;">₡${formattedAmount}</strong>
+                            <div style="text-align: right; margin-left: 12px;">
+                                <strong style="color: #007aff; font-size: 1.1rem;">₡${formattedAmount}</strong>
                             </div>
                         </div>
                     </div>
