@@ -242,15 +242,34 @@ function createAssignPaymentModal() {
 function createAssignInvoiceModal() {
     const modalHTML = `
         <div class="modal-overlay" id="assignInvoiceModal" onclick="closeAssignInvoiceModal()">
-            <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 900px;">
                 <div class="modal-header">
                     <h3>📄 Asignar Factura a Pago</h3>
                     <button class="modal-close" onclick="closeAssignInvoiceModal()">✕</button>
                 </div>
                 
                 <div class="modal-body">
-                    <div id="invoiceInfoForAssignment"></div>
-                    <div id="paymentOptionsForInvoice"></div>
+                    <!-- Tabs para navegación -->
+                    <div class="modal-tabs">
+                        <button class="tab-btn active" onclick="switchInvoiceTab('invoice')" id="tab-invoice">
+                            📄 Factura Seleccionada
+                        </button>
+                        <button class="tab-btn" onclick="switchInvoiceTab('transactions')" id="tab-transactions">
+                            🏦 Transacciones Bancarias
+                        </button>
+                    </div>
+                    
+                    <!-- Tab de factura seleccionada -->
+                    <div id="tab-content-invoice" class="tab-content active">
+                        <div id="invoiceInfoForAssignment"></div>
+                        <div id="paymentOptionsForInvoice"></div>
+                    </div>
+                    
+                    <!-- Tab de transacciones bancarias -->
+                    <div id="tab-content-transactions" class="tab-content">
+                        <div id="transactionsInfo"></div>
+                        <div id="transactionsList"></div>
+                    </div>
                     
                     <div class="form-actions">
                         <button type="button" class="btn btn-secondary" onclick="closeAssignInvoiceModal()">
@@ -575,6 +594,7 @@ window.currentClient = currentClient;
         window.closeAssignInvoiceModal = closeAssignInvoiceModal;
         window.switchPaymentTab = switchPaymentTab;
         window.loadTransactionsTab = loadTransactionsTab;
+        window.switchInvoiceTab = switchInvoiceTab;
 
 // Funciones de selección
 window.selectInvoiceForPayment = selectInvoiceForPayment;
@@ -586,30 +606,65 @@ window.confirmAssignInvoice = confirmAssignInvoice;
 
 // ===== FUNCIONES PARA TABS DEL MODAL DE PAGOS =====
 function switchPaymentTab(tabName) {
-    console.log('🔄 Cambiando a tab:', tabName);
+    console.log('🔄 Cambiando a tab de pagos:', tabName);
     
-    // Ocultar todos los tabs
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    // Mostrar tab seleccionado
-    const tabContent = document.getElementById(`tab-content-${tabName}`);
-    const tabBtn = document.getElementById(`tab-${tabName}`);
-    
-    if (tabContent && tabBtn) {
-        tabContent.classList.add('active');
-        tabBtn.classList.add('active');
+    // Ocultar todos los tabs del modal de pagos
+    const modal = document.getElementById('assignPaymentModal');
+    if (modal) {
+        modal.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        modal.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
         
-        // Si es el tab de transacciones, cargar datos
-        if (tabName === 'transactions') {
-            loadTransactionsTab();
+        // Mostrar tab seleccionado
+        const tabContent = modal.querySelector(`#tab-content-${tabName}`);
+        const tabBtn = modal.querySelector(`#tab-${tabName}`);
+        
+        if (tabContent && tabBtn) {
+            tabContent.classList.add('active');
+            tabBtn.classList.add('active');
+            
+            // Si es el tab de transacciones, cargar datos
+            if (tabName === 'transactions') {
+                loadTransactionsTab();
+            }
+        } else {
+            console.error('❌ Elementos del tab de pagos no encontrados:', tabName);
         }
-    } else {
-        console.error('❌ Elementos del tab no encontrados:', tabName);
+    }
+}
+
+// ===== FUNCIONES PARA TABS DEL MODAL DE FACTURAS =====
+function switchInvoiceTab(tabName) {
+    console.log('🔄 Cambiando a tab de facturas:', tabName);
+    
+    // Ocultar todos los tabs del modal de facturas
+    const modal = document.getElementById('assignInvoiceModal');
+    if (modal) {
+        modal.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        modal.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Mostrar tab seleccionado
+        const tabContent = modal.querySelector(`#tab-content-${tabName}`);
+        const tabBtn = modal.querySelector(`#tab-${tabName}`);
+        
+        if (tabContent && tabBtn) {
+            tabContent.classList.add('active');
+            tabBtn.classList.add('active');
+            
+            // Si es el tab de transacciones, cargar datos
+            if (tabName === 'transactions') {
+                loadTransactionsTab();
+            }
+        } else {
+            console.error('❌ Elementos del tab de facturas no encontrados:', tabName);
+        }
     }
 }
 
@@ -648,10 +703,22 @@ async function loadTransactionsTab() {
         const transactions = await response.json();
         console.log('📊 Transacciones cargadas:', transactions.length);
         
-        // Filtrar transacciones pendientes de conciliar (sin ID_Cliente o ID_Cliente vacío)
-        const pendingTransactions = transactions.filter(t => 
-            !t.ID_Cliente || t.ID_Cliente === '' || t.ID_Cliente === 'undefined'
-        );
+        // Filtrar transacciones pendientes de conciliar
+        // NO mostrar las que tienen ID_Cliente, Observaciones o están conciliadas
+        const pendingTransactions = transactions.filter(t => {
+            // Si tiene ID_Cliente asignado, está conciliada
+            if (t.ID_Cliente && t.ID_Cliente.trim() !== '' && t.ID_Cliente !== 'undefined') {
+                return false;
+            }
+            
+            // Si tiene Observaciones con contenido, está conciliada
+            if (t.Observaciones && t.Observaciones.trim() !== '' && t.Observaciones !== 'undefined') {
+                return false;
+            }
+            
+            // Solo mostrar las que no están conciliadas
+            return true;
+        });
         
         console.log('📋 Transacciones pendientes:', pendingTransactions.length);
         
@@ -677,10 +744,26 @@ async function loadTransactionsTab() {
             `;
         } else {
             const transactionsHTML = pendingTransactions.slice(0, 20).map(transaction => {
-                const amount = parseFloat(transaction.Créditos || 0);
+                // Parsear el monto correctamente, manteniendo decimales si existen
+                let amount = 0;
+                const creditValue = transaction.Créditos || '0';
+                
+                // Si el valor contiene decimales, mantenerlos
+                if (creditValue.includes('.') || creditValue.includes(',')) {
+                    amount = parseFloat(creditValue.replace(',', '.'));
+                } else {
+                    // Si es un número entero, convertirlo a decimal
+                    amount = parseFloat(creditValue);
+                }
+                
                 const date = transaction.Fecha || 'Sin fecha';
                 const reference = transaction.Referencia || 'Sin referencia';
                 const bank = transaction.banco || 'BAC';
+                
+                // Formatear el monto con decimales si es necesario
+                const formattedAmount = amount % 1 === 0 
+                    ? amount.toLocaleString('es-CR') 
+                    : amount.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 
                 return `
                     <div class="transaction-item" style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: white;">
@@ -691,7 +774,7 @@ async function loadTransactionsTab() {
                                 <small style="color: #666;">${date} | ${bank}</small>
                             </div>
                             <div style="text-align: right;">
-                                <strong style="color: #007aff;">₡${amount.toLocaleString('es-CR')}</strong>
+                                <strong style="color: #007aff;">₡${formattedAmount}</strong>
                             </div>
                         </div>
                     </div>

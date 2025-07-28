@@ -153,9 +153,7 @@
             <button class="btn btn-warning btn-large" style="margin-left: 12px;" onclick="sendAccountStatement()">
                 📝 Estado de Cuenta - Arrendamiento
             </button>
-            <button class="btn btn-info btn-large" style="margin-left: 12px;" onclick="testPaymentModal()">
-                🧪 Probar Modal de Pagos
-            </button>
+
         </div>
 
         <!-- Unassigned Payments Section -->
@@ -562,33 +560,7 @@ function sendAccountStatement() {
     });
 }
 
-// ===== FUNCIÓN DE PRUEBA PARA EL MODAL DE PAGOS =====
-function testPaymentModal() {
-    console.log('🧪 Probando modal de pagos...');
-    
-    // Crear un pago de prueba
-    const testPayment = {
-        Referencia: 'TEST-001',
-        BankSource: 'BAC',
-        Créditos: '50000',
-        Fecha: '2025-01-15',
-        Observaciones: 'Pago de prueba para testing'
-    };
-    
-    // Asignar el pago de prueba
-    window.currentPaymentForAssignment = testPayment;
-    
-    // Crear y mostrar modal si no existe
-    if (!document.getElementById('assignPaymentModal')) {
-        createAssignPaymentModal();
-    }
-    
-    // Renderizar el modal con el pago de prueba
-    renderAssignPaymentModal(testPayment);
-    document.getElementById('assignPaymentModal').classList.add('show');
-    
-    console.log('✅ Modal de pagos abierto con datos de prueba');
-}
+
 </script>
 </body>
 </html> 
