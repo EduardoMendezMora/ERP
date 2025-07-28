@@ -169,6 +169,9 @@
                 <button class="btn btn-info btn-sm" style="margin-left: 12px;" onclick="openPaymentAssignmentModal()">
                     🏦 Ver Transacciones Bancarias
                 </button>
+                <button class="btn btn-warning btn-sm" style="margin-left: 8px;" onclick="testTransactionSystem()">
+                    🧪 Probar Sistema
+                </button>
             </div>
             <div class="invoices-grid" id="unassignedPayments"></div>
             <div class="empty-section" id="emptyUnassignedPayments" style="display: none;">
@@ -633,6 +636,124 @@ async function syncWithBackend() {
     }
 }
 
+// Función para probar el sistema de transacciones
+async function testTransactionSystem() {
+    try {
+        console.log('🧪 INICIANDO PRUEBA DEL SISTEMA DE TRANSACCIONES...');
+        
+        const clientId = window.currentClient?.ID;
+        if (!clientId) {
+            console.error('❌ No hay cliente seleccionado');
+            return;
+        }
+        
+        console.log('👤 Cliente ID:', clientId);
+        console.log('👤 Cliente datos:', window.currentClient);
+        
+        // Verificar funciones disponibles
+        console.log('🔍 Verificando funciones...');
+        console.log('loadAllUnreconciledTransactions:', typeof window.loadAllUnreconciledTransactions);
+        console.log('generateSmartSuggestions:', typeof window.generateSmartSuggestions);
+        console.log('switchPaymentTab:', typeof window.switchPaymentTab);
+        console.log('loadTransactionsTab:', typeof window.loadTransactionsTab);
+        console.log('createPaymentDistributionModal:', typeof window.createPaymentDistributionModal);
+        
+        // Verificar modales existentes
+        console.log('🔍 Verificando modales existentes...');
+        const modals = ['assignInvoiceModal', 'assignPaymentModal', 'paymentDistributionModal'];
+        modals.forEach(modalId => {
+            const modal = document.getElementById(modalId);
+            console.log(`  - ${modalId}:`, modal ? 'EXISTE' : 'NO EXISTE');
+        });
+        
+        // Probar carga de transacciones
+        console.log('📥 Probando carga de transacciones...');
+        if (typeof window.loadAllUnreconciledTransactions === 'function') {
+            const transactions = await window.loadAllUnreconciledTransactions();
+            console.log('✅ Transacciones cargadas:', transactions.length);
+            
+            if (transactions.length > 0) {
+                console.log('📋 Primera transacción:', transactions[0]);
+                
+                // Probar generación de sugerencias
+                console.log('🎯 Probando generación de sugerencias...');
+                const clientInvoices = window.clientInvoices || [];
+                console.log('📄 Facturas del cliente:', clientInvoices.length);
+                
+                if (typeof window.generateSmartSuggestions === 'function') {
+                    const suggestions = window.generateSmartSuggestions(transactions[0], clientInvoices, window.currentClient);
+                    console.log('✅ Sugerencias generadas:', suggestions.length);
+                    
+                    if (suggestions.length > 0) {
+                        console.log('🏆 Mejor sugerencia:', suggestions[0]);
+                    }
+                } else {
+                    console.error('❌ generateSmartSuggestions no está disponible');
+                }
+            } else {
+                console.log('ℹ️ No hay transacciones sin conciliar');
+            }
+        } else {
+            console.error('❌ loadAllUnreconciledTransactions no está disponible');
+        }
+        
+        // Probar creación de modal
+        console.log('🏗️ Probando creación de modal...');
+        if (typeof window.createPaymentDistributionModal === 'function') {
+            // Limpiar modal existente si existe
+            const existingModal = document.getElementById('paymentDistributionModal');
+            if (existingModal) {
+                existingModal.remove();
+                console.log('🗑️ Modal existente eliminado');
+            }
+            
+            window.createPaymentDistributionModal();
+            console.log('✅ Modal creado');
+            
+            // Verificar elementos del modal
+            const elements = [
+                'paymentDistributionModal',
+                'tab-content-transactions',
+                'transactionsInfo',
+                'transactionsList'
+            ];
+            
+            elements.forEach(elementId => {
+                const element = document.getElementById(elementId);
+                console.log(`  - ${elementId}:`, element ? 'EXISTE' : 'NO EXISTE');
+            });
+        } else {
+            console.error('❌ createPaymentDistributionModal no está disponible');
+        }
+        
+        console.log('✅ PRUEBA COMPLETADA - Sistema funcionando correctamente');
+        
+    } catch (error) {
+        console.error('❌ Error en prueba:', error);
+        console.error('Stack trace:', error.stack);
+    }
+}
+
+// Función para limpiar modales existentes
+function cleanupExistingModals() {
+    console.log('🧹 Limpiando modales existentes...');
+    
+    // Cerrar modales que puedan estar abiertos
+    const modals = [
+        'assignInvoiceModal',
+        'assignPaymentModal',
+        'paymentDistributionModal'
+    ];
+    
+    modals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('show');
+            console.log(`✅ Modal ${modalId} cerrado`);
+        }
+    });
+}
+
 // Función para abrir modal de asignación de pagos y transacciones
 async function openPaymentAssignmentModal() {
     try {
@@ -642,44 +763,107 @@ async function openPaymentAssignmentModal() {
             return;
         }
         
+        console.log('🔄 Abriendo modal de asignación de pagos y transacciones...');
+        console.log('👤 Cliente ID:', clientId);
+        console.log('👤 Cliente datos:', window.currentClient);
+        
+        // Limpiar modales existentes
+        cleanupExistingModals();
+        
+        // Verificar que las funciones estén disponibles
+        console.log('🔍 Verificando funciones disponibles...');
+        console.log('switchPaymentTab disponible:', typeof window.switchPaymentTab);
+        console.log('loadTransactionsTab disponible:', typeof window.loadTransactionsTab);
+        console.log('loadAllUnreconciledTransactions disponible:', typeof window.loadAllUnreconciledTransactions);
+        console.log('createPaymentDistributionModal disponible:', typeof window.createPaymentDistributionModal);
+        
+        // Verificar si el modal ya existe
+        const existingModal = document.getElementById('paymentDistributionModal');
+        console.log('🔍 Modal existente:', existingModal ? 'SÍ' : 'NO');
+        
         // Crear modal si no existe
-        if (!document.getElementById('paymentDistributionModal')) {
-            createPaymentDistributionModal();
+        if (!existingModal) {
+            console.log('🏗️ Creando modal...');
+            if (typeof window.createPaymentDistributionModal === 'function') {
+                window.createPaymentDistributionModal();
+                console.log('✅ Modal creado');
+            } else {
+                console.error('❌ createPaymentDistributionModal no está disponible');
+                showToast('❌ Error: Función de creación de modal no disponible', 'error');
+                return;
+            }
+        } else {
+            console.log('✅ Modal ya existe');
+        }
+        
+        // Verificar que el modal se creó correctamente
+        const modal = document.getElementById('paymentDistributionModal');
+        if (!modal) {
+            console.error('❌ Modal no se creó correctamente');
+            showToast('❌ Error: No se pudo crear el modal', 'error');
+            return;
         }
         
         // Mostrar modal
-        const modal = document.getElementById('paymentDistributionModal');
         modal.classList.add('show');
+        console.log('📱 Modal mostrado');
         
-        // Cargar datos iniciales (pagos asignados)
+        // Verificar que los elementos del modal existen
+        const tabContent = document.getElementById('tab-content-transactions');
+        const transactionsInfo = document.getElementById('transactionsInfo');
+        const transactionsList = document.getElementById('transactionsList');
+        
+        console.log('🔍 Elementos del modal:');
+        console.log('  - tab-content-transactions:', tabContent ? 'SÍ' : 'NO');
+        console.log('  - transactionsInfo:', transactionsInfo ? 'SÍ' : 'NO');
+        console.log('  - transactionsList:', transactionsList ? 'SÍ' : 'NO');
+        
+        if (!tabContent || !transactionsInfo || !transactionsList) {
+            console.error('❌ Elementos del modal no encontrados');
+            showToast('❌ Error: Estructura del modal incompleta', 'error');
+            return;
+        }
+        
+        // Cargar datos iniciales
+        console.log('📥 Cargando datos iniciales...');
         await loadUnassignedPayments(clientId);
         await loadAssignedPayments(clientId);
+        console.log('✅ Datos iniciales cargados');
         
-        // Renderizar contenido inicial
-        const unassignedPayments = window.unassignedPayments || [];
-        if (unassignedPayments.length > 0) {
-            // Simular un pago para mostrar la interfaz
-            const samplePayment = unassignedPayments[0];
-            const eligibleInvoices = window.clientInvoices || [];
-            const availableAmount = parsePaymentAmount(samplePayment.creditos, samplePayment.BankSource);
-            
-            renderPaymentDistributionModal(samplePayment, availableAmount);
+        // Cambiar al tab de transacciones bancarias por defecto
+        console.log('🏦 Cambiando al tab de transacciones bancarias...');
+        if (typeof window.switchPaymentTab === 'function') {
+            window.switchPaymentTab('transactions');
+            console.log('✅ Tab cambiado a transacciones');
         } else {
-            // Si no hay pagos, mostrar mensaje
-            document.getElementById('paymentDistributionInfo').innerHTML = `
-                <div style="text-align: center; padding: 20px; color: #666;">
-                    <h4>📋 No hay pagos sin asignar</h4>
-                    <p>Cambie a la pestaña "Transacciones Bancarias" para ver transacciones disponibles</p>
-                </div>
-            `;
+            console.error('❌ switchPaymentTab no está disponible');
+            showToast('❌ Error: Función de cambio de tab no disponible', 'error');
+            return;
+        }
+        
+        // Cargar transacciones bancarias
+        console.log('📋 Cargando transacciones bancarias...');
+        if (typeof window.loadTransactionsTab === 'function') {
+            await window.loadTransactionsTab();
+            console.log('✅ Transacciones cargadas');
+        } else {
+            console.error('❌ loadTransactionsTab no está disponible');
+            showToast('❌ Error: Función de carga de transacciones no disponible', 'error');
+            return;
         }
         
         // Habilitar botón de confirmar
         const confirmBtn = document.getElementById('confirmDistributionBtn');
-        if (confirmBtn) confirmBtn.disabled = false;
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            console.log('✅ Botón de confirmar habilitado');
+        }
+        
+        console.log('✅ Modal de asignación abierto correctamente');
         
     } catch (error) {
-        console.error('Error abriendo modal de asignación:', error);
+        console.error('❌ Error abriendo modal de asignación:', error);
+        console.error('❌ Stack trace:', error.stack);
         showToast('❌ Error abriendo modal: ' + error.message, 'error');
     }
 }

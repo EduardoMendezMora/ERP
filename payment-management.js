@@ -1970,3 +1970,154 @@ async function assignTransactionToInvoice(transactionRef, bankSource, invoiceNum
 }
 
 // ===== FUNCIÓN PARA RENDERIZAR LISTA DE TRANSACCIONES =====
+function renderTransactionsList(transactions) {
+    // Esta función ya no se usa, pero la mantenemos por compatibilidad
+    console.log('renderTransactionsList llamada con', transactions.length, 'transacciones');
+}
+
+// ===== FUNCIONES AUXILIARES =====
+function getBankDisplayName(bankCode) {
+    const bankNames = {
+        'BAC': 'BAC San José',
+        'BN': 'Banco Nacional',
+        'HuberBN': 'Huber Banco Nacional'
+    };
+    return bankNames[bankCode] || bankCode;
+}
+
+function formatDateForDisplay(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-CR');
+    } catch (error) {
+        return dateString;
+    }
+}
+
+function parseDate(dateString) {
+    if (!dateString) return null;
+    try {
+        return new Date(dateString);
+    } catch (error) {
+        return null;
+    }
+}
+
+function isClientIdInObservations(observations, clientId) {
+    if (!observations || !clientId) return false;
+    return observations.includes(clientId.toString());
+}
+
+// ===== FUNCIÓN PARA MOSTRAR TOAST =====
+function showToast(message, type = 'info') {
+    // Crear toast si no existe
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            max-width: 300px;
+            word-wrap: break-word;
+        `;
+        document.body.appendChild(toast);
+    }
+    
+    // Configurar estilo según tipo
+    const colors = {
+        success: '#28a745',
+        error: '#dc3545',
+        warning: '#ffc107',
+        info: '#17a2b8'
+    };
+    
+    toast.style.backgroundColor = colors[type] || colors.info;
+    toast.textContent = message;
+    
+    // Mostrar toast
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(0)';
+    
+    // Ocultar después de 3 segundos
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+    }, 3000);
+}
+
+// ===== EXPOSICIÓN DE FUNCIONES AL SCOPE GLOBAL =====
+console.log('✅ payment-management.js COMPLETO - Sistema de sugerencias inteligentes activo');
+console.log('🧪 Funciones de debugging disponibles:');
+console.log('  - debugSheetDBInfo() - Información de debugging');
+console.log('  - testSheetDBConnection(referencia, banco) - Prueba conexión oficial');
+console.log('  - quickTestUpdate(referencia, banco) - Prueba rápida oficial');
+console.log('');
+console.log('🎯 SISTEMA DE SUGERENCIAS INTELIGENTES:');
+console.log('  ✅ loadAllUnreconciledTransactions() - Carga todas las transacciones sin conciliar');
+console.log('  ✅ generateSmartSuggestions() - Genera sugerencias basadas en monto y descripción');
+console.log('  ✅ switchPaymentTab() - Cambia entre tabs del modal');
+console.log('  ✅ loadTransactionsTab() - Carga el tab de transacciones');
+console.log('  ✅ assignTransactionToInvoice() - Asigna transacción a factura específica');
+console.log('');
+
+// ✅ FUNCIONES DE PAGOS
+window.assignPaymentToInvoice = assignPaymentToInvoice;
+window.applySinglePayment = applySinglePayment;
+window.showPaymentDistributionModal = showPaymentDistributionModal;
+window.createPaymentDistributionModal = createPaymentDistributionModal;
+window.renderPaymentDistributionModal = renderPaymentDistributionModal;
+window.updateDistributionCalculation = updateDistributionCalculation;
+window.updateDistributionSummary = updateDistributionSummary;
+window.confirmPaymentDistribution = confirmPaymentDistribution;
+window.closePaymentDistributionModal = closePaymentDistributionModal;
+window.updatePaymentAssignments = updatePaymentAssignments;
+window.parseAssignedInvoices = parseAssignedInvoices;
+window.formatAssignedInvoices = formatAssignedInvoices;
+window.unassignPaymentFromInvoice = unassignPaymentFromInvoice;
+window.updatePaymentAssignmentsRaw = updatePaymentAssignmentsRaw;
+window.reloadDataAndRender = reloadDataAndRender;
+window.loadUnassignedPayments = loadUnassignedPayments;
+window.loadAssignedPayments = loadAssignedPayments;
+window.updateInvoiceStatus = updateInvoiceStatus;
+window.showUnassignConfirmation = showUnassignConfirmation;
+
+// ✅ FUNCIONES DE TRANSACCIONES BANCARIAS
+window.loadAllUnreconciledTransactions = loadAllUnreconciledTransactions;
+window.switchPaymentTab = switchPaymentTab;
+window.loadTransactionsTab = loadTransactionsTab;
+window.generateSmartSuggestions = generateSmartSuggestions;
+window.renderTransactionsListWithSuggestions = renderTransactionsListWithSuggestions;
+window.assignTransactionToInvoice = assignTransactionToInvoice;
+window.showAllSuggestions = showAllSuggestions;
+window.assignTransactionManually = assignTransactionManually;
+
+// ✅ FUNCIONES DE SINCRONIZACIÓN
+window.syncWithBackendLogic = syncWithBackendLogic;
+window.verifyDataConsistency = verifyDataConsistency;
+window.recalculateInvoiceStates = recalculateInvoiceStates;
+window.applyPaymentAutoFIFO = applyPaymentAutoFIFO;
+
+// ✅ FUNCIONES DE DEBUGGING
+window.testSheetDBConnection = testSheetDBConnection;
+window.quickTestUpdate = quickTestUpdate;
+window.debugSheetDBInfo = debugSheetDBInfo;
+
+// ✅ FUNCIONES AUXILIARES
+window.getBankDisplayName = getBankDisplayName;
+window.formatDateForDisplay = formatDateForDisplay;
+window.parseDate = parseDate;
+window.isClientIdInObservations = isClientIdInObservations;
+window.showToast = showToast;
+
+console.log('🎉 Todas las funciones expuestas al scope global correctamente');

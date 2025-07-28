@@ -634,15 +634,38 @@ body {
     transform: translateY(-1px);
 }
 
+/* ===== ESTILOS PARA BOTONES DE PRUEBA ===== */
 .btn-warning {
-    background: linear-gradient(135deg, #ff9500 0%, #cc7a00 100%);
-    color: white;
-    font-weight: 500;
+    background: #ffc107;
+    color: #212529;
+    border: 1px solid #ffc107;
+    transition: all 0.2s ease;
 }
 
 .btn-warning:hover {
-    background: linear-gradient(135deg, #cc7a00 0%, #b8690c 100%);
-    transform: translateY(-1px);
+    background: #e0a800;
+    border-color: #d39e00;
+    color: #212529;
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: white;
+    border: 1px solid #17a2b8;
+    transition: all 0.2s ease;
+}
+
+.btn-info:hover {
+    background: #138496;
+    border-color: #117a8b;
+    color: white;
+}
+
+/* ===== ESTILOS PARA BOTONES PEQUEÑOS ===== */
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    border-radius: 4px;
 }
 
 .btn-whatsapp {
@@ -1825,13 +1848,6 @@ body {
     border: 1px dashed #dee2e6;
     color: #6c757d;
     font-style: italic;
-}
-
-/* ===== ESTILOS PARA BOTONES PEQUEÑOS ===== */
-.btn-sm {
-    padding: 6px 12px;
-    font-size: 0.8rem;
-    border-radius: 4px;
 }
 
 /* ===== ESTILOS PARA INPUTS DE MONTO ===== */
