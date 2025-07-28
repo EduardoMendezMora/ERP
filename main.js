@@ -763,7 +763,7 @@ async function loadTransactionsTab() {
                 </div>
             `;
         } else {
-            const transactionsHTML = pendingTransactions.slice(0, 20).map(transaction => {
+            const transactionsHTML = pendingTransactions.map(transaction => {
                 // Parsear el monto correctamente
                 let amount = 0;
                 const creditValue = transaction.Créditos || '0';
@@ -836,14 +836,12 @@ async function loadTransactionsTab() {
             }).join('');
             
             transactionsList.innerHTML = `
-                <div style="max-height: 400px; overflow-y: auto;">
+                <div style="max-height: 500px; overflow-y: auto;">
                     ${transactionsHTML}
                 </div>
-                ${pendingTransactions.length > 20 ? `
-                    <div style="text-align: center; padding: 16px; color: #86868b;">
-                        <small>Mostrando 20 de ${pendingTransactions.length} transacciones</small>
-                    </div>
-                ` : ''}
+                <div style="text-align: center; padding: 16px; color: #86868b;">
+                    <small>Mostrando todas las ${pendingTransactions.length} transacciones pendientes</small>
+                </div>
             `;
         }
         
