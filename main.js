@@ -767,6 +767,7 @@ async function loadTransactionsTab() {
                 // Parsear el monto correctamente
                 let amount = 0;
                 const creditValue = transaction.Créditos || '0';
+                const bank = transaction.banco || 'BAC';
                 
                 // Debug: mostrar el valor original
                 console.log('🔍 Valor original:', creditValue, 'Banco:', bank, 'Tipo:', typeof creditValue);
@@ -803,7 +804,6 @@ async function loadTransactionsTab() {
                 
                 const date = transaction.Fecha || 'Sin fecha';
                 const reference = transaction.Referencia || 'Sin referencia';
-                const bank = transaction.banco || 'BAC';
                 
                 // Formatear el monto
                 const formattedAmount = amount.toLocaleString('es-CR', {
