@@ -153,6 +153,9 @@
             <button class="btn btn-warning btn-large" style="margin-left: 12px;" onclick="sendAccountStatement()">
                 📝 Estado de Cuenta - Arrendamiento
             </button>
+            <button class="btn btn-info btn-large" style="margin-left: 12px;" onclick="syncWithBackend()">
+                🔄 Sincronizar con Backend
+            </button>
         </div>
 
         <!-- Unassigned Payments Section -->
@@ -163,6 +166,9 @@
                     <span class="section-count" id="unassignedPaymentsCount">0</span>
                 </h3>
                 <small style="color: #86868b; font-size: 0.8rem;">Pagos encontrados por ID_Cliente directo O ID en Observaciones</small>
+                <button class="btn btn-info btn-sm" style="margin-left: 12px;" onclick="openPaymentAssignmentModal()">
+                    🏦 Ver Transacciones Bancarias
+                </button>
             </div>
             <div class="invoices-grid" id="unassignedPayments"></div>
             <div class="empty-section" id="emptyUnassignedPayments" style="display: none;">
@@ -488,11 +494,22 @@ function sendAccountStatement() {
     }
 
     let totalPendiente = 0;
+    let totalMultas = 0;
+    let totalPagos = 0;
     let detalleFacturas = vencidas.map(f => {
-        const diasAtraso = f.DiasAtraso || 0;
+        // Calcular días de atraso (consistente con backend)
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const fechaVencimiento = new Date(f.FechaVencimiento);
+        fechaVencimiento.setHours(0, 0, 0, 0);
+        const diasAtraso = Math.floor((hoy - fechaVencimiento) / (1000 * 60 * 60 * 24));
+        
+        // Calcular multa (consistente con backend: ₡2,000 por día)
+        const multaCalculada = diasAtraso > 0 ? diasAtraso * 2000 : 0;
+        
         const saldo = parseFloat(f.MontoBase || 0);
-        const multa = parseFloat(f.MontoMultas || 0);
-        // Buscar pagos aplicados a esta factura
+        
+        // Buscar pagos aplicados a esta factura (usando campos normalizados)
         const pagosAplicados = assignedPayments.reduce((sum, p) => {
             if (p.Assignments && Array.isArray(p.Assignments)) {
                 return sum + p.Assignments
@@ -501,26 +518,44 @@ function sendAccountStatement() {
             }
             return sum;
         }, 0);
-        const total = saldo + multa - pagosAplicados;
-        totalPendiente += total;
+        
+        // Calcular saldo pendiente (consistente con backend)
+        const saldoPendiente = saldo - pagosAplicados;
+        const totalConMulta = saldoPendiente + multaCalculada;
+        
+        totalPendiente += totalConMulta;
+        totalMultas += multaCalculada;
+        totalPagos += pagosAplicados;
+        
         return (
             `* ${f.NumeroFactura} (${f.SemanaDescripcion || ''})\n` +
             `▶ Fecha: ${f.FechaVencimiento}\n` +
             `▶ Días vencido: ${diasAtraso}\n` +
-            `▶ Saldo: ₡ ${saldo.toLocaleString('es-CR')}\n` +
-            `▶ Multa: ₡ ${multa.toLocaleString('es-CR')}\n` +
-            `▶ Pagos aplicados: ₡ ${pagosAplicados.toLocaleString('es-CR')}\n` +
-            `✅ Total con Multa y Pagos: ₡ ${total.toLocaleString('es-CR')}\n`
+            `▶ Monto original: ₡ ${saldo.toLocaleString('es-CR')}\n` +
+            (pagosAplicados > 0 ? `▶ Pagos aplicados: ₡ ${pagosAplicados.toLocaleString('es-CR')}\n` : '') +
+            (pagosAplicados > 0 ? `▶ Saldo pendiente: ₡ ${saldoPendiente.toLocaleString('es-CR')}\n` : '') +
+            (multaCalculada > 0 ? `▶ Multa: ₡ ${multaCalculada.toLocaleString('es-CR')}\n` : '') +
+            `✅ Total a pagar: ₡ ${totalConMulta.toLocaleString('es-CR')}\n`
         );
     }).join('\n');
 
-    const mensaje = `📝 Estado de cuenta - Arrendamiento\n` +
-        `📅 Fecha: ${fechaHoy}\n\n` +
+    // Resumen final (consistente con backend)
+    let resumenFinal = '';
+    if (totalPagos > 0) {
+        resumenFinal = `📊 *RESUMEN*\n` +
+            `💰 Total pagos recibidos: ₡ ${totalPagos.toLocaleString('es-CR')}\n` +
+            `📊 *Saldo pendiente: ₡ ${totalPendiente.toLocaleString('es-CR')}*\n`;
+    } else {
+        resumenFinal = `📊 *Total Pendiente: ₡ ${totalPendiente.toLocaleString('es-CR')}*\n`;
+    }
+
+    const mensaje = `📋 *Estado de cuenta - Arrendamiento*\n` +
+        `📅 *Fecha:* ${fechaHoy}\n\n` +
         `👤 ${cliente.Nombre || ''} / ${cliente.Placa || ''} / ${cliente.Cedula || cliente.cedula || ''}\n\n` +
         `${detalleFacturas}\n` +
-        `\n📊 Total Pendiente: ₡ ${totalPendiente.toLocaleString('es-CR')}\n` +
-        `────────────────────────────\n\n` +
-        `Por favor atender los saldos pendientes. Si ya realizó el pago omita este mensaje nuestro Departamento Contable lo aplicará pronto. ¡Gracias! 🙌`;
+        `${resumenFinal}` +
+        `${'─'.repeat(30)}\n\n` +
+        `Por favor atender los saldos pendientes. Si ya realizó el pago omita este mensaje nuestro Departamento Contable lo aplicará pronto. ¡Gracias! 🙏`;
 
     // Obtener destino WhatsApp (grupo o personal)
     const destino = window.getWhatsAppDestination ? window.getWhatsAppDestination(cliente) : null;
@@ -557,6 +592,96 @@ function sendAccountStatement() {
         document.getElementById('loadingOverlay').style.display = 'none';
         alert('Error al enviar el estado de cuenta: ' + err);
     });
+}
+
+// Función para sincronizar con backend
+async function syncWithBackend() {
+    try {
+        const clientId = window.currentClient?.ID;
+        if (!clientId) {
+            alert('No hay cliente seleccionado');
+            return;
+        }
+        
+        // Mostrar loading
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        
+        // Verificar consistencia primero
+        const inconsistencies = verifyDataConsistency(clientId);
+        
+        if (inconsistencies.length > 0) {
+            console.log(`⚠️ Se encontraron ${inconsistencies.length} inconsistencias, corrigiendo...`);
+        }
+        
+        // Sincronizar con backend
+        await syncWithBackendLogic(clientId);
+        
+        // Ocultar loading
+        document.getElementById('loadingOverlay').style.display = 'none';
+        
+        // Mostrar resultado
+        if (inconsistencies.length > 0) {
+            showToast(`✅ Sincronización completada. Se corrigieron ${inconsistencies.length} inconsistencias.`, 'success');
+        } else {
+            showToast('✅ Sincronización completada. Los datos están consistentes.', 'success');
+        }
+        
+    } catch (error) {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        console.error('Error en sincronización:', error);
+        showToast('❌ Error durante la sincronización: ' + error.message, 'error');
+    }
+}
+
+// Función para abrir modal de asignación de pagos y transacciones
+async function openPaymentAssignmentModal() {
+    try {
+        const clientId = window.currentClient?.ID;
+        if (!clientId) {
+            showToast('❌ No hay cliente seleccionado', 'error');
+            return;
+        }
+        
+        // Crear modal si no existe
+        if (!document.getElementById('paymentDistributionModal')) {
+            createPaymentDistributionModal();
+        }
+        
+        // Mostrar modal
+        const modal = document.getElementById('paymentDistributionModal');
+        modal.classList.add('show');
+        
+        // Cargar datos iniciales (pagos asignados)
+        await loadUnassignedPayments(clientId);
+        await loadAssignedPayments(clientId);
+        
+        // Renderizar contenido inicial
+        const unassignedPayments = window.unassignedPayments || [];
+        if (unassignedPayments.length > 0) {
+            // Simular un pago para mostrar la interfaz
+            const samplePayment = unassignedPayments[0];
+            const eligibleInvoices = window.clientInvoices || [];
+            const availableAmount = parsePaymentAmount(samplePayment.creditos, samplePayment.BankSource);
+            
+            renderPaymentDistributionModal(samplePayment, availableAmount);
+        } else {
+            // Si no hay pagos, mostrar mensaje
+            document.getElementById('paymentDistributionInfo').innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #666;">
+                    <h4>📋 No hay pagos sin asignar</h4>
+                    <p>Cambie a la pestaña "Transacciones Bancarias" para ver transacciones disponibles</p>
+                </div>
+            `;
+        }
+        
+        // Habilitar botón de confirmar
+        const confirmBtn = document.getElementById('confirmDistributionBtn');
+        if (confirmBtn) confirmBtn.disabled = false;
+        
+    } catch (error) {
+        console.error('Error abriendo modal de asignación:', error);
+        showToast('❌ Error abriendo modal: ' + error.message, 'error');
+    }
 }
 </script>
 </body>
