@@ -189,6 +189,9 @@
                 <button class="btn btn-success btn-sm" style="margin-left: 8px;" onclick="testDynamicFiltering()">
                     🔍 Probar Filtrado
                 </button>
+                <button class="btn btn-warning btn-sm" style="margin-left: 8px;" onclick="testSpecificInvoices()">
+                    📅 Probar Fechas
+                </button>
             </div>
             <div class="invoices-grid" id="unassignedPayments"></div>
             <div class="empty-section" id="emptyUnassignedPayments" style="display: none;">
@@ -667,6 +670,72 @@ async function syncWithBackend() {
         console.error('Error en sincronización:', error);
         showToast('❌ Error durante la sincronización: ' + error.message, 'error');
     }
+}
+
+// Función para probar las fechas específicas de las facturas problemáticas
+function testSpecificInvoices() {
+    console.log('🧪 PROBANDO FACTURAS ESPECÍFICAS MENCIONADAS...');
+    
+    const testInvoices = [
+        { NumeroFactura: 'FAC-229', FechaVencimiento: '10/2/2025', Estado: 'Vencido', SemanaDescripcion: 'Semana del 25 de Septiembre al 1 de Octubre del 2025' },
+        { NumeroFactura: 'FAC-225', FechaVencimiento: '9/4/2025', Estado: 'Vencido', SemanaDescripcion: 'Semana del 28 de Agosto al 3 de Septiembre del 2025' },
+        { NumeroFactura: 'FAC-238', FechaVencimiento: '12/4/2025', Estado: 'Vencido', SemanaDescripcion: 'Semana del 27 de Noviembre al 3 de Diciembre del 2025' },
+        { NumeroFactura: 'FAC-234', FechaVencimiento: '11/6/2025', Estado: 'Vencido', SemanaDescripcion: 'Semana del 30 de Octubre al 5 de Noviembre del 2025' },
+        { NumeroFactura: 'FAC-221', FechaVencimiento: '8/7/2025', Estado: 'Vencido', SemanaDescripcion: 'Semana del 31 de Julio al 6 de Agosto del 2025' }
+    ];
+    
+    console.log('📅 Fecha actual del sistema:', new Date().toISOString());
+    console.log('📅 Fecha actual local:', new Date().toLocaleDateString('es-CR'));
+    
+    testInvoices.forEach(invoice => {
+        console.log(`\n🔍 Probando ${invoice.NumeroFactura}:`);
+        console.log(`  - Semana: ${invoice.SemanaDescripcion}`);
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Parsear fecha en formato MM/DD/YYYY
+        const fechaStr = invoice.FechaVencimiento.toString();
+        let dueDate;
+        
+        if (fechaStr.includes('/')) {
+            const parts = fechaStr.split('/');
+            const month = parseInt(parts[0]) - 1; // Meses en JS van de 0-11
+            const day = parseInt(parts[1]);
+            const year = parseInt(parts[2]);
+            dueDate = new Date(year, month, day);
+        } else {
+            dueDate = new Date(invoice.FechaVencimiento);
+        }
+        
+        dueDate.setHours(0, 0, 0, 0);
+        
+        const daysDifference = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+        
+        console.log(`  - Fecha vencimiento (MM/DD/YYYY): ${invoice.FechaVencimiento}`);
+        console.log(`  - Fecha parseada: ${dueDate.toLocaleDateString('es-CR')}`);
+        console.log(`  - Hoy: ${today.toLocaleDateString('es-CR')}`);
+        console.log(`  - Diferencia en días: ${daysDifference}`);
+        console.log(`  - ¿Está vencida? ${daysDifference >= 0 ? 'SÍ' : 'NO'}`);
+        
+        if (typeof window.calculateInvoiceStatus === 'function') {
+            const calculatedStatus = window.calculateInvoiceStatus(invoice);
+            console.log(`  - Estado calculado: ${calculatedStatus}`);
+        }
+    });
+    
+    // Verificar si hay facturas reales del cliente
+    const clientInvoices = window.clientInvoices || [];
+    if (clientInvoices.length > 0) {
+        console.log(`\n📋 Facturas reales del cliente (${clientInvoices.length}):`);
+        clientInvoices.forEach(inv => {
+            if (['FAC-229', 'FAC-225', 'FAC-238', 'FAC-234', 'FAC-221'].includes(inv.NumeroFactura)) {
+                console.log(`  - ${inv.NumeroFactura}: ${inv.FechaVencimiento} (${inv.Estado})`);
+            }
+        });
+    }
+    
+    console.log('✅ PRUEBA DE FACTURAS ESPECÍFICAS COMPLETADA');
 }
 
 // Función para probar el filtrado dinámico de facturas

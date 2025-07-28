@@ -71,22 +71,52 @@ function calculateInvoiceStatus(invoice) {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Normalizar a inicio del día
     
-    const dueDate = new Date(invoice.FechaVencimiento);
+    // Manejar diferentes formatos de fecha
+    let dueDate;
+    const fechaStr = invoice.FechaVencimiento.toString();
+    
+    // Si la fecha está en formato MM/DD/YYYY (como 8/7/2025 = 7 de Agosto)
+    if (fechaStr.includes('/')) {
+        const parts = fechaStr.split('/');
+        if (parts.length === 3) {
+            const month = parseInt(parts[0]) - 1; // Meses en JS van de 0-11
+            const day = parseInt(parts[1]);
+            const year = parseInt(parts[2]);
+            dueDate = new Date(year, month, day);
+            console.log(`  - Parseando MM/DD/YYYY: ${parts[0]}/${parts[1]}/${parts[2]} -> ${dueDate.toLocaleDateString('es-CR')}`);
+        } else {
+            dueDate = new Date(invoice.FechaVencimiento);
+        }
+    } else {
+        dueDate = new Date(invoice.FechaVencimiento);
+    }
+    
     dueDate.setHours(0, 0, 0, 0); // Normalizar a inicio del día
     
     const daysDifference = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
     
+    // Logs para debugging
+    console.log(`🔍 Analizando factura ${invoice.NumeroFactura}:`);
+    console.log(`  - Fecha vencimiento original: ${invoice.FechaVencimiento}`);
+    console.log(`  - Fecha parseada: ${dueDate.toISOString()}`);
+    console.log(`  - Hoy: ${today.toISOString()}`);
+    console.log(`  - Diferencia en días: ${daysDifference}`);
+    console.log(`  - Estado original: ${invoice.Estado}`);
+    
     // Si ya está pagada, mantener estado pagado
     if (invoice.Estado === 'Pagado') {
+        console.log(`  - Resultado: Pagado (ya estaba pagada)`);
         return 'Pagado';
     }
     
     // Si vence hoy o ya venció
     if (daysDifference >= 0) {
+        console.log(`  - Resultado: Vencido (días de atraso: ${daysDifference})`);
         return 'Vencido';
     }
     
     // Si aún no vence
+    console.log(`  - Resultado: Pendiente (vence en ${Math.abs(daysDifference)} días)`);
     return 'Pendiente';
 }
 
