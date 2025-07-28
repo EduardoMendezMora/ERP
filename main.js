@@ -511,8 +511,20 @@ async function confirmAssignPayment() {
 }
 
 async function confirmAssignInvoice() {
-    if (!currentInvoiceForAssignment || !selectedPaymentForInvoice) {
-        showToast('Seleccione un pago para asignar a la factura', 'error');
+    console.log('🔍 Validando asignación de factura:', {
+        currentInvoiceForAssignment,
+        selectedPaymentForInvoice,
+        selectedTransaction: window.selectedTransaction
+    });
+
+    // Verificar si hay una transacción seleccionada
+    if (!window.selectedTransaction) {
+        showToast('Seleccione una transacción bancaria para asignar a la factura', 'error');
+        return;
+    }
+
+    if (!currentInvoiceForAssignment) {
+        showToast('No hay factura seleccionada para asignar', 'error');
         return;
     }
 
@@ -521,9 +533,14 @@ async function confirmAssignInvoice() {
     confirmBtn.textContent = '⏳ Asignando...';
 
     try {
+        console.log('🎯 Asignando transacción a factura:', {
+            transaction: window.selectedTransaction,
+            invoice: currentInvoiceForAssignment.NumeroFactura
+        });
+
         await assignPaymentToInvoice(
-            selectedPaymentForInvoice.reference,
-            selectedPaymentForInvoice.bankSource,
+            window.selectedTransaction.reference,
+            window.selectedTransaction.bank, // El banco ya viene como 'BAC', 'BN', etc.
             currentInvoiceForAssignment.NumeroFactura
         );
 
@@ -554,6 +571,7 @@ function closeAssignInvoiceModal() {
         modal.classList.remove('show');
         currentInvoiceForAssignment = null;
         selectedPaymentForInvoice = null;
+        window.selectedTransaction = null; // Limpiar transacción seleccionada
     }
 }
 
