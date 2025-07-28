@@ -62,93 +62,68 @@ async function initializeApp() {
     }
 }
 
-// ===== FUNCIÓN PARA CALCULAR ESTADO DINÁMICO DE FACTURAS =====
-function calculateInvoiceStatus(invoice) {
-    if (!invoice.FechaVencimiento) {
-        return 'Pendiente';
-    }
+// ===== FUNCIÓN PARA PARSEAR FECHAS CORRECTAMENTE =====
+function parseDateCorrectly(dateString) {
+    if (!dateString) return null;
     
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalizar a inicio del día
+    const fechaStr = dateString.toString();
     
-    // Manejar diferentes formatos de fecha
-    let dueDate;
-    const fechaStr = invoice.FechaVencimiento.toString();
-    
-    // Si la fecha está en formato MM/DD/YYYY (como 10/2/2025 = 2 de Octubre)
+    // Si la fecha está en formato MM/DD/YYYY
     if (fechaStr.includes('/')) {
         const parts = fechaStr.split('/');
         if (parts.length === 3) {
             const month = parseInt(parts[0]) - 1; // Meses en JS van de 0-11
             const day = parseInt(parts[1]);
             const year = parseInt(parts[2]);
-            dueDate = new Date(year, month, day);
             
             // Validar que la fecha sea razonable
             if (month < 0 || month > 11 || day < 1 || day > 31 || year < 2020 || year > 2030) {
                 console.warn(`⚠️ Fecha inválida detectada: ${fechaStr}`);
-                return invoice.Estado || 'Pendiente'; // Mantener estado actual
+                return null;
             }
             
-            console.log(`  - Parseando MM/DD/YYYY: ${parts[0]}/${parts[1]}/${parts[2]} -> ${dueDate.toLocaleDateString('es-CR')}`);
-        } else {
-            dueDate = new Date(invoice.FechaVencimiento);
+            const parsedDate = new Date(year, month, day);
+            if (window.DEBUG_MODE) {
+                console.log(`📅 Parseando MM/DD/YYYY: ${parts[0]}/${parts[1]}/${parts[2]} -> ${parsedDate.toLocaleDateString('es-CR')}`);
+            }
+            return parsedDate;
         }
-    } else {
-        dueDate = new Date(invoice.FechaVencimiento);
     }
     
-    // Validar que la fecha se parseó correctamente
-    if (isNaN(dueDate.getTime())) {
-        console.warn(`⚠️ No se pudo parsear la fecha: ${invoice.FechaVencimiento}`);
-        return invoice.Estado || 'Pendiente'; // Mantener estado actual
+    // Fallback: intentar parsear como fecha ISO
+    const fallbackDate = new Date(dateString);
+    return isNaN(fallbackDate.getTime()) ? null : fallbackDate;
+}
+
+// ===== FUNCIÓN PARA CALCULAR ESTADO DINÁMICO DE FACTURAS =====
+function calculateInvoiceStatus(invoice) {
+    if (!invoice.FechaVencimiento) {
+        return invoice.Estado || 'Pendiente';
     }
     
-    dueDate.setHours(0, 0, 0, 0); // Normalizar a inicio del día
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
+    const dueDate = parseDateCorrectly(invoice.FechaVencimiento);
+    if (!dueDate) {
+        return invoice.Estado || 'Pendiente';
+    }
+    
+    dueDate.setHours(0, 0, 0, 0);
     const daysDifference = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
-    
-    // Logs para debugging (solo en desarrollo)
-    if (window.DEBUG_MODE) {
-        console.log(`🔍 Analizando factura ${invoice.NumeroFactura}:`);
-        console.log(`  - Fecha vencimiento original: ${invoice.FechaVencimiento}`);
-        console.log(`  - Fecha parseada: ${dueDate.toLocaleDateString('es-CR')}`);
-        console.log(`  - Hoy: ${today.toLocaleDateString('es-CR')}`);
-        console.log(`  - Diferencia en días: ${daysDifference}`);
-        console.log(`  - Estado original: ${invoice.Estado}`);
-    }
     
     // Si ya está pagada, mantener estado pagado
     if (invoice.Estado === 'Pagado') {
-        if (window.DEBUG_MODE) console.log(`  - Resultado: Pagado (ya estaba pagada)`);
         return 'Pagado';
     }
     
     // Si vence hoy o ya venció
     if (daysDifference >= 0) {
-        if (window.DEBUG_MODE) console.log(`  - Resultado: Vencido (días de atraso: ${daysDifference})`);
         return 'Vencido';
     }
     
     // Si aún no vence
-    if (window.DEBUG_MODE) console.log(`  - Resultado: Pendiente (vence en ${Math.abs(daysDifference)} días)`);
     return 'Pendiente';
-}
-
-// ===== FUNCIÓN PARA FILTRAR FACTURAS VENCIDAS DINÁMICAMENTE =====
-function getOverdueInvoices(invoices) {
-    return invoices.filter(invoice => {
-        const calculatedStatus = calculateInvoiceStatus(invoice);
-        return calculatedStatus === 'Vencido';
-    });
-}
-
-// ===== FUNCIÓN PARA FILTRAR FACTURAS PENDIENTES DINÁMICAMENTE =====
-function getPendingInvoices(invoices) {
-    return invoices.filter(invoice => {
-        const calculatedStatus = calculateInvoiceStatus(invoice);
-        return calculatedStatus === 'Pendiente';
-    });
 }
 
 // ===== FUNCIÓN PARA FILTRAR FACTURAS PAGADAS =====
@@ -167,12 +142,12 @@ function renderPage() {
         // Renderizar detalles del cliente
         renderClientDetails();
 
-        // Clasificar facturas por estado (usando cálculo dinámico)
-        const overdueInvoices = getOverdueInvoices(clientInvoices);
-        const pendingInvoices = getPendingInvoices(clientInvoices);
+        // Clasificar facturas por estado (usando estados existentes)
+        const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
+        const pendingInvoices = clientInvoices.filter(inv => inv.Estado === 'Pendiente');
         const paidInvoices = getPaidInvoices(clientInvoices);
         
-        console.log(`📊 Facturas clasificadas dinámicamente:`);
+        console.log(`📊 Facturas clasificadas por estado:`);
         console.log(`  - Vencidas: ${overdueInvoices.length}`);
         console.log(`  - Pendientes: ${pendingInvoices.length}`);
         console.log(`  - Pagadas: ${paidInvoices.length}`);
@@ -666,9 +641,7 @@ window.confirmAssignPayment = confirmAssignPayment;
 window.confirmAssignInvoice = confirmAssignInvoice;
 
 // ✅ FUNCIONES DE FILTRADO DINÁMICO
-window.calculateInvoiceStatus = calculateInvoiceStatus;
-window.getOverdueInvoices = getOverdueInvoices;
-window.getPendingInvoices = getPendingInvoices;
-window.getPaidInvoices = getPaidInvoices;
+        window.calculateInvoiceStatus = calculateInvoiceStatus;
+        window.getPaidInvoices = getPaidInvoices;
 
 console.log('✅ main.js cargado - Controlador principal de la aplicación');

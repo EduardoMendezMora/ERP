@@ -168,10 +168,10 @@
                 🔄 Sincronizar con Backend
             </button>
             <button class="btn btn-secondary btn-large" style="margin-left: 12px;" onclick="diagnoseOverdueInvoices()">
-                🔍 Diagnosticar Facturas
+                🔍 Diagnosticar Fechas
             </button>
             <button class="btn btn-danger btn-large" style="margin-left: 12px;" onclick="fixOverdueInvoices()">
-                🔧 Corregir Facturas
+                🔧 Corregir Parseo
             </button>
             <button class="btn btn-warning btn-sm" style="margin-left: 8px;" onclick="toggleDebugMode()">
                 🐛 Debug
@@ -201,9 +201,7 @@
                 <button class="btn btn-info btn-sm" style="margin-left: 8px;" onclick="testCurrencyFormat()">
                     💰 Probar Moneda
                 </button>
-                <button class="btn btn-success btn-sm" style="margin-left: 8px;" onclick="testDynamicFiltering()">
-                    🔍 Probar Filtrado
-                </button>
+
                 <button class="btn btn-warning btn-sm" style="margin-left: 8px;" onclick="testSpecificInvoices()">
                     📅 Probar Fechas
                 </button>
@@ -754,71 +752,7 @@ function testSpecificInvoices() {
     console.log('✅ PRUEBA DE FACTURAS ESPECÍFICAS COMPLETADA');
 }
 
-// Función para probar el filtrado dinámico de facturas
-function testDynamicFiltering() {
-    console.log('🧪 PROBANDO FILTRADO DINÁMICO DE FACTURAS...');
-    
-    const clientInvoices = window.clientInvoices || [];
-    if (clientInvoices.length === 0) {
-        console.log('❌ No hay facturas para probar');
-        return;
-    }
-    
-    console.log(`📊 Total de facturas: ${clientInvoices.length}`);
-    
-    // Verificar que las funciones estén disponibles
-    console.log('🔍 Funciones disponibles:');
-    console.log('  - calculateInvoiceStatus:', typeof window.calculateInvoiceStatus);
-    console.log('  - getOverdueInvoices:', typeof window.getOverdueInvoices);
-    console.log('  - getPendingInvoices:', typeof window.getPendingInvoices);
-    console.log('  - getPaidInvoices:', typeof window.getPaidInvoices);
-    
-    // Probar clasificación dinámica
-    if (typeof window.calculateInvoiceStatus === 'function') {
-        console.log('📋 Clasificación individual de facturas:');
-        clientInvoices.forEach((invoice, index) => {
-            const calculatedStatus = window.calculateInvoiceStatus(invoice);
-            const originalStatus = invoice.Estado;
-            const dueDate = invoice.FechaVencimiento;
-            
-            console.log(`  ${index + 1}. ${invoice.NumeroFactura}:`);
-            console.log(`     - Estado original: ${originalStatus}`);
-            console.log(`     - Estado calculado: ${calculatedStatus}`);
-            console.log(`     - Fecha vencimiento: ${dueDate}`);
-            
-            if (calculatedStatus !== originalStatus) {
-                console.log(`     ⚠️ DIFERENCIA DETECTADA!`);
-            }
-        });
-    }
-    
-    // Probar filtros
-    if (typeof window.getOverdueInvoices === 'function') {
-        const overdue = window.getOverdueInvoices(clientInvoices);
-        console.log(`🔴 Facturas vencidas (dinámico): ${overdue.length}`);
-        overdue.forEach(inv => {
-            console.log(`  - ${inv.NumeroFactura} (${inv.FechaVencimiento})`);
-        });
-    }
-    
-    if (typeof window.getPendingInvoices === 'function') {
-        const pending = window.getPendingInvoices(clientInvoices);
-        console.log(`🟡 Facturas pendientes (dinámico): ${pending.length}`);
-        pending.forEach(inv => {
-            console.log(`  - ${inv.NumeroFactura} (${inv.FechaVencimiento})`);
-        });
-    }
-    
-    if (typeof window.getPaidInvoices === 'function') {
-        const paid = window.getPaidInvoices(clientInvoices);
-        console.log(`🟢 Facturas pagadas (dinámico): ${paid.length}`);
-        paid.forEach(inv => {
-            console.log(`  - ${inv.NumeroFactura} (${inv.FechaVencimiento})`);
-        });
-    }
-    
-    console.log('✅ PRUEBA DE FILTRADO DINÁMICO COMPLETADA');
-}
+
 
 // Función para probar el formato de moneda
 function testCurrencyFormat() {

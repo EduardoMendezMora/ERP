@@ -21,188 +21,81 @@
    - Los montos mostrados no coinciden con la realidad
 */
 
-// ===== FUNCIÓN DE DIAGNÓSTICO =====
+// ===== FUNCIÓN DE DIAGNÓSTICO SIMPLIFICADO =====
 function diagnoseOverdueInvoices() {
-    console.log('🔍 INICIANDO DIAGNÓSTICO DE FACTURAS VENCIDAS...');
+    console.log('🔍 INICIANDO DIAGNÓSTICO DE PARSEO DE FECHAS...');
     
     const clientInvoices = window.clientInvoices || [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    console.log(`📅 Fecha actual del sistema: ${today.toLocaleDateString('es-CR')}`);
     console.log(`📋 Total de facturas a analizar: ${clientInvoices.length}`);
     
-    let problems = [];
-    let correctedInvoices = [];
+    let dateProblems = [];
+    let parsingIssues = [];
     
     clientInvoices.forEach((invoice, index) => {
-        console.log(`\n🔍 Analizando factura ${index + 1}: ${invoice.NumeroFactura}`);
-        
         const originalDueDate = invoice.FechaVencimiento;
-        const originalStatus = invoice.Estado;
-        const originalFines = parseFloat(invoice.MontoMultas || 0);
-        const originalDaysOverdue = parseInt(invoice.DiasAtraso || 0);
         
-        console.log(`  - Fecha vencimiento original: ${originalDueDate}`);
-        console.log(`  - Estado original: ${originalStatus}`);
-        console.log(`  - Multas originales: ₡${originalFines.toLocaleString('es-CR')}`);
-        console.log(`  - Días atraso originales: ${originalDaysOverdue}`);
-        
-        // Parsear fecha correctamente (asumiendo formato MM/DD/YYYY)
-        let parsedDueDate = null;
-        let parsingMethod = '';
-        
-        if (originalDueDate && originalDueDate.includes('/')) {
-            const parts = originalDueDate.split('/');
-            if (parts.length === 3) {
-                const month = parseInt(parts[0]) - 1; // Meses en JS van de 0-11
-                const day = parseInt(parts[1]);
-                const year = parseInt(parts[2]);
-                parsedDueDate = new Date(year, month, day);
-                parsingMethod = 'MM/DD/YYYY';
-            }
-        } else if (originalDueDate) {
-            parsedDueDate = new Date(originalDueDate);
-            parsingMethod = 'ISO';
+        if (!originalDueDate) {
+            parsingIssues.push(`${invoice.NumeroFactura}: Sin fecha de vencimiento`);
+            return;
         }
         
-        if (parsedDueDate) {
-            parsedDueDate.setHours(0, 0, 0, 0);
-            
-            const daysDifference = Math.floor((today - parsedDueDate) / (1000 * 60 * 60 * 24));
-            const correctStatus = daysDifference >= 0 ? 'Vencido' : 'Pendiente';
-            const correctDaysOverdue = daysDifference >= 0 ? daysDifference : 0;
-            
-            // Solo calcular multas para facturas de arrendamiento (NO manuales)
-            const isManualInvoice = invoice.TipoFactura === 'Manual' ||
-                invoice.NumeroFactura?.startsWith('MAN-') ||
-                invoice.ConceptoManual;
-            
-            const correctFines = (!isManualInvoice && correctDaysOverdue > 0) ? correctDaysOverdue * 2000 : 0;
-            
-            console.log(`  - Fecha parseada (${parsingMethod}): ${parsedDueDate.toLocaleDateString('es-CR')}`);
-            console.log(`  - Diferencia en días: ${daysDifference}`);
-            console.log(`  - Estado correcto: ${correctStatus}`);
-            console.log(`  - Días atraso correctos: ${correctDaysOverdue}`);
-            console.log(`  - Multas correctas: ₡${correctFines.toLocaleString('es-CR')}`);
-            console.log(`  - Es factura manual: ${isManualInvoice ? 'SÍ' : 'NO'}`);
-            
-            // Detectar problemas
-            const problems = [];
-            
-            if (originalStatus !== correctStatus) {
-                problems.push(`Estado incorrecto: ${originalStatus} → ${correctStatus}`);
-            }
-            
-            if (originalDaysOverdue !== correctDaysOverdue) {
-                problems.push(`Días atraso incorrectos: ${originalDaysOverdue} → ${correctDaysOverdue}`);
-            }
-            
-            if (originalFines !== correctFines) {
-                problems.push(`Multas incorrectas: ₡${originalFines.toLocaleString('es-CR')} → ₡${correctFines.toLocaleString('es-CR')}`);
-            }
-            
-            if (problems.length > 0) {
-                console.log(`  ⚠️ PROBLEMAS DETECTADOS:`);
-                problems.forEach(problem => console.log(`    - ${problem}`));
-                
-                // Crear factura corregida
-                const correctedInvoice = {
-                    ...invoice,
-                    FechaVencimiento: originalDueDate, // Mantener formato original
-                    Estado: correctStatus,
-                    DiasAtraso: correctDaysOverdue,
-                    MontoMultas: correctFines,
-                    MontoTotal: parseFloat(invoice.MontoBase || 0) + correctFines,
-                    _diagnostic: {
-                        originalStatus,
-                        originalDaysOverdue,
-                        originalFines,
-                        correctStatus,
-                        correctDaysOverdue,
-                        correctFines,
-                        problems
-                    }
-                };
-                
-                correctedInvoices.push(correctedInvoice);
-            } else {
-                console.log(`  ✅ Sin problemas detectados`);
-            }
+        // Probar parseo de fecha
+        const parsedDate = parseDateCorrectly(originalDueDate);
+        
+        if (!parsedDate) {
+            dateProblems.push(`${invoice.NumeroFactura}: No se pudo parsear "${originalDueDate}"`);
         } else {
-            console.log(`  ❌ No se pudo parsear la fecha: ${originalDueDate}`);
-            problems.push(`Fecha inválida: ${originalDueDate}`);
+            console.log(`✅ ${invoice.NumeroFactura}: ${originalDueDate} → ${parsedDate.toLocaleDateString('es-CR')}`);
         }
     });
     
     console.log(`\n📊 RESUMEN DEL DIAGNÓSTICO:`);
     console.log(`  - Facturas analizadas: ${clientInvoices.length}`);
-    console.log(`  - Facturas con problemas: ${correctedInvoices.length}`);
-    console.log(`  - Problemas totales: ${problems.length}`);
+    console.log(`  - Problemas de parseo: ${dateProblems.length}`);
+    console.log(`  - Sin fecha: ${parsingIssues.length}`);
+    
+    if (dateProblems.length > 0) {
+        console.log(`\n❌ PROBLEMAS DE PARSEO:`);
+        dateProblems.forEach(problem => console.log(`  - ${problem}`));
+    }
+    
+    if (parsingIssues.length > 0) {
+        console.log(`\n⚠️ FACTURAS SIN FECHA:`);
+        parsingIssues.forEach(issue => console.log(`  - ${issue}`));
+    }
     
     return {
         totalInvoices: clientInvoices.length,
-        problematicInvoices: correctedInvoices.length,
-        problems: problems,
-        correctedInvoices: correctedInvoices
+        parsingProblems: dateProblems.length,
+        missingDates: parsingIssues.length,
+        problems: [...dateProblems, ...parsingIssues]
     };
 }
 
-// ===== FUNCIÓN DE CORRECCIÓN =====
+// ===== FUNCIÓN DE CORRECCIÓN SIMPLIFICADA =====
 async function fixOverdueInvoices() {
-    console.log('🔧 INICIANDO CORRECCIÓN DE FACTURAS VENCIDAS...');
+    console.log('🔧 INICIANDO CORRECCIÓN DE PARSEO DE FECHAS...');
     
     try {
         // Ejecutar diagnóstico
         const diagnosis = diagnoseOverdueInvoices();
         
-        if (diagnosis.problematicInvoices === 0) {
-            console.log('✅ No se encontraron problemas que corregir');
-            showToast('✅ No se encontraron problemas en las facturas vencidas', 'success');
+        if (diagnosis.parsingProblems === 0 && diagnosis.missingDates === 0) {
+            console.log('✅ No se encontraron problemas de parseo que corregir');
+            showToast('✅ No se encontraron problemas de parseo de fechas', 'success');
             return;
         }
         
-        console.log(`🔧 Corrigiendo ${diagnosis.problematicInvoices} facturas...`);
+        console.log(`🔧 Problemas detectados: ${diagnosis.parsingProblems} fechas + ${diagnosis.missingDates} sin fecha`);
         
-        // Actualizar las facturas en el array global
-        const clientInvoices = window.clientInvoices || [];
-        const updatedInvoices = [...clientInvoices];
-        
-        diagnosis.correctedInvoices.forEach(correctedInvoice => {
-            const index = updatedInvoices.findIndex(inv => inv.NumeroFactura === correctedInvoice.NumeroFactura);
-            if (index !== -1) {
-                // Actualizar solo los campos necesarios
-                updatedInvoices[index] = {
-                    ...updatedInvoices[index],
-                    Estado: correctedInvoice.Estado,
-                    DiasAtraso: correctedInvoice.DiasAtraso,
-                    MontoMultas: correctedInvoice.MontoMultas,
-                    MontoTotal: correctedInvoice.MontoTotal
-                };
-                
-                console.log(`✅ Corregida: ${correctedInvoice.NumeroFactura}`);
-            }
-        });
-        
-        // Actualizar el array global
-        window.clientInvoices = updatedInvoices;
-        
-        // Guardar en localStorage
-        const clientId = window.currentClient?.ID;
-        if (clientId) {
-            const key = `clientInvoices_${clientId}`;
-            localStorage.setItem(key, JSON.stringify(updatedInvoices));
-            console.log(`💾 Datos guardados en localStorage: ${key}`);
-        }
-        
-        // Re-renderizar la página
+        // Solo re-renderizar la página para aplicar el parseo correcto
         if (typeof renderPage === 'function') {
             renderPage();
-            console.log('🎨 Página re-renderizada');
+            console.log('🎨 Página re-renderizada con parseo correcto');
         }
         
         console.log('✅ Corrección completada');
-        showToast(`✅ Se corrigieron ${diagnosis.problematicInvoices} facturas`, 'success');
+        showToast(`✅ Parseo de fechas corregido. Problemas: ${diagnosis.parsingProblems}`, 'success');
         
     } catch (error) {
         console.error('❌ Error durante la corrección:', error);
