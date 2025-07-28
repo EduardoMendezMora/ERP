@@ -1123,10 +1123,10 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         let amount = 0;
 
         // Usar la misma lógica de parseo que en loadTransactionsTab
-        const bank = transaction.banco || 'BAC';
+        const transactionBank = transaction.banco || 'BAC';
         
         // Convertir a número según el banco (misma lógica que loadTransactionsTab)
-        if (bank === 'BAC') {
+        if (transactionBank === 'BAC') {
             // BAC usa comas como separador decimal (ej: 20.000,00)
             if (cleanValue.includes(',')) {
                 // Reemplazar punto por nada y coma por punto
