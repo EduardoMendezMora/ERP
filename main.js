@@ -75,15 +75,22 @@ function calculateInvoiceStatus(invoice) {
     let dueDate;
     const fechaStr = invoice.FechaVencimiento.toString();
     
-    // Si la fecha está en formato MM/DD/YYYY (como 8/7/2025 = 7 de Agosto)
+    // Si la fecha está en formato DD/MM/YYYY (como 10/2/2025 = 10 de Febrero)
     if (fechaStr.includes('/')) {
         const parts = fechaStr.split('/');
         if (parts.length === 3) {
-            const month = parseInt(parts[0]) - 1; // Meses en JS van de 0-11
-            const day = parseInt(parts[1]);
+            const day = parseInt(parts[0]);
+            const month = parseInt(parts[1]) - 1; // Meses en JS van de 0-11
             const year = parseInt(parts[2]);
             dueDate = new Date(year, month, day);
-            console.log(`  - Parseando MM/DD/YYYY: ${parts[0]}/${parts[1]}/${parts[2]} -> ${dueDate.toLocaleDateString('es-CR')}`);
+            
+            // Validar que la fecha sea razonable
+            if (month < 0 || month > 11 || day < 1 || day > 31 || year < 2020 || year > 2030) {
+                console.warn(`⚠️ Fecha inválida detectada: ${fechaStr}`);
+                return invoice.Estado || 'Pendiente'; // Mantener estado actual
+            }
+            
+            console.log(`  - Parseando DD/MM/YYYY: ${parts[0]}/${parts[1]}/${parts[2]} -> ${dueDate.toLocaleDateString('es-CR')}`);
         } else {
             dueDate = new Date(invoice.FechaVencimiento);
         }
@@ -91,32 +98,40 @@ function calculateInvoiceStatus(invoice) {
         dueDate = new Date(invoice.FechaVencimiento);
     }
     
+    // Validar que la fecha se parseó correctamente
+    if (isNaN(dueDate.getTime())) {
+        console.warn(`⚠️ No se pudo parsear la fecha: ${invoice.FechaVencimiento}`);
+        return invoice.Estado || 'Pendiente'; // Mantener estado actual
+    }
+    
     dueDate.setHours(0, 0, 0, 0); // Normalizar a inicio del día
     
     const daysDifference = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
     
-    // Logs para debugging
-    console.log(`🔍 Analizando factura ${invoice.NumeroFactura}:`);
-    console.log(`  - Fecha vencimiento original: ${invoice.FechaVencimiento}`);
-    console.log(`  - Fecha parseada: ${dueDate.toISOString()}`);
-    console.log(`  - Hoy: ${today.toISOString()}`);
-    console.log(`  - Diferencia en días: ${daysDifference}`);
-    console.log(`  - Estado original: ${invoice.Estado}`);
+    // Logs para debugging (solo en desarrollo)
+    if (window.DEBUG_MODE) {
+        console.log(`🔍 Analizando factura ${invoice.NumeroFactura}:`);
+        console.log(`  - Fecha vencimiento original: ${invoice.FechaVencimiento}`);
+        console.log(`  - Fecha parseada: ${dueDate.toLocaleDateString('es-CR')}`);
+        console.log(`  - Hoy: ${today.toLocaleDateString('es-CR')}`);
+        console.log(`  - Diferencia en días: ${daysDifference}`);
+        console.log(`  - Estado original: ${invoice.Estado}`);
+    }
     
     // Si ya está pagada, mantener estado pagado
     if (invoice.Estado === 'Pagado') {
-        console.log(`  - Resultado: Pagado (ya estaba pagada)`);
+        if (window.DEBUG_MODE) console.log(`  - Resultado: Pagado (ya estaba pagada)`);
         return 'Pagado';
     }
     
     // Si vence hoy o ya venció
     if (daysDifference >= 0) {
-        console.log(`  - Resultado: Vencido (días de atraso: ${daysDifference})`);
+        if (window.DEBUG_MODE) console.log(`  - Resultado: Vencido (días de atraso: ${daysDifference})`);
         return 'Vencido';
     }
     
     // Si aún no vence
-    console.log(`  - Resultado: Pendiente (vence en ${Math.abs(daysDifference)} días)`);
+    if (window.DEBUG_MODE) console.log(`  - Resultado: Pendiente (vence en ${Math.abs(daysDifference)} días)`);
     return 'Pendiente';
 }
 

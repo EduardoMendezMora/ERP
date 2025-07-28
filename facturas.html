@@ -167,6 +167,21 @@
             <button class="btn btn-info btn-large" style="margin-left: 12px;" onclick="syncWithBackend()">
                 🔄 Sincronizar con Backend
             </button>
+            <button class="btn btn-secondary btn-large" style="margin-left: 12px;" onclick="diagnoseOverdueInvoices()">
+                🔍 Diagnosticar Facturas
+            </button>
+            <button class="btn btn-danger btn-large" style="margin-left: 12px;" onclick="fixOverdueInvoices()">
+                🔧 Corregir Facturas
+            </button>
+            <button class="btn btn-warning btn-sm" style="margin-left: 8px;" onclick="toggleDebugMode()">
+                🐛 Debug
+            </button>
+            <button class="btn btn-info btn-sm" style="margin-left: 8px;" onclick="showInvoicesSummary()">
+                📊 Resumen
+            </button>
+            <button class="btn btn-secondary btn-sm" style="margin-left: 8px;" onclick="testDateParsing()">
+                📅 Probar Fechas
+            </button>
         </div>
 
         <!-- Unassigned Payments Section -->
@@ -514,6 +529,7 @@
 <script src="receipt-whatsapp.js"></script>
 <script src="main.js"></script>
 <script src="client-management.js"></script>
+<script src="fix-overdue-invoices.js"></script>
 <script>
 const ULTRAMSG_TOKEN = 'wp98xs1qrfhqg9ya';
 const ULTRAMSG_INSTANCE_ID = 'instance112077';
@@ -931,6 +947,115 @@ async function testTransactionSystem() {
         console.error('Stack trace:', error.stack);
     }
 }
+
+// ===== FUNCIÓN PARA TOGGLE DEBUG MODE =====
+function toggleDebugMode() {
+    window.DEBUG_MODE = !window.DEBUG_MODE;
+    const isEnabled = window.DEBUG_MODE;
+    
+    console.log(`🐛 Modo debug ${isEnabled ? 'HABILITADO' : 'DESHABILITADO'}`);
+    showToast(`🐛 Debug ${isEnabled ? 'ON' : 'OFF'}`, isEnabled ? 'info' : 'warning');
+    
+    // Actualizar el botón
+    const debugBtn = document.querySelector('button[onclick="toggleDebugMode()"]');
+    if (debugBtn) {
+        debugBtn.textContent = isEnabled ? '🐛 Debug ON' : '🐛 Debug';
+        debugBtn.className = isEnabled ? 'btn btn-success btn-sm' : 'btn btn-warning btn-sm';
+    }
+}
+
+// ===== FUNCIÓN PARA MOSTRAR RESUMEN DE FACTURAS =====
+function showInvoicesSummary() {
+    console.log('📊 RESUMEN DE FACTURAS DEL CLIENTE');
+    
+    const clientInvoices = window.clientInvoices || [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    console.log(`📅 Fecha actual: ${today.toLocaleDateString('es-CR')}`);
+    console.log(`👤 Cliente: ${window.currentClient?.Nombre || 'N/A'}`);
+    console.log(`📋 Total facturas: ${clientInvoices.length}`);
+    
+    // Agrupar por estado
+    const byStatus = {
+        'Pagado': [],
+        'Vencido': [],
+        'Pendiente': []
+    };
+    
+    clientInvoices.forEach(invoice => {
+        const status = invoice.Estado || 'Pendiente';
+        if (!byStatus[status]) byStatus[status] = [];
+        byStatus[status].push(invoice);
+    });
+    
+    console.log('\n📊 Distribución por estado:');
+    Object.entries(byStatus).forEach(([status, invoices]) => {
+        console.log(`  - ${status}: ${invoices.length} facturas`);
+    });
+    
+    // Mostrar facturas problemáticas
+    console.log('\n🔍 Facturas problemáticas:');
+    clientInvoices.forEach(invoice => {
+        if (invoice.FechaVencimiento && invoice.FechaVencimiento.includes('/')) {
+            const parts = invoice.FechaVencimiento.split('/');
+            if (parts.length === 3) {
+                const month = parseInt(parts[0]);
+                const day = parseInt(parts[1]);
+                const year = parseInt(parts[2]);
+                
+                if (month < 1 || month > 12 || day < 1 || day > 31 || year < 2020 || year > 2030) {
+                    console.log(`  ⚠️ ${invoice.NumeroFactura}: Fecha inválida ${invoice.FechaVencimiento}`);
+                }
+            }
+        }
+    });
+    
+    // Calcular totales
+    const totalBase = clientInvoices.reduce((sum, inv) => sum + parseFloat(inv.MontoBase || 0), 0);
+    const totalFines = clientInvoices.reduce((sum, inv) => sum + parseFloat(inv.MontoMultas || 0), 0);
+    const totalAmount = clientInvoices.reduce((sum, inv) => sum + parseFloat(inv.MontoTotal || 0), 0);
+    
+    console.log('\n💰 Totales:');
+    console.log(`  - Monto base: ₡${totalBase.toLocaleString('es-CR')}`);
+    console.log(`  - Multas: ₡${totalFines.toLocaleString('es-CR')}`);
+    console.log(`  - Total: ₡${totalAmount.toLocaleString('es-CR')}`);
+}
+
+// ===== INICIALIZAR MODO DEBUG =====
+window.DEBUG_MODE = false;
+
+// ===== FUNCIÓN PARA PROBAR PARSEO DE FECHAS =====
+function testDateParsing() {
+    console.log('🧪 PROBANDO PARSEO DE FECHAS...');
+    
+    const testDates = [
+        '10/2/2025',  // 10 de Febrero
+        '9/4/2025',   // 9 de Abril
+        '12/4/2025',  // 12 de Abril
+        '11/6/2025',  // 11 de Junio
+        '8/7/2025',   // 8 de Julio
+        '1/1/2025',   // 1 de Enero
+        '31/12/2025'  // 31 de Diciembre
+    ];
+    
+    testDates.forEach(dateStr => {
+        const parts = dateStr.split('/');
+        const day = parseInt(parts[0]);
+        const month = parseInt(parts[1]) - 1;
+        const year = parseInt(parts[2]);
+        
+        const parsedDate = new Date(year, month, day);
+        const formattedDate = parsedDate.toLocaleDateString('es-CR');
+        
+        console.log(`📅 ${dateStr} -> ${formattedDate} (Día: ${day}, Mes: ${month + 1}, Año: ${year})`);
+    });
+    
+    console.log('✅ Prueba de parseo completada');
+}
+
+// ===== EXPORTAR FUNCIÓN DE PRUEBA =====
+window.testDateParsing = testDateParsing;
 
 // Función para limpiar modales existentes
 function cleanupExistingModals() {
