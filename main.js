@@ -1267,8 +1267,10 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         
         console.log('✅ Actualización de transacción completada');
 
-        // Re-cargar y renderizar
-        await reloadDataAndRender();
+        // Re-renderizar solo la página (sin recargar datos de la API)
+        if (typeof renderPage === 'function') {
+            renderPage();
+        }
 
         // Mostrar mensaje
         if (newStatus === 'Pagado') {

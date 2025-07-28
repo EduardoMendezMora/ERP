@@ -617,7 +617,10 @@ function renderInvoicesSection(status, invoices) {
     container.innerHTML = sortedInvoices.map(invoice => {
         const baseAmount = parseFloat(invoice.MontoBase || 0);
         const fines = parseFloat(invoice.MontoMultas || 0);
-        const totalAmount = parseFloat(invoice.MontoTotal || baseAmount);
+        // Calcular el monto total original (base + multas) para mostrar en el detalle
+        const originalTotalAmount = baseAmount + fines;
+        // El MontoTotal del backend ya refleja el saldo pendiente después de pagos
+        const currentTotalAmount = parseFloat(invoice.MontoTotal || originalTotalAmount);
         const daysOverdue = parseInt(invoice.DiasAtraso || 0);
         const isDueToday = status === 'overdue' && daysOverdue === 0;
 
@@ -663,38 +666,26 @@ function renderInvoicesSection(status, invoices) {
         detailsHtml += `
             <div class="invoice-detail">
                 <div class="invoice-detail-label">Total</div>
-                <div class="invoice-detail-value amount-highlight">₡${totalAmount.toLocaleString('es-CR')}</div>
+                <div class="invoice-detail-value amount-highlight">₡${currentTotalAmount.toLocaleString('es-CR')}</div>
             </div>
         `;
 
         let actionsHtml = '';
         if (status !== 'paid') {
-            // Verificar si hay pagos aplicados previamente a esta factura
-            const hasPartialPayments = assignedPayments.some(p => {
-                if (p.Assignments && p.Assignments.length > 0) {
-                    return p.Assignments.some(assignment => assignment.invoiceNumber === invoice.NumeroFactura);
-                }
-                return false;
-            });
+            // ===== NUEVO: USAR SISTEMA DE PAGOS DE LA FACTURA =====
+            const previousPayments = parseInvoicePayments(invoice.Pagos || '');
+            const totalPreviousPayments = previousPayments.reduce((sum, payment) => sum + payment.amount, 0);
+            const hasPartialPayments = totalPreviousPayments > 0;
 
             let partialPaymentWarning = '';
 
             if (hasPartialPayments) {
-                const appliedPayments = assignedPayments.filter(p =>
-                    p.Assignments && p.Assignments.some(a => a.invoiceNumber === invoice.NumeroFactura)
-                );
-
-                const totalApplied = appliedPayments.reduce((sum, p) => {
-                    const relevantAssignments = p.Assignments.filter(a => a.invoiceNumber === invoice.NumeroFactura);
-                    return sum + relevantAssignments.reduce((aSum, a) => aSum + a.amount, 0);
-                }, 0);
-
-                const remaining = totalAmount - totalApplied;
+                const remaining = originalTotalAmount - totalPreviousPayments;
 
                 partialPaymentWarning = `
                     <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 8px; border-radius: 6px; margin: 8px 0; font-size: 0.85rem;">
                         <strong>⚠️ Pagos parciales aplicados:</strong><br>
-                        Total aplicado: ₡${totalApplied.toLocaleString('es-CR')}<br>
+                        Total aplicado: ₡${totalPreviousPayments.toLocaleString('es-CR')}<br>
                         <strong>Saldo pendiente: ₡${remaining.toLocaleString('es-CR')}</strong>
                     </div>
                 `;
@@ -948,6 +939,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// ===== FUNCIONES DE PARSEO DE PAGOS =====
+function parseInvoicePayments(paymentsString) {
+    if (!paymentsString || paymentsString.trim() === '') {
+        return [];
+    }
+    
+    try {
+        const payments = paymentsString.split(',').map(payment => {
+            const parts = payment.trim().split(':');
+            if (parts.length >= 2) {
+                const reference = parts[0];
+                const amount = parseFloat(parts[1]) || 0;
+                const date = parts[2] || '';
+                return { reference, amount, date };
+            }
+            return null;
+        }).filter(payment => payment !== null);
+        
+        return payments;
+    } catch (error) {
+        console.error('Error parseando pagos de factura:', error);
+        return [];
+    }
+}
+
 // ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
 window.openManualInvoiceModal = openManualInvoiceModal;
 window.closeManualInvoiceModal = closeManualInvoiceModal;
@@ -963,5 +979,6 @@ window.loadClientAndInvoices = loadClientAndInvoices;
 window.renderClientDetails = renderClientDetails;
 window.updateStatsWithoutPending = updateStatsWithoutPending;
 window.renderInvoicesSection = renderInvoicesSection;
+window.parseInvoicePayments = parseInvoicePayments;
 
 console.log('✅ invoice-crud.js cargado - Sistema CRUD de facturas');
