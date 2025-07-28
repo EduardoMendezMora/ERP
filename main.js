@@ -1213,7 +1213,7 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         const updateData = {
             Estado: newStatus,
             MontoMultas: finesUntilTransaction,
-            MontoTotal: newBalance > 0 ? newBalance : totalOwed
+            MontoTotal: newStatus === 'Pagado' ? 0 : newBalance
         };
 
         if (newStatus === 'Pagado') {
