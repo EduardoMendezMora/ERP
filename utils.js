@@ -629,15 +629,13 @@ function updateControlUI() {
 }
 
 function updateSectionCounts() {
-    // Actualizar contadores en los controles usando filtrado dinámico
-    const overdueInvoices = getOverdueInvoices ? getOverdueInvoices(clientInvoices) : clientInvoices.filter(inv => inv.Estado === 'Vencido');
-    const pendingInvoices = getPendingInvoices ? getPendingInvoices(clientInvoices) : clientInvoices.filter(inv => inv.Estado === 'Pendiente');
-    const paidInvoices = getPaidInvoices ? getPaidInvoices(clientInvoices) : clientInvoices.filter(inv => inv.Estado === 'Pagado');
+    // Actualizar contadores en los controles
+    const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
+    const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
 
     const counts = {
         'unassigned': `${unassignedPayments.length} pagos pendientes`,
         'overdue': `${overdueInvoices.length} facturas vencidas`,
-        'pending': `${pendingInvoices.length} facturas pendientes`,
         'assigned': `${assignedPayments.length} pagos aplicados`,
         'paid': `${paidInvoices.length} facturas pagadas`
     };

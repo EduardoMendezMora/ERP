@@ -69,17 +69,6 @@
                 <div class="control-toggle active" id="toggle-overdue"></div>
             </div>
 
-            <div class="control-item active" id="control-pending" onclick="toggleSection('pending')">
-                <div class="control-info">
-                    <div class="control-icon">🟡</div>
-                    <div class="control-text">
-                        <div class="control-label">Facturas Pendientes</div>
-                        <div class="control-count" id="control-count-pending">0 facturas pendientes</div>
-                    </div>
-                </div>
-                <div class="control-toggle active" id="toggle-pending"></div>
-            </div>
-
             <div class="control-item active" id="control-assigned" onclick="toggleSection('assigned')">
                 <div class="control-info">
                     <div class="control-icon">✅</div>
@@ -164,24 +153,6 @@
             <button class="btn btn-warning btn-large" style="margin-left: 12px;" onclick="sendAccountStatement()">
                 📝 Estado de Cuenta - Arrendamiento
             </button>
-            <button class="btn btn-info btn-large" style="margin-left: 12px;" onclick="syncWithBackend()">
-                🔄 Sincronizar con Backend
-            </button>
-            <button class="btn btn-secondary btn-large" style="margin-left: 12px;" onclick="diagnoseOverdueInvoices()">
-                🔍 Diagnosticar Fechas
-            </button>
-            <button class="btn btn-danger btn-large" style="margin-left: 12px;" onclick="fixOverdueInvoices()">
-                🔧 Corregir Parseo
-            </button>
-            <button class="btn btn-warning btn-sm" style="margin-left: 8px;" onclick="toggleDebugMode()">
-                🐛 Debug
-            </button>
-            <button class="btn btn-info btn-sm" style="margin-left: 8px;" onclick="showInvoicesSummary()">
-                📊 Resumen
-            </button>
-            <button class="btn btn-secondary btn-sm" style="margin-left: 8px;" onclick="testDateParsing()">
-                📅 Probar Fechas
-            </button>
         </div>
 
         <!-- Unassigned Payments Section -->
@@ -192,19 +163,6 @@
                     <span class="section-count" id="unassignedPaymentsCount">0</span>
                 </h3>
                 <small style="color: #86868b; font-size: 0.8rem;">Pagos encontrados por ID_Cliente directo O ID en Observaciones</small>
-                <button class="btn btn-info btn-sm" style="margin-left: 12px;" onclick="openPaymentAssignmentModal()">
-                    🏦 Ver Transacciones Bancarias
-                </button>
-                <button class="btn btn-warning btn-sm" style="margin-left: 8px;" onclick="testTransactionSystem()">
-                    🧪 Probar Sistema
-                </button>
-                <button class="btn btn-info btn-sm" style="margin-left: 8px;" onclick="testCurrencyFormat()">
-                    💰 Probar Moneda
-                </button>
-
-                <button class="btn btn-warning btn-sm" style="margin-left: 8px;" onclick="testSpecificInvoices()">
-                    📅 Probar Fechas
-                </button>
             </div>
             <div class="invoices-grid" id="unassignedPayments"></div>
             <div class="empty-section" id="emptyUnassignedPayments" style="display: none;">
@@ -226,22 +184,6 @@
             <div class="empty-section" id="emptyOverdue" style="display: none;">
                 <h4>✅ No hay facturas vencidas</h4>
                 <p>No hay facturas que venzan hoy o ya vencidas</p>
-            </div>
-        </div>
-
-        <!-- Pending Invoices Section -->
-        <div class="invoices-section section-pending" id="pendingSection">
-            <div class="section-header">
-                <h3 class="section-title">
-                    🟡 Facturas Pendientes
-                    <span class="section-count" id="pendingCount">0</span>
-                </h3>
-                <small style="color: #86868b; font-size: 0.8rem;">Facturas que aún no han vencido</small>
-            </div>
-            <div class="invoices-grid" id="pendingInvoices"></div>
-            <div class="empty-section" id="emptyPending" style="display: none;">
-                <h4>📄 No hay facturas pendientes</h4>
-                <p>Todas las facturas han vencido o están pagadas</p>
             </div>
         </div>
 
@@ -527,7 +469,6 @@
 <script src="receipt-whatsapp.js"></script>
 <script src="main.js"></script>
 <script src="client-management.js"></script>
-<script src="fix-overdue-invoices.js"></script>
 <script>
 const ULTRAMSG_TOKEN = 'wp98xs1qrfhqg9ya';
 const ULTRAMSG_INSTANCE_ID = 'instance112077';
@@ -547,22 +488,11 @@ function sendAccountStatement() {
     }
 
     let totalPendiente = 0;
-    let totalMultas = 0;
-    let totalPagos = 0;
     let detalleFacturas = vencidas.map(f => {
-        // Calcular días de atraso (consistente con backend)
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        const fechaVencimiento = new Date(f.FechaVencimiento);
-        fechaVencimiento.setHours(0, 0, 0, 0);
-        const diasAtraso = Math.floor((hoy - fechaVencimiento) / (1000 * 60 * 60 * 24));
-        
-        // Calcular multa (consistente con backend: ₡2,000 por día)
-        const multaCalculada = diasAtraso > 0 ? diasAtraso * 2000 : 0;
-        
+        const diasAtraso = f.DiasAtraso || 0;
         const saldo = parseFloat(f.MontoBase || 0);
-        
-        // Buscar pagos aplicados a esta factura (usando campos normalizados)
+        const multa = parseFloat(f.MontoMultas || 0);
+        // Buscar pagos aplicados a esta factura
         const pagosAplicados = assignedPayments.reduce((sum, p) => {
             if (p.Assignments && Array.isArray(p.Assignments)) {
                 return sum + p.Assignments
@@ -571,44 +501,26 @@ function sendAccountStatement() {
             }
             return sum;
         }, 0);
-        
-        // Calcular saldo pendiente (consistente con backend)
-        const saldoPendiente = saldo - pagosAplicados;
-        const totalConMulta = saldoPendiente + multaCalculada;
-        
-        totalPendiente += totalConMulta;
-        totalMultas += multaCalculada;
-        totalPagos += pagosAplicados;
-        
+        const total = saldo + multa - pagosAplicados;
+        totalPendiente += total;
         return (
             `* ${f.NumeroFactura} (${f.SemanaDescripcion || ''})\n` +
             `▶ Fecha: ${f.FechaVencimiento}\n` +
             `▶ Días vencido: ${diasAtraso}\n` +
-            `▶ Monto original: ₡ ${saldo.toLocaleString('es-CR')}\n` +
-            (pagosAplicados > 0 ? `▶ Pagos aplicados: ₡ ${pagosAplicados.toLocaleString('es-CR')}\n` : '') +
-            (pagosAplicados > 0 ? `▶ Saldo pendiente: ₡ ${saldoPendiente.toLocaleString('es-CR')}\n` : '') +
-            (multaCalculada > 0 ? `▶ Multa: ₡ ${multaCalculada.toLocaleString('es-CR')}\n` : '') +
-            `✅ Total a pagar: ₡ ${totalConMulta.toLocaleString('es-CR')}\n`
+            `▶ Saldo: ₡ ${saldo.toLocaleString('es-CR')}\n` +
+            `▶ Multa: ₡ ${multa.toLocaleString('es-CR')}\n` +
+            `▶ Pagos aplicados: ₡ ${pagosAplicados.toLocaleString('es-CR')}\n` +
+            `✅ Total con Multa y Pagos: ₡ ${total.toLocaleString('es-CR')}\n`
         );
     }).join('\n');
 
-    // Resumen final (consistente con backend)
-    let resumenFinal = '';
-    if (totalPagos > 0) {
-        resumenFinal = `📊 *RESUMEN*\n` +
-            `💰 Total pagos recibidos: ₡ ${totalPagos.toLocaleString('es-CR')}\n` +
-            `📊 *Saldo pendiente: ₡ ${totalPendiente.toLocaleString('es-CR')}*\n`;
-    } else {
-        resumenFinal = `📊 *Total Pendiente: ₡ ${totalPendiente.toLocaleString('es-CR')}*\n`;
-    }
-
-    const mensaje = `📋 *Estado de cuenta - Arrendamiento*\n` +
-        `📅 *Fecha:* ${fechaHoy}\n\n` +
+    const mensaje = `📝 Estado de cuenta - Arrendamiento\n` +
+        `📅 Fecha: ${fechaHoy}\n\n` +
         `👤 ${cliente.Nombre || ''} / ${cliente.Placa || ''} / ${cliente.Cedula || cliente.cedula || ''}\n\n` +
         `${detalleFacturas}\n` +
-        `${resumenFinal}` +
-        `${'─'.repeat(30)}\n\n` +
-        `Por favor atender los saldos pendientes. Si ya realizó el pago omita este mensaje nuestro Departamento Contable lo aplicará pronto. ¡Gracias! 🙏`;
+        `\n📊 Total Pendiente: ₡ ${totalPendiente.toLocaleString('es-CR')}\n` +
+        `────────────────────────────\n\n` +
+        `Por favor atender los saldos pendientes. Si ya realizó el pago omita este mensaje nuestro Departamento Contable lo aplicará pronto. ¡Gracias! 🙌`;
 
     // Obtener destino WhatsApp (grupo o personal)
     const destino = window.getWhatsAppDestination ? window.getWhatsAppDestination(cliente) : null;
@@ -645,484 +557,6 @@ function sendAccountStatement() {
         document.getElementById('loadingOverlay').style.display = 'none';
         alert('Error al enviar el estado de cuenta: ' + err);
     });
-}
-
-// Función para sincronizar con backend
-async function syncWithBackend() {
-    try {
-        const clientId = window.currentClient?.ID;
-        if (!clientId) {
-            alert('No hay cliente seleccionado');
-            return;
-        }
-        
-        // Mostrar loading
-        document.getElementById('loadingOverlay').style.display = 'flex';
-        
-        // Verificar consistencia primero
-        const inconsistencies = verifyDataConsistency(clientId);
-        
-        if (inconsistencies.length > 0) {
-            console.log(`⚠️ Se encontraron ${inconsistencies.length} inconsistencias, corrigiendo...`);
-        }
-        
-        // Sincronizar con backend
-        await syncWithBackendLogic(clientId);
-        
-        // Ocultar loading
-        document.getElementById('loadingOverlay').style.display = 'none';
-        
-        // Mostrar resultado
-        if (inconsistencies.length > 0) {
-            showToast(`✅ Sincronización completada. Se corrigieron ${inconsistencies.length} inconsistencias.`, 'success');
-        } else {
-            showToast('✅ Sincronización completada. Los datos están consistentes.', 'success');
-        }
-        
-    } catch (error) {
-        document.getElementById('loadingOverlay').style.display = 'none';
-        console.error('Error en sincronización:', error);
-        showToast('❌ Error durante la sincronización: ' + error.message, 'error');
-    }
-}
-
-// Función para probar las fechas específicas de las facturas problemáticas
-function testSpecificInvoices() {
-    console.log('🧪 PROBANDO FACTURAS ESPECÍFICAS MENCIONADAS...');
-    
-    const testInvoices = [
-        { NumeroFactura: 'FAC-229', FechaVencimiento: '10/2/2025', Estado: 'Vencido', SemanaDescripcion: 'Semana del 25 de Septiembre al 1 de Octubre del 2025' },
-        { NumeroFactura: 'FAC-225', FechaVencimiento: '9/4/2025', Estado: 'Vencido', SemanaDescripcion: 'Semana del 28 de Agosto al 3 de Septiembre del 2025' },
-        { NumeroFactura: 'FAC-238', FechaVencimiento: '12/4/2025', Estado: 'Vencido', SemanaDescripcion: 'Semana del 27 de Noviembre al 3 de Diciembre del 2025' },
-        { NumeroFactura: 'FAC-234', FechaVencimiento: '11/6/2025', Estado: 'Vencido', SemanaDescripcion: 'Semana del 30 de Octubre al 5 de Noviembre del 2025' },
-        { NumeroFactura: 'FAC-221', FechaVencimiento: '8/7/2025', Estado: 'Vencido', SemanaDescripcion: 'Semana del 31 de Julio al 6 de Agosto del 2025' }
-    ];
-    
-    console.log('📅 Fecha actual del sistema:', new Date().toISOString());
-    console.log('📅 Fecha actual local:', new Date().toLocaleDateString('es-CR'));
-    
-    testInvoices.forEach(invoice => {
-        console.log(`\n🔍 Probando ${invoice.NumeroFactura}:`);
-        console.log(`  - Semana: ${invoice.SemanaDescripcion}`);
-        
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        // Parsear fecha en formato MM/DD/YYYY
-        const fechaStr = invoice.FechaVencimiento.toString();
-        let dueDate;
-        
-        if (fechaStr.includes('/')) {
-            const parts = fechaStr.split('/');
-            const month = parseInt(parts[0]) - 1; // Meses en JS van de 0-11
-            const day = parseInt(parts[1]);
-            const year = parseInt(parts[2]);
-            dueDate = new Date(year, month, day);
-        } else {
-            dueDate = new Date(invoice.FechaVencimiento);
-        }
-        
-        dueDate.setHours(0, 0, 0, 0);
-        
-        const daysDifference = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
-        
-        console.log(`  - Fecha vencimiento (MM/DD/YYYY): ${invoice.FechaVencimiento}`);
-        console.log(`  - Fecha parseada: ${dueDate.toLocaleDateString('es-CR')}`);
-        console.log(`  - Hoy: ${today.toLocaleDateString('es-CR')}`);
-        console.log(`  - Diferencia en días: ${daysDifference}`);
-        console.log(`  - ¿Está vencida? ${daysDifference >= 0 ? 'SÍ' : 'NO'}`);
-        
-        if (typeof window.calculateInvoiceStatus === 'function') {
-            const calculatedStatus = window.calculateInvoiceStatus(invoice);
-            console.log(`  - Estado calculado: ${calculatedStatus}`);
-        }
-    });
-    
-    // Verificar si hay facturas reales del cliente
-    const clientInvoices = window.clientInvoices || [];
-    if (clientInvoices.length > 0) {
-        console.log(`\n📋 Facturas reales del cliente (${clientInvoices.length}):`);
-        clientInvoices.forEach(inv => {
-            if (['FAC-229', 'FAC-225', 'FAC-238', 'FAC-234', 'FAC-221'].includes(inv.NumeroFactura)) {
-                console.log(`  - ${inv.NumeroFactura}: ${inv.FechaVencimiento} (${inv.Estado})`);
-            }
-        });
-    }
-    
-    console.log('✅ PRUEBA DE FACTURAS ESPECÍFICAS COMPLETADA');
-}
-
-
-
-// Función para probar el formato de moneda
-function testCurrencyFormat() {
-    console.log('🧪 PROBANDO FORMATO DE MONEDA...');
-    
-    const testAmounts = [115000, 336000, 220000, 214000, 94000, 40000];
-    
-    console.log('💰 Montos de prueba:');
-    testAmounts.forEach(amount => {
-        const formatted = formatCurrency(amount);
-        console.log(`  ${amount} → ${formatted}`);
-    });
-    
-    // Verificar que la función esté disponible
-    console.log('🔍 formatCurrency disponible:', typeof window.formatCurrency);
-    
-    // Probar con diferentes navegadores
-    console.log('🌐 Información del navegador:');
-    console.log('  - User Agent:', navigator.userAgent);
-    console.log('  - Language:', navigator.language);
-    console.log('  - Languages:', navigator.languages);
-    
-    // Probar formato nativo
-    console.log('📊 Formato nativo vs personalizado:');
-    testAmounts.forEach(amount => {
-        const native = amount.toLocaleString('es-CR');
-        const custom = formatCurrency(amount);
-        console.log(`  ${amount}: nativo="${native}" | custom="${custom}"`);
-    });
-}
-
-// Función para probar el sistema de transacciones
-async function testTransactionSystem() {
-    try {
-        console.log('🧪 INICIANDO PRUEBA DEL SISTEMA DE TRANSACCIONES...');
-        
-        const clientId = window.currentClient?.ID;
-        if (!clientId) {
-            console.error('❌ No hay cliente seleccionado');
-            return;
-        }
-        
-        console.log('👤 Cliente ID:', clientId);
-        console.log('👤 Cliente datos:', window.currentClient);
-        
-        // Verificar funciones disponibles
-        console.log('🔍 Verificando funciones...');
-        console.log('loadAllUnreconciledTransactions:', typeof window.loadAllUnreconciledTransactions);
-        console.log('generateSmartSuggestions:', typeof window.generateSmartSuggestions);
-        console.log('switchPaymentTab:', typeof window.switchPaymentTab);
-        console.log('loadTransactionsTab:', typeof window.loadTransactionsTab);
-        console.log('createPaymentDistributionModal:', typeof window.createPaymentDistributionModal);
-        
-        // Verificar modales existentes
-        console.log('🔍 Verificando modales existentes...');
-        const modals = ['assignInvoiceModal', 'assignPaymentModal', 'paymentDistributionModal'];
-        modals.forEach(modalId => {
-            const modal = document.getElementById(modalId);
-            console.log(`  - ${modalId}:`, modal ? 'EXISTE' : 'NO EXISTE');
-        });
-        
-        // Probar carga de transacciones
-        console.log('📥 Probando carga de transacciones...');
-        if (typeof window.loadAllUnreconciledTransactions === 'function') {
-            const transactions = await window.loadAllUnreconciledTransactions();
-            console.log('✅ Transacciones cargadas:', transactions.length);
-            
-            if (transactions.length > 0) {
-                console.log('📋 Primera transacción:', transactions[0]);
-                
-                // Probar generación de sugerencias
-                console.log('🎯 Probando generación de sugerencias...');
-                const clientInvoices = window.clientInvoices || [];
-                console.log('📄 Facturas del cliente:', clientInvoices.length);
-                
-                if (typeof window.generateSmartSuggestions === 'function') {
-                    const suggestions = window.generateSmartSuggestions(transactions[0], clientInvoices, window.currentClient);
-                    console.log('✅ Sugerencias generadas:', suggestions.length);
-                    
-                    if (suggestions.length > 0) {
-                        console.log('🏆 Mejor sugerencia:', suggestions[0]);
-                    }
-                } else {
-                    console.error('❌ generateSmartSuggestions no está disponible');
-                }
-            } else {
-                console.log('ℹ️ No hay transacciones sin conciliar');
-            }
-        } else {
-            console.error('❌ loadAllUnreconciledTransactions no está disponible');
-        }
-        
-        // Probar creación de modal
-        console.log('🏗️ Probando creación de modal...');
-        if (typeof window.createPaymentDistributionModal === 'function') {
-            // Limpiar modal existente si existe
-            const existingModal = document.getElementById('paymentDistributionModal');
-            if (existingModal) {
-                existingModal.remove();
-                console.log('🗑️ Modal existente eliminado');
-            }
-            
-            window.createPaymentDistributionModal();
-            console.log('✅ Modal creado');
-            
-            // Verificar elementos del modal
-            const elements = [
-                'paymentDistributionModal',
-                'tab-content-transactions',
-                'transactionsInfo',
-                'transactionsList'
-            ];
-            
-            elements.forEach(elementId => {
-                const element = document.getElementById(elementId);
-                console.log(`  - ${elementId}:`, element ? 'EXISTE' : 'NO EXISTE');
-            });
-        } else {
-            console.error('❌ createPaymentDistributionModal no está disponible');
-        }
-        
-        console.log('✅ PRUEBA COMPLETADA - Sistema funcionando correctamente');
-        
-    } catch (error) {
-        console.error('❌ Error en prueba:', error);
-        console.error('Stack trace:', error.stack);
-    }
-}
-
-// ===== FUNCIÓN PARA TOGGLE DEBUG MODE =====
-function toggleDebugMode() {
-    window.DEBUG_MODE = !window.DEBUG_MODE;
-    const isEnabled = window.DEBUG_MODE;
-    
-    console.log(`🐛 Modo debug ${isEnabled ? 'HABILITADO' : 'DESHABILITADO'}`);
-    showToast(`🐛 Debug ${isEnabled ? 'ON' : 'OFF'}`, isEnabled ? 'info' : 'warning');
-    
-    // Actualizar el botón
-    const debugBtn = document.querySelector('button[onclick="toggleDebugMode()"]');
-    if (debugBtn) {
-        debugBtn.textContent = isEnabled ? '🐛 Debug ON' : '🐛 Debug';
-        debugBtn.className = isEnabled ? 'btn btn-success btn-sm' : 'btn btn-warning btn-sm';
-    }
-}
-
-// ===== FUNCIÓN PARA MOSTRAR RESUMEN DE FACTURAS =====
-function showInvoicesSummary() {
-    console.log('📊 RESUMEN DE FACTURAS DEL CLIENTE');
-    
-    const clientInvoices = window.clientInvoices || [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    console.log(`📅 Fecha actual: ${today.toLocaleDateString('es-CR')}`);
-    console.log(`👤 Cliente: ${window.currentClient?.Nombre || 'N/A'}`);
-    console.log(`📋 Total facturas: ${clientInvoices.length}`);
-    
-    // Agrupar por estado
-    const byStatus = {
-        'Pagado': [],
-        'Vencido': [],
-        'Pendiente': []
-    };
-    
-    clientInvoices.forEach(invoice => {
-        const status = invoice.Estado || 'Pendiente';
-        if (!byStatus[status]) byStatus[status] = [];
-        byStatus[status].push(invoice);
-    });
-    
-    console.log('\n📊 Distribución por estado:');
-    Object.entries(byStatus).forEach(([status, invoices]) => {
-        console.log(`  - ${status}: ${invoices.length} facturas`);
-    });
-    
-    // Mostrar facturas problemáticas
-    console.log('\n🔍 Facturas problemáticas:');
-    clientInvoices.forEach(invoice => {
-        if (invoice.FechaVencimiento && invoice.FechaVencimiento.includes('/')) {
-            const parts = invoice.FechaVencimiento.split('/');
-            if (parts.length === 3) {
-                const month = parseInt(parts[0]);
-                const day = parseInt(parts[1]);
-                const year = parseInt(parts[2]);
-                
-                if (month < 1 || month > 12 || day < 1 || day > 31 || year < 2020 || year > 2030) {
-                    console.log(`  ⚠️ ${invoice.NumeroFactura}: Fecha inválida ${invoice.FechaVencimiento}`);
-                }
-            }
-        }
-    });
-    
-    // Calcular totales
-    const totalBase = clientInvoices.reduce((sum, inv) => sum + parseFloat(inv.MontoBase || 0), 0);
-    const totalFines = clientInvoices.reduce((sum, inv) => sum + parseFloat(inv.MontoMultas || 0), 0);
-    const totalAmount = clientInvoices.reduce((sum, inv) => sum + parseFloat(inv.MontoTotal || 0), 0);
-    
-    console.log('\n💰 Totales:');
-    console.log(`  - Monto base: ₡${totalBase.toLocaleString('es-CR')}`);
-    console.log(`  - Multas: ₡${totalFines.toLocaleString('es-CR')}`);
-    console.log(`  - Total: ₡${totalAmount.toLocaleString('es-CR')}`);
-}
-
-// ===== INICIALIZAR MODO DEBUG =====
-window.DEBUG_MODE = false;
-
-// ===== FUNCIÓN PARA PROBAR PARSEO DE FECHAS =====
-function testDateParsing() {
-    console.log('🧪 PROBANDO PARSEO DE FECHAS...');
-    
-    const testDates = [
-        '10/2/2025',  // 2 de Octubre
-        '9/4/2025',   // 4 de Septiembre
-        '12/4/2025',  // 4 de Diciembre
-        '11/6/2025',  // 6 de Noviembre
-        '8/7/2025',   // 7 de Agosto
-        '1/1/2025',   // 1 de Enero
-        '12/31/2025'  // 31 de Diciembre
-    ];
-    
-    testDates.forEach(dateStr => {
-        const parts = dateStr.split('/');
-        const month = parseInt(parts[0]) - 1;
-        const day = parseInt(parts[1]);
-        const year = parseInt(parts[2]);
-        
-        const parsedDate = new Date(year, month, day);
-        const formattedDate = parsedDate.toLocaleDateString('es-CR');
-        
-        console.log(`📅 ${dateStr} -> ${formattedDate} (Mes: ${month + 1}, Día: ${day}, Año: ${year})`);
-    });
-    
-    console.log('✅ Prueba de parseo completada');
-}
-
-// ===== EXPORTAR FUNCIÓN DE PRUEBA =====
-window.testDateParsing = testDateParsing;
-
-// Función para limpiar modales existentes
-function cleanupExistingModals() {
-    console.log('🧹 Limpiando modales existentes...');
-    
-    // Cerrar modales que puedan estar abiertos
-    const modals = [
-        'assignInvoiceModal',
-        'assignPaymentModal',
-        'paymentDistributionModal'
-    ];
-    
-    modals.forEach(modalId => {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.remove('show');
-            console.log(`✅ Modal ${modalId} cerrado`);
-        }
-    });
-}
-
-// Función para abrir modal de asignación de pagos y transacciones
-async function openPaymentAssignmentModal() {
-    try {
-        const clientId = window.currentClient?.ID;
-        if (!clientId) {
-            showToast('❌ No hay cliente seleccionado', 'error');
-            return;
-        }
-        
-        console.log('🔄 Abriendo modal de asignación de pagos y transacciones...');
-        console.log('👤 Cliente ID:', clientId);
-        console.log('👤 Cliente datos:', window.currentClient);
-        
-        // Limpiar modales existentes
-        cleanupExistingModals();
-        
-        // Verificar que las funciones estén disponibles
-        console.log('🔍 Verificando funciones disponibles...');
-        console.log('switchPaymentTab disponible:', typeof window.switchPaymentTab);
-        console.log('loadTransactionsTab disponible:', typeof window.loadTransactionsTab);
-        console.log('loadAllUnreconciledTransactions disponible:', typeof window.loadAllUnreconciledTransactions);
-        console.log('createPaymentDistributionModal disponible:', typeof window.createPaymentDistributionModal);
-        
-        // Verificar si el modal ya existe
-        const existingModal = document.getElementById('paymentDistributionModal');
-        console.log('🔍 Modal existente:', existingModal ? 'SÍ' : 'NO');
-        
-        // Crear modal si no existe
-        if (!existingModal) {
-            console.log('🏗️ Creando modal...');
-            if (typeof window.createPaymentDistributionModal === 'function') {
-                window.createPaymentDistributionModal();
-                console.log('✅ Modal creado');
-            } else {
-                console.error('❌ createPaymentDistributionModal no está disponible');
-                showToast('❌ Error: Función de creación de modal no disponible', 'error');
-                return;
-            }
-        } else {
-            console.log('✅ Modal ya existe');
-        }
-        
-        // Verificar que el modal se creó correctamente
-        const modal = document.getElementById('paymentDistributionModal');
-        if (!modal) {
-            console.error('❌ Modal no se creó correctamente');
-            showToast('❌ Error: No se pudo crear el modal', 'error');
-            return;
-        }
-        
-        // Mostrar modal
-        modal.classList.add('show');
-        console.log('📱 Modal mostrado');
-        
-        // Verificar que los elementos del modal existen
-        const tabContent = document.getElementById('tab-content-transactions');
-        const transactionsInfo = document.getElementById('transactionsInfo');
-        const transactionsList = document.getElementById('transactionsList');
-        
-        console.log('🔍 Elementos del modal:');
-        console.log('  - tab-content-transactions:', tabContent ? 'SÍ' : 'NO');
-        console.log('  - transactionsInfo:', transactionsInfo ? 'SÍ' : 'NO');
-        console.log('  - transactionsList:', transactionsList ? 'SÍ' : 'NO');
-        
-        if (!tabContent || !transactionsInfo || !transactionsList) {
-            console.error('❌ Elementos del modal no encontrados');
-            showToast('❌ Error: Estructura del modal incompleta', 'error');
-            return;
-        }
-        
-        // Cargar datos iniciales
-        console.log('📥 Cargando datos iniciales...');
-        await loadUnassignedPayments(clientId);
-        await loadAssignedPayments(clientId);
-        console.log('✅ Datos iniciales cargados');
-        
-        // Cambiar al tab de transacciones bancarias por defecto
-        console.log('🏦 Cambiando al tab de transacciones bancarias...');
-        if (typeof window.switchPaymentTab === 'function') {
-            window.switchPaymentTab('transactions');
-            console.log('✅ Tab cambiado a transacciones');
-        } else {
-            console.error('❌ switchPaymentTab no está disponible');
-            showToast('❌ Error: Función de cambio de tab no disponible', 'error');
-            return;
-        }
-        
-        // Cargar transacciones bancarias
-        console.log('📋 Cargando transacciones bancarias...');
-        if (typeof window.loadTransactionsTab === 'function') {
-            await window.loadTransactionsTab();
-            console.log('✅ Transacciones cargadas');
-        } else {
-            console.error('❌ loadTransactionsTab no está disponible');
-            showToast('❌ Error: Función de carga de transacciones no disponible', 'error');
-            return;
-        }
-        
-        // Habilitar botón de confirmar
-        const confirmBtn = document.getElementById('confirmDistributionBtn');
-        if (confirmBtn) {
-            confirmBtn.disabled = false;
-            console.log('✅ Botón de confirmar habilitado');
-        }
-        
-        console.log('✅ Modal de asignación abierto correctamente');
-        
-    } catch (error) {
-        console.error('❌ Error abriendo modal de asignación:', error);
-        console.error('❌ Stack trace:', error.stack);
-        showToast('❌ Error abriendo modal: ' + error.message, 'error');
-    }
 }
 </script>
 </body>

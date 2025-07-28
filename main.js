@@ -62,76 +62,7 @@ async function initializeApp() {
     }
 }
 
-// ===== FUNCIÓN PARA PARSEAR FECHAS CORRECTAMENTE =====
-function parseDateCorrectly(dateString) {
-    if (!dateString) return null;
-    
-    const fechaStr = dateString.toString();
-    
-    // Si la fecha está en formato MM/DD/YYYY
-    if (fechaStr.includes('/')) {
-        const parts = fechaStr.split('/');
-        if (parts.length === 3) {
-            const month = parseInt(parts[0]) - 1; // Meses en JS van de 0-11
-            const day = parseInt(parts[1]);
-            const year = parseInt(parts[2]);
-            
-            // Validar que la fecha sea razonable
-            if (month < 0 || month > 11 || day < 1 || day > 31 || year < 2020 || year > 2030) {
-                console.warn(`⚠️ Fecha inválida detectada: ${fechaStr}`);
-                return null;
-            }
-            
-            const parsedDate = new Date(year, month, day);
-            if (window.DEBUG_MODE) {
-                console.log(`📅 Parseando MM/DD/YYYY: ${parts[0]}/${parts[1]}/${parts[2]} -> ${parsedDate.toLocaleDateString('es-CR')}`);
-            }
-            return parsedDate;
-        }
-    }
-    
-    // Fallback: intentar parsear como fecha ISO
-    const fallbackDate = new Date(dateString);
-    return isNaN(fallbackDate.getTime()) ? null : fallbackDate;
-}
-
-// ===== FUNCIÓN PARA CALCULAR ESTADO DINÁMICO DE FACTURAS =====
-function calculateInvoiceStatus(invoice) {
-    if (!invoice.FechaVencimiento) {
-        return invoice.Estado || 'Pendiente';
-    }
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const dueDate = parseDateCorrectly(invoice.FechaVencimiento);
-    if (!dueDate) {
-        return invoice.Estado || 'Pendiente';
-    }
-    
-    dueDate.setHours(0, 0, 0, 0);
-    const daysDifference = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
-    
-    // Si ya está pagada, mantener estado pagado
-    if (invoice.Estado === 'Pagado') {
-        return 'Pagado';
-    }
-    
-    // Si vence hoy o ya venció
-    if (daysDifference >= 0) {
-        return 'Vencido';
-    }
-    
-    // Si aún no vence
-    return 'Pendiente';
-}
-
-// ===== FUNCIÓN PARA FILTRAR FACTURAS PAGADAS =====
-function getPaidInvoices(invoices) {
-    return invoices.filter(invoice => invoice.Estado === 'Pagado');
-}
-
-// ===== FUNCIÓN PARA RENDERIZAR PÁGINA =====
+// ===== FUNCIÓN PRINCIPAL DE RENDERIZADO =====
 function renderPage() {
     console.log('🎨 Renderizando página completa...');
 
@@ -142,23 +73,15 @@ function renderPage() {
         // Renderizar detalles del cliente
         renderClientDetails();
 
-        // Clasificar facturas por estado (usando estados existentes)
+        // Clasificar facturas por estado
         const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
-        const pendingInvoices = clientInvoices.filter(inv => inv.Estado === 'Pendiente');
-        const paidInvoices = getPaidInvoices(clientInvoices);
-        
-        console.log(`📊 Facturas clasificadas por estado:`);
-        console.log(`  - Vencidas: ${overdueInvoices.length}`);
-        console.log(`  - Pendientes: ${pendingInvoices.length}`);
-        console.log(`  - Pagadas: ${paidInvoices.length}`);
-        console.log(`  - Total: ${clientInvoices.length}`);
+        const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
 
         // Actualizar estadísticas
         updateStatsWithoutPending(overdueInvoices, paidInvoices);
 
         // Renderizar secciones de facturas
         renderInvoicesSection('overdue', overdueInvoices);
-        renderInvoicesSection('pending', pendingInvoices);
         renderInvoicesSection('paid', paidInvoices);
 
         // Renderizar secciones de pagos
@@ -639,9 +562,5 @@ window.selectPaymentForInvoice = selectPaymentForInvoice;
 // Funciones de confirmación
 window.confirmAssignPayment = confirmAssignPayment;
 window.confirmAssignInvoice = confirmAssignInvoice;
-
-// ✅ FUNCIONES DE FILTRADO DINÁMICO
-        window.calculateInvoiceStatus = calculateInvoiceStatus;
-        window.getPaidInvoices = getPaidInvoices;
 
 console.log('✅ main.js cargado - Controlador principal de la aplicación');
