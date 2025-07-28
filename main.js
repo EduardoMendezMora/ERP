@@ -1096,33 +1096,10 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
 
         const transactions = await transactionResponse.json();
         console.log('🔍 Total de transacciones en API:', transactions.length);
-        console.log('🔍 Buscando transacción:', { transactionReference, bank });
-        
-        // Mostrar algunas transacciones para debug
-        const sampleTransactions = transactions.slice(0, 5);
-        console.log('🔍 Primeras 5 transacciones:', sampleTransactions.map(t => ({
-            Referencia: t.Referencia,
-            banco: t.banco,
-            Fecha: t.Fecha,
-            ID_Cliente: t.ID_Cliente,
-            Observaciones: t.Observaciones
-        })));
         
         const transaction = transactions.find(t => t.Referencia === transactionReference);
         
         if (!transaction) {
-            console.log('❌ Transacción no encontrada. Verificando todas las transacciones...');
-            const allMatchingRef = transactions.filter(t => t.Referencia === transactionReference);
-            console.log('🔍 Transacciones con referencia coincidente:', allMatchingRef);
-            console.log('🔍 Detalle de la transacción encontrada:', allMatchingRef[0]);
-            console.log('🔍 Campo banco de la transacción:', allMatchingRef[0]?.banco);
-            console.log('🔍 Tipo de dato del banco:', typeof allMatchingRef[0]?.banco);
-            console.log('🔍 Comparación exacta:', allMatchingRef[0]?.banco === bank);
-            console.log('🔍 Comparación ignorando mayúsculas:', allMatchingRef[0]?.banco?.toLowerCase() === bank.toLowerCase());
-            
-            const allMatchingBank = transactions.filter(t => t.banco === bank);
-            console.log('🔍 Transacciones con banco coincidente:', allMatchingBank.slice(0, 3));
-            
             throw new Error('Transacción no encontrada en la base de datos');
         }
 
@@ -1171,49 +1148,86 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
 
         console.log(`💰 Monto de transacción: ₡${amount.toLocaleString('es-CR')}`);
 
+        // ===== NUEVO: LEER HISTORIAL DE PAGOS DE LA FACTURA =====
+        console.log('📋 Leyendo historial de pagos de la factura...');
+        
+        // Parsear pagos previos de la factura (formato: "REF:MONTO;REF:MONTO")
+        const previousPayments = parseInvoicePayments(invoice.Pagos || '');
+        const totalPreviousPayments = previousPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        
+        console.log('📊 Historial de pagos:');
+        console.log('   - Pagos previos:', previousPayments);
+        console.log('   - Total pagos previos:', totalPreviousPayments);
+
         // Calcular multas hasta la fecha de la transacción
         const transactionDate = transaction.Fecha;
         const baseAmount = parseFloat(invoice.MontoBase || 0);
         const finesUntilTransaction = calculateFinesUntilDate(invoice, transactionDate);
         const totalOwed = baseAmount + finesUntilTransaction;
+        const remainingBalance = totalOwed - totalPreviousPayments;
 
         console.log(`📊 Análisis de asignación:`);
         console.log(`   - Monto base: ₡${baseAmount.toLocaleString('es-CR')}`);
         console.log(`   - Multas hasta transacción: ₡${finesUntilTransaction.toLocaleString('es-CR')}`);
         console.log(`   - Total adeudado: ₡${totalOwed.toLocaleString('es-CR')}`);
+        console.log(`   - Pagos previos: ₡${totalPreviousPayments.toLocaleString('es-CR')}`);
+        console.log(`   - Saldo restante: ₡${remainingBalance.toLocaleString('es-CR')}`);
         console.log(`   - Monto transacción: ₡${amount.toLocaleString('es-CR')}`);
 
         let amountToApply, newStatus, newBalance = 0;
 
-        if (amount >= totalOwed) {
-            // Pago completo
-            amountToApply = totalOwed;
+        if (amount >= remainingBalance) {
+            // Pago completo del saldo restante
+            amountToApply = remainingBalance;
             newStatus = 'Pagado';
             console.log('✅ Pago completo - Factura será marcada como PAGADA');
         } else {
             // Pago parcial
             amountToApply = amount;
             newStatus = 'Pendiente'; // Mantener como Pendiente hasta que saldo llegue a 0
-            newBalance = totalOwed - amountToApply;
+            newBalance = remainingBalance - amountToApply;
             console.log(`⚠️ Pago parcial - Saldo restante: ₡${newBalance.toLocaleString('es-CR')}`);
         }
 
-        // Actualizar la transacción en la API (marcar como conciliada)
-        const updateTransactionData = {
-            ID_Cliente: currentClient.ID_Cliente,
-            Observaciones: `Conciliada con factura ${invoiceNumber} - Monto aplicado: ₡${amountToApply.toLocaleString('es-CR')}`
+        // ===== NUEVO: ACTUALIZAR CAMPO PAGOS DE LA FACTURA =====
+        const newPayment = {
+            reference: transactionReference,
+            bank: transactionBank,
+            amount: amountToApply,
+            date: transactionDate
         };
+        
+        const updatedPayments = [...previousPayments, newPayment];
+        const formattedPayments = formatInvoicePayments(updatedPayments);
+        
+        console.log('📝 Actualizando pagos de la factura:', formattedPayments);
 
-        // Aquí necesitarías actualizar la transacción en la API
-        // Por ahora, solo actualizamos la factura
-        console.log('📝 Actualizando transacción en API...');
-        // TODO: Implementar actualización de transacción en API
+        // ===== NUEVO: ACTUALIZAR CAMPO FACTURASASIGNADAS DE LA TRANSACCIÓN =====
+        const transactionAssignments = parseTransactionAssignments(transaction.FacturasAsignadas || '');
+        const newAssignment = {
+            invoiceNumber: invoiceNumber,
+            amount: amountToApply
+        };
+        
+        // Buscar si ya existe asignación para esta factura
+        const existingIndex = transactionAssignments.findIndex(a => a.invoiceNumber === invoiceNumber);
+        if (existingIndex > -1) {
+            // Actualizar asignación existente
+            transactionAssignments[existingIndex].amount += amountToApply;
+        } else {
+            // Agregar nueva asignación
+            transactionAssignments.push(newAssignment);
+        }
+        
+        const formattedAssignments = formatTransactionAssignments(transactionAssignments);
+        console.log('📝 Actualizando asignaciones de transacción:', formattedAssignments);
 
         // Actualizar la factura
         const updateData = {
             Estado: newStatus,
             MontoMultas: finesUntilTransaction,
-            MontoTotal: newStatus === 'Pagado' ? 0 : newBalance
+            MontoTotal: newStatus === 'Pagado' ? 0 : newBalance,
+            Pagos: formattedPayments
         };
 
         if (newStatus === 'Pagado') {
@@ -1224,6 +1238,9 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
 
         // Actualizar datos locales
         Object.assign(invoice, updateData);
+
+        // ===== NUEVO: ACTUALIZAR TRANSACCIÓN EN LA API =====
+        await updateTransactionAssignments(transactionReference, transactionBank, formattedAssignments);
 
         // Re-cargar y renderizar
         await reloadDataAndRender();
@@ -1243,3 +1260,121 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         throw error;
     }
 }
+
+// ===== FUNCIONES AUXILIARES PARA MANEJO DE PAGOS =====
+
+// Parsear pagos de una factura (formato: "REF:MONTO;REF:MONTO")
+function parseInvoicePayments(paymentsString) {
+    if (!paymentsString || paymentsString.trim() === '') {
+        return [];
+    }
+    
+    try {
+        return paymentsString.split(';')
+            .filter(part => part.trim() !== '')
+            .map(part => {
+                const [reference, amountStr] = part.split(':');
+                return {
+                    reference: reference.trim(),
+                    amount: parseFloat(amountStr) || 0
+                };
+            })
+            .filter(payment => payment.reference && payment.amount > 0);
+    } catch (error) {
+        console.error('Error al parsear pagos de factura:', error);
+        return [];
+    }
+}
+
+// Formatear pagos de una factura para guardar en BD
+function formatInvoicePayments(payments) {
+    if (!payments || payments.length === 0) return '';
+    
+    return payments
+        .filter(payment => payment.reference && payment.amount > 0)
+        .map(payment => `${payment.reference}:${payment.amount}`)
+        .join(';');
+}
+
+// Parsear asignaciones de una transacción (formato: "FAC-001:MONTO;FAC-002:MONTO")
+function parseTransactionAssignments(assignmentsString) {
+    if (!assignmentsString || assignmentsString.trim() === '') {
+        return [];
+    }
+    
+    try {
+        return assignmentsString.split(';')
+            .filter(part => part.trim() !== '')
+            .map(part => {
+                const [invoiceNumber, amountStr] = part.split(':');
+                return {
+                    invoiceNumber: invoiceNumber.trim(),
+                    amount: parseFloat(amountStr) || 0
+                };
+            })
+            .filter(assignment => assignment.invoiceNumber && assignment.amount > 0);
+    } catch (error) {
+        console.error('Error al parsear asignaciones de transacción:', error);
+        return [];
+    }
+}
+
+// Formatear asignaciones de una transacción para guardar en BD
+function formatTransactionAssignments(assignments) {
+    if (!assignments || assignments.length === 0) return '';
+    
+    return assignments
+        .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
+        .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}`)
+        .join(';');
+}
+
+// Actualizar asignaciones de una transacción en la API
+async function updateTransactionAssignments(transactionReference, bank, formattedAssignments) {
+    try {
+        console.log('🔄 Actualizando asignaciones de transacción:', transactionReference);
+        
+        // URL para actualizar la transacción
+        const updateUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/Referencia/${encodeURIComponent(transactionReference)}?sheet=${bank}`;
+        
+        const updateData = {
+            FacturasAsignadas: formattedAssignments,
+            ID_Cliente: currentClient.ID_Cliente,
+            Observaciones: `Conciliada - ${formattedAssignments}`
+        };
+        
+        const response = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(updateData).toString()
+        });
+        
+        if (!response.ok) {
+            console.warn('⚠️ No se pudo actualizar la transacción en la API:', response.status);
+        } else {
+            console.log('✅ Transacción actualizada en la API');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error al actualizar transacción:', error);
+        // No lanzar error para no interrumpir el proceso principal
+    }
+}
+
+// ===== EXPORTAR FUNCIONES AL SCOPE GLOBAL =====
+window.switchPaymentTab = switchPaymentTab;
+window.loadTransactionsTab = loadTransactionsTab;
+window.switchInvoiceTab = switchInvoiceTab;
+window.selectTransaction = selectTransaction;
+window.filterTransactions = filterTransactions;
+window.clearTransactionSearch = clearTransactionSearch;
+window.assignTransactionToInvoice = assignTransactionToInvoice;
+
+// Nuevas funciones de manejo de pagos
+window.parseInvoicePayments = parseInvoicePayments;
+window.formatInvoicePayments = formatInvoicePayments;
+window.parseTransactionAssignments = parseTransactionAssignments;
+window.formatTransactionAssignments = formatTransactionAssignments;
+window.updateTransactionAssignments = updateTransactionAssignments;
