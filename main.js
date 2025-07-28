@@ -906,12 +906,35 @@ function selectTransaction(reference, bank, amount, description) {
         transactionsInfo.innerHTML = currentInfo + selectionInfo;
     }
     
-    // Habilitar botón de confirmar si estamos en el modal de pagos
-    const confirmBtn = document.getElementById('confirmAssignPaymentBtn');
-    if (confirmBtn) {
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = '✅ Asignar Transacción';
+    // Habilitar botón de confirmar según el modal activo
+    const confirmPaymentBtn = document.getElementById('confirmAssignPaymentBtn');
+    const confirmInvoiceBtn = document.getElementById('confirmAssignInvoiceBtn');
+    
+    console.log('🔍 Buscando botones:', {
+        confirmPaymentBtn: !!confirmPaymentBtn,
+        confirmInvoiceBtn: !!confirmInvoiceBtn
+    });
+    
+    if (confirmPaymentBtn) {
+        // Modal de pagos
+        confirmPaymentBtn.disabled = false;
+        confirmPaymentBtn.textContent = '✅ Asignar Transacción';
+        console.log('✅ Botón de pagos habilitado');
+    } else if (confirmInvoiceBtn) {
+        // Modal de facturas
+        confirmInvoiceBtn.disabled = false;
+        confirmInvoiceBtn.textContent = '✅ Asignar Transacción';
+        console.log('✅ Botón de facturas habilitado');
+    } else {
+        console.warn('⚠️ No se encontró ningún botón de confirmar');
     }
+    
+    // Verificación adicional - buscar cualquier botón de confirmar
+    const allConfirmBtns = document.querySelectorAll('button[id*="confirmAssign"]');
+    console.log('🔍 Todos los botones de confirmar encontrados:', allConfirmBtns.length);
+    allConfirmBtns.forEach((btn, index) => {
+        console.log(`  Botón ${index}:`, btn.id, 'disabled:', btn.disabled);
+    });
     
     showToast(`✅ Transacción ${reference} seleccionada`, 'success');
 }
