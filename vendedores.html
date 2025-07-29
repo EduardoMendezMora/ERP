@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Vendedores - EasyCars</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .vendors-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .vendors-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .vendors-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .vendors-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .add-vendor-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 15px;
+        }
+        
+        .add-vendor-btn:hover {
+            background: #388E3C;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #007aff;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .vendors-section {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .section-header {
+            background: #f8f9fa;
+            padding: 20px 24px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .search-input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .vendors-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .vendors-table th,
+        .vendors-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .vendors-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .vendors-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .vendor-id {
+            font-weight: 600;
+            color: #007aff;
+        }
+        
+        .vendor-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn-edit,
+        .btn-delete {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .btn-edit {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-edit:hover {
+            background: #e0a800;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background: #c82333;
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            z-index: 1000;
+        }
+        
+        .back-btn:hover {
+            background: #0056cc;
+        }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 24px;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+        
+        .close-modal:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .modal-body {
+            padding: 24px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #007aff;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            padding: 20px 24px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .btn-cancel:hover {
+            background: #545b62;
+        }
+        
+        .btn-save {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .btn-save:hover {
+            background: #0056cc;
+        }
+        
+        .btn-save:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 3000;
+            animation: toastSlideIn 0.3s ease-out;
+        }
+        
+        .toast.success {
+            background: #28a745;
+        }
+        
+        .toast.error {
+            background: #dc3545;
+        }
+        
+        @keyframes toastSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .vendors-container { padding: 10px; }
+            .vendors-table { font-size: 0.9rem; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <button class="back-btn" onclick="window.location.href='/'">← Volver</button>
+    
+    <div class="vendors-container">
+        <div class="vendors-header">
+            <h1 class="vendors-title">Gestión de Vendedores</h1>
+            <p class="vendors-subtitle">Administra el equipo de vendedores</p>
+            <button class="add-vendor-btn" onclick="openAddVendorModal()">
+                + Agregar Vendedor
+            </button>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalVendors">-</div>
+                <div class="stat-label">Total Vendedores</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="activeVendors">-</div>
+                <div class="stat-label">Vendedores Activos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalClients">-</div>
+                <div class="stat-label">Total Clientes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="avgClientsPerVendor">-</div>
+                <div class="stat-label">Promedio Clientes/Vendedor</div>
+            </div>
+        </div>
+        
+        <div class="vendors-section">
+            <div class="section-header">
+                <h2 class="section-title">Lista de Vendedores</h2>
+                <div class="search-box">
+                    <input type="text" id="searchVendors" class="search-input" 
+                           placeholder="Buscar vendedor..." oninput="filterVendors()">
+                </div>
+            </div>
+            <div id="vendorsTableContainer">
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    Cargando vendedores...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para agregar/editar vendedor -->
+    <div id="vendorModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Agregar Vendedor</h3>
+                <button class="close-modal" onclick="closeVendorModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="vendorForm">
+                    <div class="form-group">
+                        <label class="form-label">ID de Vendedor *</label>
+                        <input type="text" id="vendorId" class="form-input" required 
+                               placeholder="112220831" maxlength="9" 
+                               oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Nombre Completo *</label>
+                        <input type="text" id="vendorName" class="form-input" required 
+                               placeholder="Nombre Apellido" maxlength="100">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Teléfono *</label>
+                            <input type="tel" id="vendorPhone" class="form-input" required 
+                                   placeholder="8888-8888" maxlength="15">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" id="vendorEmail" class="form-input" 
+                                   placeholder="vendedor@email.com" maxlength="100">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Instancia Ultra MSG *</label>
+                            <input type="text" id="vendorInstance" class="form-input" required 
+                                   placeholder="112220831" maxlength="20">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Token Ultra MSG *</label>
+                            <input type="text" id="vendorToken" class="form-input" required 
+                                   placeholder="token_ultra_msg" maxlength="100">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Estado</label>
+                        <select id="vendorStatus" class="form-input">
+                            <option value="Activo">Activo</option>
+                            <option value="Inactivo">Inactivo</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Observaciones</label>
+                        <textarea id="vendorNotes" class="form-input" rows="3" 
+                                  placeholder="Información adicional..." maxlength="500"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeVendorModal()">Cancelar</button>
+                <button class="btn-save" onclick="saveVendor()" id="saveVendorBtn">
+                    <span class="loading-spinner" style="display: none;"></span>
+                    Guardar Vendedor
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let allVendors = [];
+        let allClients = [];
+        let editingVendor = null;
+        
+        // Inicializar la aplicación
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Inicializando gestión de vendedores...');
+            
+            // Verificar si es super administrador
+            checkAdminAccess();
+            
+            // Cargar datos
+            loadVendorsData();
+        });
+        
+        // Verificar acceso de administrador
+        function checkAdminAccess() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isAdmin = urlParams.get('admin') === 'true';
+            
+            if (!isAdmin) {
+                console.log('❌ Acceso denegado - No es super administrador');
+                window.location.href = '/login.html';
+                return;
+            }
+            
+            console.log('✅ Acceso de super administrador confirmado');
+        }
+        
+        // Cargar datos de vendedores
+        async function loadVendorsData() {
+            try {
+                console.log('📊 Cargando datos de vendedores...');
+                
+                // Cargar vendedores y clientes en paralelo
+                const [vendorsResponse, clientsResponse] = await Promise.all([
+                    fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Vendedores'),
+                    fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy')
+                ]);
+                
+                if (!vendorsResponse.ok || !clientsResponse.ok) {
+                    throw new Error('Error al cargar datos');
+                }
+                
+                allVendors = await vendorsResponse.json();
+                allClients = await clientsResponse.json();
+                
+                console.log('✅ Datos cargados:', {
+                    vendors: allVendors.length,
+                    clients: allClients.length
+                });
+                
+                // Procesar y mostrar datos
+                processVendorsData();
+                
+            } catch (error) {
+                console.error('❌ Error cargando datos:', error);
+                showToast('Error al cargar los datos. Por favor, intenta de nuevo.', 'error');
+            }
+        }
+        
+        // Procesar datos de vendedores
+        function processVendorsData() {
+            console.log('🔍 Procesando datos de vendedores...');
+            
+            // Calcular estadísticas
+            const totalVendors = allVendors.length;
+            const activeVendors = allVendors.filter(v => v.estado === 'Activo').length;
+            const totalClients = allClients.length;
+            const avgClientsPerVendor = totalVendors > 0 ? Math.round(totalClients / totalVendors) : 0;
+            
+            // Actualizar estadísticas
+            updateStats({
+                totalVendors,
+                activeVendors,
+                totalClients,
+                avgClientsPerVendor
+            });
+            
+            // Mostrar tabla de vendedores
+            displayVendorsTable(allVendors);
+        }
+        
+        // Actualizar estadísticas
+        function updateStats(stats) {
+            document.getElementById('totalVendors').textContent = stats.totalVendors;
+            document.getElementById('activeVendors').textContent = stats.activeVendors;
+            document.getElementById('totalClients').textContent = stats.totalClients;
+            document.getElementById('avgClientsPerVendor').textContent = stats.avgClientsPerVendor;
+        }
+        
+        // Mostrar tabla de vendedores
+        function displayVendorsTable(vendors) {
+            const container = document.getElementById('vendorsTableContainer');
+            
+            if (vendors.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; color: #666;">
+                        <h3>No hay vendedores registrados</h3>
+                        <p>Agrega el primer vendedor para comenzar.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const tableHTML = `
+                <table class="vendors-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Teléfono</th>
+                            <th>Email</th>
+                            <th>Instancia</th>
+                            <th>Estado</th>
+                            <th>Clientes</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${vendors.map(vendor => {
+                            const clientCount = allClients.filter(client => 
+                                client.ID_Vendedor === vendor.id
+                            ).length;
+                            
+                            return `
+                                <tr>
+                                    <td class="vendor-id">${vendor.id}</td>
+                                    <td>${vendor.nombre || 'Sin nombre'}</td>
+                                    <td>${vendor.telefono || 'No especificado'}</td>
+                                    <td>${vendor.email || 'No especificado'}</td>
+                                    <td>${vendor.instancia || 'No especificado'}</td>
+                                    <td>
+                                        <span class="vendor-status ${vendor.estado === 'Activo' ? 'status-active' : 'status-inactive'}">
+                                            ${vendor.estado || 'Activo'}
+                                        </span>
+                                    </td>
+                                    <td>${clientCount}</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-edit" onclick="editVendor('${vendor.id}')">
+                                                Editar
+                                            </button>
+                                            <button class="btn-delete" onclick="deleteVendor('${vendor.id}')">
+                                                Eliminar
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = tableHTML;
+        }
+        
+        // Filtrar vendedores
+        function filterVendors() {
+            const searchTerm = document.getElementById('searchVendors').value.toLowerCase();
+            
+            const filteredVendors = allVendors.filter(vendor => 
+                vendor.ID.toLowerCase().includes(searchTerm) ||
+                (vendor.Nombre && vendor.Nombre.toLowerCase().includes(searchTerm)) ||
+                (vendor.Telefono && vendor.Telefono.includes(searchTerm))
+            );
+            
+            displayVendorsTable(filteredVendors);
+        }
+        
+        // Abrir modal para agregar vendedor
+        function openAddVendorModal() {
+            console.log('📝 Abriendo modal para agregar vendedor...');
+            editingVendor = null;
+            
+            document.getElementById('modalTitle').textContent = 'Agregar Vendedor';
+            document.getElementById('vendorForm').reset();
+            document.getElementById('vendorModal').style.display = 'block';
+            
+            // Enfocar el primer campo
+            setTimeout(() => {
+                document.getElementById('vendorId').focus();
+            }, 100);
+        }
+        
+        // Cerrar modal
+        function closeVendorModal() {
+            console.log('❌ Cerrando modal de vendedor...');
+            document.getElementById('vendorModal').style.display = 'none';
+            editingVendor = null;
+        }
+        
+        // Editar vendedor
+        function editVendor(vendorId) {
+            console.log('✏️ Editando vendedor:', vendorId);
+            
+            const vendor = allVendors.find(v => v.ID === vendorId);
+            if (!vendor) {
+                showToast('Vendedor no encontrado.', 'error');
+                return;
+            }
+            
+            editingVendor = vendor;
+            
+            // Llenar formulario
+            document.getElementById('modalTitle').textContent = 'Editar Vendedor';
+            document.getElementById('vendorId').value = vendor.id;
+            document.getElementById('vendorId').disabled = true; // No permitir cambiar ID
+            document.getElementById('vendorName').value = vendor.nombre || '';
+            document.getElementById('vendorPhone').value = vendor.telefono || '';
+            document.getElementById('vendorEmail').value = vendor.email || '';
+            document.getElementById('vendorInstance').value = vendor.instancia || '';
+            document.getElementById('vendorToken').value = vendor.token || '';
+            document.getElementById('vendorStatus').value = vendor.estado || 'Activo';
+            document.getElementById('vendorNotes').value = vendor.observaciones || '';
+            
+            document.getElementById('vendorModal').style.display = 'block';
+        }
+        
+        // Guardar vendedor
+        async function saveVendor() {
+            const saveBtn = document.getElementById('saveVendorBtn');
+            const spinner = saveBtn.querySelector('.loading-spinner');
+            
+            // Validar formulario
+            const form = document.getElementById('vendorForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            // Obtener datos del formulario
+            const vendorData = {
+                id: document.getElementById('vendorId').value.trim(),
+                nombre: document.getElementById('vendorName').value.trim(),
+                telefono: document.getElementById('vendorPhone').value.trim(),
+                email: document.getElementById('vendorEmail').value.trim(),
+                instancia: document.getElementById('vendorInstance').value.trim(),
+                token: document.getElementById('vendorToken').value.trim(),
+                estado: document.getElementById('vendorStatus').value,
+                observaciones: document.getElementById('vendorNotes').value.trim(),
+                fechaRegistro: editingVendor ? editingVendor.fechaRegistro : new Date().toLocaleDateString('es-CR')
+            };
+            
+            console.log('💾 Guardando vendedor:', vendorData);
+            
+            // Mostrar loading
+            saveBtn.disabled = true;
+            spinner.style.display = 'inline-block';
+            saveBtn.innerHTML = '<span class="loading-spinner"></span>Guardando...';
+            
+            try {
+                let response;
+                
+                if (editingVendor) {
+                    // Actualizar vendedor existente
+                    response = await fetch(`https://sheetdb.io/api/v1/qu62bagiwlgqy/ID/${vendorData.id}?sheet=Vendedores`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(vendorData)
+                    });
+                } else {
+                    // Crear nuevo vendedor
+                    response = await fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Vendedores', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(vendorData)
+                    });
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                console.log('✅ Vendedor guardado exitosamente:', result);
+                
+                // Mostrar mensaje de éxito
+                showToast(`Vendedor ${editingVendor ? 'actualizado' : 'agregado'} exitosamente!`, 'success');
+                
+                // Cerrar modal
+                closeVendorModal();
+                
+                // Recargar datos
+                await loadVendorsData();
+                
+            } catch (error) {
+                console.error('❌ Error guardando vendedor:', error);
+                showToast('Error al guardar el vendedor. Intenta de nuevo.', 'error');
+            } finally {
+                // Restaurar botón
+                saveBtn.disabled = false;
+                spinner.style.display = 'none';
+                saveBtn.innerHTML = 'Guardar Vendedor';
+            }
+        }
+        
+        // Eliminar vendedor
+        async function deleteVendor(vendorId) {
+            if (!confirm('¿Estás seguro de que quieres eliminar este vendedor?')) {
+                return;
+            }
+            
+            console.log('🗑️ Eliminando vendedor:', vendorId);
+            
+            try {
+                const response = await fetch(`https://sheetdb.io/api/v1/qu62bagiwlgqy/ID/${vendorId}?sheet=Vendedores`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                
+                console.log('✅ Vendedor eliminado exitosamente');
+                showToast('Vendedor eliminado exitosamente!', 'success');
+                
+                // Recargar datos
+                await loadVendorsData();
+                
+            } catch (error) {
+                console.error('❌ Error eliminando vendedor:', error);
+                showToast('Error al eliminar el vendedor. Intenta de nuevo.', 'error');
+            }
+        }
+        
+        // Mostrar toast de notificación
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            // Remover después de 3 segundos
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+        
+        // Cerrar modal al hacer clic fuera
+        window.onclick = function(event) {
+            const modal = document.getElementById('vendorModal');
+            if (event.target === modal) {
+                closeVendorModal();
+            }
+        }
+        
+        // Exportar funciones
+        window.openAddVendorModal = openAddVendorModal;
+        window.closeVendorModal = closeVendorModal;
+        window.saveVendor = saveVendor;
+        window.editVendor = editVendor;
+        window.deleteVendor = deleteVendor;
+        window.filterVendors = filterVendors;
+    </script>
+</body>
+</html> 

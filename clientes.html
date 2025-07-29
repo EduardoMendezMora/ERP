@@ -575,6 +575,12 @@
                             <input type="number" class="form-input" id="montoContrato" step="1000" placeholder="50000">
                         </div>
                         <div class="form-group">
+                            <label class="form-label">Vendedor Asignado</label>
+                            <select class="form-input" id="ID_Vendedor">
+                                <option value="">-- Seleccionar vendedor --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label class="form-label">Fecha de Inicio del Contrato</label>
                             <input type="date" class="form-input" id="fechaContrato">
                         </div>
@@ -625,6 +631,7 @@
         
         let clients = [];
         let invoices = [];
+        let vendors = [];
         let currentClient = null;
         let isEditing = false;
 
@@ -639,22 +646,25 @@
             showLoading(true);
             
             try {
-                // Cargar clientes y facturas EN PARALELO
-                console.log('Cargando clientes y facturas...');
+                // Cargar clientes, facturas y vendedores EN PARALELO
+                console.log('Cargando clientes, facturas y vendedores...');
                 await Promise.all([
                     loadClientsData(),
-                    loadInvoicesData()  
+                    loadInvoicesData(),
+                    loadVendorsData()
                 ]);
                 
-                console.log('✅ Ambas cargas completadas');
+                console.log('✅ Todas las cargas completadas');
                 console.log('Clientes cargados:', clients.length);
                 console.log('Facturas cargadas:', invoices.length);
+                console.log('Vendedores cargados:', vendors.length);
                 
                 // AHORA renderizar la interfaz con todos los datos
                 renderClients(clients);
                 updateStats();
+                populateVendorSelect();
                 
-                showToast(`Sistema cargado: ${clients.length} clientes, ${invoices.length} facturas`, 'success');
+                showToast(`Sistema cargado: ${clients.length} clientes, ${invoices.length} facturas, ${vendors.length} vendedores`, 'success');
                 
             } catch (error) {
                 console.error('Error al inicializar:', error);
@@ -684,25 +694,56 @@
             const apiUrl = `${API_URL_INVOICES}?sheet=Facturas`;
             console.log('Cargando facturas desde:', apiUrl);
             
-            const response = await fetch(apiUrl);
-            
-            if (!response.ok) {
-                if (response.status === 404) {
-                    console.log('Hoja de facturas no existe aún');
-                    invoices = [];
-                    return;
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                
+                invoices = await response.json();
+                console.log('✅ Facturas cargadas:', invoices.length);
+                
+            } catch (error) {
+                console.error('❌ Error cargando facturas:', error);
+                showToast('Error al cargar facturas', 'error');
+                invoices = [];
             }
+        }
+        
+        async function loadVendorsData() {
+            const apiUrl = `${API_URL_CLIENTS}?sheet=Vendedores`;
+            console.log('Cargando vendedores desde:', apiUrl);
             
-            const data = await response.json();
-            invoices = Array.isArray(data) ? data : [];
-            invoices = invoices.filter(inv => inv.ID_Cliente && inv.NumeroFactura);
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                vendors = await response.json();
+                console.log('✅ Vendedores cargados:', vendors.length);
+                
+            } catch (error) {
+                console.error('❌ Error cargando vendedores:', error);
+                showToast('Error al cargar vendedores', 'error');
+                vendors = [];
+            }
+        }
+        
+        function populateVendorSelect() {
+            const vendorSelect = document.getElementById('ID_Vendedor');
+            if (!vendorSelect) return;
             
-            // Actualizar multas
-            updateOverdueFines();
+            // Limpiar opciones existentes excepto la primera
+            vendorSelect.innerHTML = '<option value="">-- Seleccionar vendedor --</option>';
             
-            console.log('Facturas procesadas:', invoices.length);
+            // Agregar vendedores activos
+            vendors.filter(vendor => vendor.estado === 'Activo').forEach(vendor => {
+                const option = document.createElement('option');
+                option.value = vendor.id;
+                option.textContent = `${vendor.nombre} (${vendor.id})`;
+                vendorSelect.appendChild(option);
+            });
         }
 
         function setupEventListeners() {
@@ -757,6 +798,7 @@
             try {
                 await loadClientsData();
                 await loadInvoicesData(); // También recargar facturas por si cambiaron
+                await loadVendorsData(); // Recargar vendedores por si cambiaron
                 renderClients(clients);
                 updateStats();
             } catch (error) {
@@ -1449,6 +1491,7 @@
             document.getElementById('fechaContrato').value = client.fechaContrato || '';
             document.getElementById('plazoContrato').value = client.plazoContrato || '';
             document.getElementById('diaPago').value = client.diaPago || '';
+            document.getElementById('ID_Vendedor').value = client.ID_Vendedor || '';
         }
 
         function clearForm() {
@@ -1549,7 +1592,8 @@
                 montoContrato: document.getElementById('montoContrato').value.trim(),
                 fechaContrato: document.getElementById('fechaContrato').value.trim(),
                 plazoContrato: document.getElementById('plazoContrato').value.trim(),
-                diaPago: document.getElementById('diaPago').value.trim()
+                diaPago: document.getElementById('diaPago').value.trim(),
+                ID_Vendedor: document.getElementById('ID_Vendedor').value.trim()
             };
 
             if (!formData.ID || !formData.Nombre) {

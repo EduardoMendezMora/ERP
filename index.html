@@ -93,6 +93,24 @@
       if (params.get('clientId')) {
         window.location.href = `/facturas.html?clientId=${params.get('clientId')}`;
       }
+      
+      // Verificar si es super administrador
+      const isAdmin = params.get('admin') === 'true';
+      const isVendor = params.get('vendor') === 'true';
+      
+      // Mostrar botón de gestión de vendedores solo para super admin
+      if (isAdmin) {
+        document.addEventListener('DOMContentLoaded', function() {
+          const buttonGroup = document.querySelector('.button-group');
+          const adminButton = document.createElement('button');
+          adminButton.className = 'main-btn tertiary';
+          adminButton.onclick = function() {
+            window.location.href = '/vendedores.html?admin=true';
+          };
+          adminButton.textContent = 'Gestión Vendedores';
+          buttonGroup.appendChild(adminButton);
+        });
+      }
     </script>
     <div class="main-container">
         <img src="./Logotipo EasyCars Fondo Blanco con Slogan - Copy.jpg" alt="EasyCars Logo" class="logo">

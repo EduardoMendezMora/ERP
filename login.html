@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - EasyCars</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .logo {
+            max-width: 120px;
+            margin-bottom: 20px;
+        }
+        
+        .title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1rem;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-input.error {
+            border-color: #dc3545;
+        }
+        
+        .form-input.success {
+            border-color: #28a745;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .code-inputs {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .code-input {
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .code-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .resend-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .resend-text {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+        
+        .resend-btn {
+            background: none;
+            border: none;
+            color: #667eea;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        
+        .resend-btn:disabled {
+            color: #ccc;
+            cursor: not-allowed;
+            text-decoration: none;
+        }
+        
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        .step {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #e9ecef;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin: 0 5px;
+        }
+        
+        .step.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .step.completed {
+            background: #28a745;
+            color: white;
+        }
+        
+        .step-line {
+            width: 40px;
+            height: 2px;
+            background: #e9ecef;
+            margin: 14px 0;
+        }
+        
+        .step-line.active {
+            background: #667eea;
+        }
+        
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 30px 20px;
+            }
+            
+            .code-inputs {
+                gap: 8px;
+            }
+            
+            .code-input {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <img src="./Logotipo EasyCars Fondo Blanco con Slogan - Copy.jpg" alt="EasyCars Logo" class="logo">
+        
+        <!-- Indicador de pasos -->
+        <div class="step-indicator">
+            <div class="step active" id="step1">1</div>
+            <div class="step-line" id="line1"></div>
+            <div class="step" id="step2">2</div>
+        </div>
+        
+        <h1 class="title">Acceso Vendedores</h1>
+        <p class="subtitle">Ingresa tu ID para continuar</p>
+        
+        <!-- Paso 1: Ingreso de ID -->
+        <div id="step1Content">
+            <div class="form-group">
+                <label class="form-label">ID de Vendedor</label>
+                <input type="text" id="vendorId" class="form-input" 
+                       placeholder="Ej: 112220831" maxlength="9" 
+                       oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+            </div>
+            
+            <button class="btn btn-primary" onclick="validateVendor()" id="validateBtn">
+                Continuar
+            </button>
+        </div>
+        
+        <!-- Paso 2: Verificación por SMS -->
+        <div id="step2Content" style="display: none;">
+            <div class="message info" id="smsMessage">
+                Se ha enviado un código de verificación al número registrado.
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Código de Verificación</label>
+                <div class="code-inputs">
+                    <input type="text" class="code-input" maxlength="1" data-index="0">
+                    <input type="text" class="code-input" maxlength="1" data-index="1">
+                    <input type="text" class="code-input" maxlength="1" data-index="2">
+                    <input type="text" class="code-input" maxlength="1" data-index="3">
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" onclick="verifyCode()" id="verifyBtn">
+                Verificar Código
+            </button>
+            
+            <button class="btn btn-secondary" onclick="goBackToStep1()">
+                Volver
+            </button>
+            
+            <div class="resend-section">
+                <p class="resend-text">¿No recibiste el código?</p>
+                <button class="resend-btn" onclick="resendCode()" id="resendBtn">
+                    Reenviar código
+                </button>
+            </div>
+        </div>
+        
+        <!-- Mensajes de estado -->
+        <div id="messageContainer"></div>
+    </div>
+
+    <script>
+        // Variables globales
+        let currentVendor = null;
+        let verificationCode = null;
+        let resendTimeout = null;
+        
+        // Inicializar la aplicación
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Inicializando sistema de login...');
+            setupCodeInputs();
+        });
+        
+        // Configurar inputs de código
+        function setupCodeInputs() {
+            const codeInputs = document.querySelectorAll('.code-input');
+            
+            codeInputs.forEach((input, index) => {
+                input.addEventListener('input', function(e) {
+                    const value = e.target.value;
+                    
+                    // Solo permitir números
+                    if (!/^\d*$/.test(value)) {
+                        e.target.value = '';
+                        return;
+                    }
+                    
+                    // Mover al siguiente input
+                    if (value && index < codeInputs.length - 1) {
+                        codeInputs[index + 1].focus();
+                    }
+                });
+                
+                input.addEventListener('keydown', function(e) {
+                    // Retroceder al input anterior con backspace
+                    if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                        codeInputs[index - 1].focus();
+                    }
+                });
+            });
+        }
+        
+        // Validar vendedor
+        async function validateVendor() {
+            const vendorId = document.getElementById('vendorId').value.trim();
+            const validateBtn = document.getElementById('validateBtn');
+            
+            if (!vendorId) {
+                showMessage('Por favor ingresa tu ID de vendedor.', 'error');
+                return;
+            }
+            
+            if (vendorId.length < 9) {
+                showMessage('El ID debe tener 9 dígitos.', 'error');
+                return;
+            }
+            
+            console.log('🔍 Validando vendedor:', vendorId);
+            
+            // Mostrar loading
+            validateBtn.disabled = true;
+            validateBtn.innerHTML = '<span class="loading"></span>Validando...';
+            
+            try {
+                // Buscar vendedor en la API
+                const response = await fetch(`https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Vendedores&id=${vendorId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Error al conectar con el servidor');
+                }
+                
+                const vendors = await response.json();
+                
+                if (vendors.length === 0) {
+                    showMessage('ID de vendedor no encontrado.', 'error');
+                    return;
+                }
+                
+                currentVendor = vendors[0];
+                console.log('✅ Vendedor encontrado:', currentVendor);
+                
+                // Verificar si es super administrador
+                if (vendorId === '112220831') {
+                    console.log('👑 Super administrador detectado');
+                    showMessage('Acceso directo como Super Administrador.', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/index.html?admin=true';
+                    }, 1500);
+                    return;
+                }
+                
+                // Para vendedores regulares, enviar código SMS
+                await sendVerificationCode();
+                
+            } catch (error) {
+                console.error('❌ Error validando vendedor:', error);
+                showMessage('Error al validar el vendedor. Intenta de nuevo.', 'error');
+            } finally {
+                // Restaurar botón
+                validateBtn.disabled = false;
+                validateBtn.innerHTML = 'Continuar';
+            }
+        }
+        
+        // Enviar código de verificación
+        async function sendVerificationCode() {
+            console.log('📱 Enviando código de verificación...');
+            
+            // Generar código de 4 dígitos
+            verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
+            
+            const message = `Tu código de verificación EasyCars es: ${verificationCode}. Válido por 24 horas.`;
+            
+            try {
+                // Enviar SMS usando Ultra MSG con datos del vendedor
+                const response = await fetch('https://api.ultramsg.com/' + currentVendor.instancia + '/instance/messages/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        token: currentVendor.token,
+                        to: currentVendor.telefono,
+                        body: message
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Error enviando SMS');
+                }
+                
+                const result = await response.json();
+                console.log('✅ SMS enviado:', result);
+                
+                // Mostrar paso 2
+                showStep2();
+                
+                // Configurar timeout para reenvío
+                setupResendTimeout();
+                
+            } catch (error) {
+                console.error('❌ Error enviando SMS:', error);
+                showMessage('Error enviando el código. Verifica el número de teléfono.', 'error');
+            }
+        }
+        
+        // Mostrar paso 2
+        function showStep2() {
+            document.getElementById('step1Content').style.display = 'none';
+            document.getElementById('step2Content').style.display = 'block';
+            
+            // Actualizar indicadores
+            document.getElementById('step1').classList.remove('active');
+            document.getElementById('step1').classList.add('completed');
+            document.getElementById('line1').classList.add('active');
+            document.getElementById('step2').classList.add('active');
+            
+            // Enfocar primer input de código
+            setTimeout(() => {
+                document.querySelector('.code-input').focus();
+            }, 100);
+        }
+        
+        // Verificar código
+        async function verifyCode() {
+            const codeInputs = document.querySelectorAll('.code-input');
+            const enteredCode = Array.from(codeInputs).map(input => input.value).join('');
+            const verifyBtn = document.getElementById('verifyBtn');
+            
+            if (enteredCode.length !== 4) {
+                showMessage('Por favor ingresa el código completo de 4 dígitos.', 'error');
+                return;
+            }
+            
+            console.log('🔐 Verificando código:', enteredCode);
+            
+            // Mostrar loading
+            verifyBtn.disabled = true;
+            verifyBtn.innerHTML = '<span class="loading"></span>Verificando...';
+            
+            try {
+                // Verificar código
+                if (enteredCode === verificationCode) {
+                    console.log('✅ Código verificado correctamente');
+                    
+                    // Guardar sesión
+                    const session = {
+                        vendorId: currentVendor.id,
+                        vendorName: currentVendor.nombre,
+                        loginTime: new Date().toISOString(),
+                        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 horas
+                    };
+                    
+                    localStorage.setItem('vendorSession', JSON.stringify(session));
+                    
+                    showMessage('¡Acceso exitoso! Redirigiendo...', 'success');
+                    
+                    setTimeout(() => {
+                        window.location.href = '/index.html?vendor=true';
+                    }, 1500);
+                    
+                } else {
+                    showMessage('Código incorrecto. Intenta de nuevo.', 'error');
+                    // Limpiar inputs
+                    codeInputs.forEach(input => input.value = '');
+                    codeInputs[0].focus();
+                }
+                
+            } catch (error) {
+                console.error('❌ Error verificando código:', error);
+                showMessage('Error al verificar el código. Intenta de nuevo.', 'error');
+            } finally {
+                // Restaurar botón
+                verifyBtn.disabled = false;
+                verifyBtn.innerHTML = 'Verificar Código';
+            }
+        }
+        
+        // Volver al paso 1
+        function goBackToStep1() {
+            document.getElementById('step2Content').style.display = 'none';
+            document.getElementById('step1Content').style.display = 'block';
+            
+            // Actualizar indicadores
+            document.getElementById('step1').classList.remove('completed');
+            document.getElementById('step1').classList.add('active');
+            document.getElementById('line1').classList.remove('active');
+            document.getElementById('step2').classList.remove('active');
+            
+            // Limpiar variables
+            currentVendor = null;
+            verificationCode = null;
+            
+            // Limpiar inputs
+            document.getElementById('vendorId').value = '';
+            document.querySelectorAll('.code-input').forEach(input => input.value = '');
+            
+            // Limpiar timeout
+            if (resendTimeout) {
+                clearTimeout(resendTimeout);
+                resendTimeout = null;
+            }
+        }
+        
+        // Reenviar código
+        async function resendCode() {
+            const resendBtn = document.getElementById('resendBtn');
+            
+            if (resendBtn.disabled) return;
+            
+            console.log('🔄 Reenviando código...');
+            
+            try {
+                await sendVerificationCode();
+                showMessage('Código reenviado exitosamente.', 'success');
+                setupResendTimeout();
+            } catch (error) {
+                console.error('❌ Error reenviando código:', error);
+                showMessage('Error reenviando el código. Intenta de nuevo.', 'error');
+            }
+        }
+        
+        // Configurar timeout para reenvío
+        function setupResendTimeout() {
+            const resendBtn = document.getElementById('resendBtn');
+            let countdown = 60;
+            
+            resendBtn.disabled = true;
+            resendBtn.textContent = `Reenviar en ${countdown}s`;
+            
+            resendTimeout = setInterval(() => {
+                countdown--;
+                resendBtn.textContent = `Reenviar en ${countdown}s`;
+                
+                if (countdown <= 0) {
+                    clearInterval(resendTimeout);
+                    resendBtn.disabled = false;
+                    resendBtn.textContent = 'Reenviar código';
+                }
+            }, 1000);
+        }
+        
+        // Mostrar mensaje
+        function showMessage(message, type = 'info') {
+            const container = document.getElementById('messageContainer');
+            container.innerHTML = `<div class="message ${type}">${message}</div>`;
+            
+            // Limpiar mensaje después de 5 segundos
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+        
+        // Verificar sesión existente al cargar
+        function checkExistingSession() {
+            const session = localStorage.getItem('vendorSession');
+            
+            if (session) {
+                const sessionData = JSON.parse(session);
+                const now = new Date();
+                const expiresAt = new Date(sessionData.expiresAt);
+                
+                if (now < expiresAt) {
+                    console.log('✅ Sesión válida encontrada');
+                    window.location.href = '/index.html?vendor=true';
+                } else {
+                    console.log('❌ Sesión expirada');
+                    localStorage.removeItem('vendorSession');
+                }
+            }
+        }
+        
+        // Verificar sesión al cargar
+        checkExistingSession();
+    </script>
+</body>
+</html> 

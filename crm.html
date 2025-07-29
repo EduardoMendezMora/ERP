@@ -544,6 +544,7 @@
         // Variables globales
         let allClients = [];
         let allInvoices = [];
+        let allVendors = [];
         
         // Inicializar la aplicación
         document.addEventListener('DOMContentLoaded', function() {
@@ -556,22 +557,25 @@
             try {
                 console.log('📊 Cargando datos del CRM...');
                 
-                // Cargar clientes e invoices en paralelo
-                const [clientsResponse, invoicesResponse] = await Promise.all([
+                // Cargar clientes, invoices y vendedores en paralelo
+                const [clientsResponse, invoicesResponse, vendorsResponse] = await Promise.all([
                     fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy'),
-                    fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Facturas')
+                    fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Facturas'),
+                    fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Vendedores')
                 ]);
                 
-                if (!clientsResponse.ok || !invoicesResponse.ok) {
+                if (!clientsResponse.ok || !invoicesResponse.ok || !vendorsResponse.ok) {
                     throw new Error('Error al cargar datos');
                 }
                 
                 allClients = await clientsResponse.json();
                 allInvoices = await invoicesResponse.json();
+                allVendors = await vendorsResponse.json();
                 
                 console.log('✅ Datos cargados:', {
                     clients: allClients.length,
-                    invoices: allInvoices.length
+                    invoices: allInvoices.length,
+                    vendors: allVendors.length
                 });
                 
                 // Procesar y mostrar datos
@@ -663,6 +667,10 @@
                                 <span class="info-value">${contractAmount}</span>
                             </div>
                             <div class="info-row">
+                                <span class="info-label">Vendedor:</span>
+                                <span class="info-value">${getVendorName(client.ID_Vendedor) || 'No asignado'}</span>
+                            </div>
+                            <div class="info-row">
                                 <span class="info-label">Fecha Registro:</span>
                                 <span class="info-value">${registrationDate}</span>
                             </div>
@@ -684,6 +692,15 @@
                     ${clientsHTML}
                 </div>
             `;
+        }
+        
+        // Obtener nombre del vendedor por ID
+        function getVendorName(vendorId) {
+            if (!vendorId) return null;
+            
+            // Buscar en la lista de vendedores cargados
+            const vendor = allVendors.find(v => v.id === vendorId);
+            return vendor ? vendor.nombre : null;
         }
         
         // Ver detalles del cliente
