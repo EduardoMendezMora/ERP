@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM - EasyCars</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .crm-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .crm-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .crm-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .crm-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #007aff;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 1rem;
+        }
+        
+        .clients-section {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .section-header {
+            background: #f8f9fa;
+            padding: 20px 24px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+        
+        .clients-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            padding: 24px;
+        }
+        
+        .client-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .client-card:hover {
+            border-color: #007aff;
+            box-shadow: 0 4px 12px rgba(0,122,255,0.15);
+            transform: translateY(-2px);
+        }
+        
+        .client-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        
+        .client-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+        
+        .client-id {
+            background: #007aff;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .client-info {
+            margin-bottom: 16px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .info-label {
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .info-value {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .client-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: #007aff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056cc;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            z-index: 1000;
+        }
+        
+        .back-btn:hover {
+            background: #0056cc;
+        }
+        
+        @media (max-width: 768px) {
+            .crm-container { padding: 10px; }
+            .clients-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <button class="back-btn" onclick="window.location.href='/'">← Volver</button>
+    
+    <div class="crm-container">
+        <div class="crm-header">
+            <h1 class="crm-title">CRM - EasyCars</h1>
+            <p class="crm-subtitle">Gestión de Clientes sin Facturas</p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalClients">-</div>
+                <div class="stat-label">Total de Clientes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="clientsWithoutInvoices">-</div>
+                <div class="stat-label">Sin Facturas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="clientsWithInvoices">-</div>
+                <div class="stat-label">Con Facturas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="percentageWithout">-</div>
+                <div class="stat-label">% Sin Facturas</div>
+            </div>
+        </div>
+        
+        <div class="clients-section">
+            <div class="section-header">
+                <h2 class="section-title">Clientes sin Facturas</h2>
+            </div>
+            <div id="clientsContainer">
+                <div class="loading">
+                    <p>Cargando clientes...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let allClients = [];
+        let allInvoices = [];
+        
+        // Inicializar la aplicación
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Inicializando CRM...');
+            loadCRMData();
+        });
+        
+        // Cargar datos del CRM
+        async function loadCRMData() {
+            try {
+                console.log('📊 Cargando datos del CRM...');
+                
+                // Cargar clientes e invoices en paralelo
+                const [clientsResponse, invoicesResponse] = await Promise.all([
+                    fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy'),
+                    fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Facturas')
+                ]);
+                
+                if (!clientsResponse.ok || !invoicesResponse.ok) {
+                    throw new Error('Error al cargar datos');
+                }
+                
+                allClients = await clientsResponse.json();
+                allInvoices = await invoicesResponse.json();
+                
+                console.log('✅ Datos cargados:', {
+                    clients: allClients.length,
+                    invoices: allInvoices.length
+                });
+                
+                // Procesar y mostrar datos
+                processCRMData();
+                
+            } catch (error) {
+                console.error('❌ Error cargando datos del CRM:', error);
+                showError('Error al cargar los datos. Por favor, intenta de nuevo.');
+            }
+        }
+        
+        // Procesar datos del CRM
+        function processCRMData() {
+            console.log('🔍 Procesando datos del CRM...');
+            
+            // Filtrar clientes sin facturas
+            const clientsWithoutInvoices = allClients.filter(client => {
+                const clientInvoices = allInvoices.filter(invoice => 
+                    invoice.ID_Cliente === client.ID || invoice.ID_Cliente === client.ID_Cliente
+                );
+                return clientInvoices.length === 0;
+            });
+            
+            const clientsWithInvoices = allClients.length - clientsWithoutInvoices.length;
+            const percentageWithout = allClients.length > 0 ? 
+                Math.round((clientsWithoutInvoices.length / allClients.length) * 100) : 0;
+            
+            console.log('📊 Estadísticas:', {
+                total: allClients.length,
+                withoutInvoices: clientsWithoutInvoices.length,
+                withInvoices: clientsWithInvoices,
+                percentage: percentageWithout
+            });
+            
+            // Actualizar estadísticas
+            updateStats({
+                total: allClients.length,
+                withoutInvoices: clientsWithoutInvoices.length,
+                withInvoices: clientsWithInvoices,
+                percentage: percentageWithout
+            });
+            
+            // Mostrar clientes sin facturas
+            displayClientsWithoutInvoices(clientsWithoutInvoices);
+        }
+        
+        // Actualizar estadísticas
+        function updateStats(stats) {
+            document.getElementById('totalClients').textContent = stats.total;
+            document.getElementById('clientsWithoutInvoices').textContent = stats.withoutInvoices;
+            document.getElementById('clientsWithInvoices').textContent = stats.withInvoices;
+            document.getElementById('percentageWithout').textContent = stats.percentage + '%';
+        }
+        
+        // Mostrar clientes sin facturas
+        function displayClientsWithoutInvoices(clients) {
+            const container = document.getElementById('clientsContainer');
+            
+            if (clients.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🎉</div>
+                        <h3>¡Excelente!</h3>
+                        <p>Todos los clientes tienen facturas generadas.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const clientsHTML = clients.map(client => {
+                const registrationDate = client.FechaRegistro || 'No especificada';
+                const contractAmount = client.montoContrato ? 
+                    `₡${parseFloat(client.montoContrato).toLocaleString('es-CR')}` : 
+                    'No especificado';
+                
+                return `
+                    <div class="client-card" onclick="viewClientDetails('${client.ID || client.ID_Cliente}')">
+                        <div class="client-header">
+                            <h3 class="client-name">${client.Nombre || 'Sin nombre'}</h3>
+                            <span class="client-id">${client.ID || client.ID_Cliente}</span>
+                        </div>
+                        <div class="client-info">
+                            <div class="info-row">
+                                <span class="info-label">Placa:</span>
+                                <span class="info-value">${client.Placa || 'No especificada'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Monto Contrato:</span>
+                                <span class="info-value">${contractAmount}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Fecha Registro:</span>
+                                <span class="info-value">${registrationDate}</span>
+                            </div>
+                        </div>
+                        <div class="client-actions">
+                            <button class="action-btn btn-primary" onclick="event.stopPropagation(); createInvoice('${client.ID || client.ID_Cliente}')">
+                                Crear Factura
+                            </button>
+                            <button class="action-btn btn-secondary" onclick="event.stopPropagation(); viewClient('${client.ID || client.ID_Cliente}')">
+                                Ver Cliente
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = `
+                <div class="clients-grid">
+                    ${clientsHTML}
+                </div>
+            `;
+        }
+        
+        // Ver detalles del cliente
+        function viewClientDetails(clientId) {
+            console.log('👤 Ver detalles del cliente:', clientId);
+            window.location.href = `/clientes.html?clientId=${clientId}`;
+        }
+        
+        // Crear factura para el cliente
+        function createInvoice(clientId) {
+            console.log('📄 Crear factura para cliente:', clientId);
+            window.location.href = `/clientes.html?clientId=${clientId}&action=createInvoice`;
+        }
+        
+        // Ver cliente
+        function viewClient(clientId) {
+            console.log('👤 Ver cliente:', clientId);
+            window.location.href = `/clientes.html?clientId=${clientId}`;
+        }
+        
+        // Mostrar error
+        function showError(message) {
+            const container = document.getElementById('clientsContainer');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">❌</div>
+                    <h3>Error</h3>
+                    <p>${message}</p>
+                    <button class="action-btn btn-primary" onclick="loadCRMData()">Reintentar</button>
+                </div>
+            `;
+        }
+        
+        // Exportar funciones al scope global
+        window.viewClientDetails = viewClientDetails;
+        window.createInvoice = createInvoice;
+        window.viewClient = viewClient;
+    </script>
+</body>
+</html> 
