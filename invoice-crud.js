@@ -971,7 +971,8 @@ async function sendAccountStatement(clientId) {
         const clientResponse = await fetch(`${API_CONFIG.CLIENTS}?sheet=Clientes`);
         if (!clientResponse.ok) throw new Error('Error al cargar cliente');
         const clients = await clientResponse.json();
-        const client = clients.find(c => c.ID && c.ID.toString() === clientId.toString());
+        // Cambio aquí para evitar error si hay elementos undefined o sin ID
+        const client = clients.find(c => c && c.ID && c.ID.toString() === clientId.toString());
         if (!client) throw new Error('Cliente no encontrado');
 
         const invoicesResponse = await fetch(`${API_CONFIG.INVOICES}?sheet=Facturas`);
