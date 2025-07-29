@@ -1529,8 +1529,17 @@ function parsePaymentAmountByBank(creditValue, bank) {
             const normalizedValue = cleanValue.replace(/\./g, '');
             return parseFloat(normalizedValue);
         }
+    } else if (bank === 'HuberBN') {
+        // HuberBN usa formato americano (ej: 100,000.00)
+        if (cleanValue.includes(',')) {
+            // Si tiene coma, es separador de miles (ej: 100,000.00)
+            const normalizedValue = cleanValue.replace(/,/g, '');
+            return parseFloat(normalizedValue);
+        } else {
+            return parseFloat(cleanValue);
+        }
     } else {
-        // Otros bancos (HuberBN, etc.) - usar lógica general
+        // Otros bancos - usar lógica general
         if (cleanValue.includes(',')) {
             return parseFloat(cleanValue.replace(',', '.'));
         } else {
