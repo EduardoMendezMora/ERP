@@ -859,8 +859,19 @@ async function loadTransactionsTab() {
                     } else {
                         amount = parseFloat(cleanValue);
                     }
+                } else if (bank === 'BN') {
+                    // BN usa punto como separador de miles (ej: 100.000)
+                    if (cleanValue.includes(',')) {
+                        // Si tiene coma, es decimal (ej: 100.000,50)
+                        const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
+                        amount = parseFloat(normalizedValue);
+                    } else {
+                        // Solo punto como separador de miles (ej: 100.000)
+                        const normalizedValue = cleanValue.replace(/\./g, '');
+                        amount = parseFloat(normalizedValue);
+                    }
                 } else {
-                    // Otros bancos usan punto como separador decimal
+                    // Otros bancos (HuberBN, etc.) - usar lógica general
                     if (cleanValue.includes(',')) {
                         // Si tiene coma, reemplazarla por punto
                         amount = parseFloat(cleanValue.replace(',', '.'));
@@ -1161,8 +1172,19 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
             } else {
                 amount = parseFloat(cleanValue);
             }
+        } else if (transactionBank === 'BN') {
+            // BN usa punto como separador de miles (ej: 100.000)
+            if (cleanValue.includes(',')) {
+                // Si tiene coma, es decimal (ej: 100.000,50)
+                const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
+                amount = parseFloat(normalizedValue);
+            } else {
+                // Solo punto como separador de miles (ej: 100.000)
+                const normalizedValue = cleanValue.replace(/\./g, '');
+                amount = parseFloat(normalizedValue);
+            }
         } else {
-            // Otros bancos usan punto como separador decimal
+            // Otros bancos (HuberBN, etc.) - usar lógica general
             if (cleanValue.includes(',')) {
                 // Si tiene coma, reemplazarla por punto
                 amount = parseFloat(cleanValue.replace(',', '.'));
