@@ -319,33 +319,18 @@ async function loadClientAndInvoices(clientId) {
         const clientsData = await clientResponse.json();
         const clients = Array.isArray(clientsData) ? clientsData : [];
 
-        // Depuración: mostrar clientes y clientId
-        console.log('clients:', clients);
-        console.log('clientId:', clientId, 'typeof:', typeof clientId);
+        // ✅ FIX: Encontrar cliente y asignar a AMBAS variables
+        const foundClient = clients.find(c => c.ID && c.ID.toString() === clientId.toString());
 
-        if (!clientId) {
-            console.error('El clientId recibido es inválido:', clientId);
-            showToast('ID de cliente inválido', 'error');
-            return;
+        if (!foundClient) {
+            throw new Error('Cliente no encontrado con ID: ' + clientId);
         }
 
-        const validClients = Array.isArray(clients) ? clients.filter(c => c && c.ID) : [];
-        console.log('validClients:', validClients);
-        console.log('clientId:', clientId);
-        for (let i = 0; i < validClients.length; i++) {
-            if (!validClients[i] || !validClients[i].ID) {
-                console.error('Elemento inválido en validClients:', validClients[i], 'en posición', i);
-            }
-        }
-        // Find ultra seguro
-        const client = validClients.find(c => c && c.ID && String(c.ID) === String(clientId));
-        if (!client) {
-            console.error('Cliente no encontrado. clientId:', clientId, 'IDs disponibles:', validClients.map(c => c && c.ID));
-            showToast('Cliente no encontrado', 'error');
-            return;
-        }
+        // ✅ CRÍTICO: Actualizar AMBAS variables (local y global)
+        currentClient = foundClient;
+        window.currentClient = foundClient;  // ⭐ ESTO FALTABA
 
-        console.log('✅ Cliente encontrado:', client.Nombre);
+        console.log('✅ Cliente encontrado:', foundClient.Nombre);
         console.log('🔗 Variables sincronizadas - currentClient y window.currentClient actualizadas');
 
         // Cargar facturas
@@ -979,111 +964,6 @@ function parseInvoicePayments(paymentsString) {
     }
 }
 
-// ===== FUNCIONES DE ENVÍO DE ESTADO DE CUENTA POR WHATSAPP =====
-async function sendAccountStatement(clientId) {
-    try {
-        // 1. Cargar datos del cliente y sus facturas
-        const clientResponse = await fetch(`${API_CONFIG.CLIENTS}?sheet=Clientes`);
-        if (!clientResponse.ok) throw new Error('Error al cargar cliente');
-        const clients = await clientResponse.json();
-        // Cambio aquí para evitar error si hay elementos undefined o sin ID
-        const validClients = Array.isArray(clients) ? clients.filter(c => c && c.ID) : [];
-        console.log('clients:', clients);
-        console.log('clientId:', clientId);
-        // Filtrar solo clientes válidos
-        const client = validClients.find(c => String(c.ID) === String(clientId));
-        if (!client) {
-            console.error('Cliente no encontrado. clientId:', clientId, 'IDs disponibles:', validClients.map(c => c.ID));
-            showToast('Cliente no encontrado', 'error');
-            return;
-        }
-
-        const invoicesResponse = await fetch(`${API_CONFIG.INVOICES}?sheet=Facturas`);
-        if (!invoicesResponse.ok) throw new Error('Error al cargar facturas');
-        const allInvoices = await invoicesResponse.json();
-        const clientInvoices = allInvoices.filter(inv => inv.ID_Cliente && inv.ID_Cliente.toString() === clientId.toString());
-
-        // 2. Filtrar facturas vencidas y pendientes
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const relevantInvoices = clientInvoices.filter(inv => {
-            if (!inv.Estado) return false;
-            if (inv.Estado === 'Pagado') return false;
-            // Considerar vencidas y pendientes
-            if (inv.Estado === 'Vencido') return true;
-            if (inv.Estado === 'Pendiente') {
-                // Si la fecha de vencimiento es hoy o antes, es relevante
-                if (inv.FechaVencimiento) {
-                    const dueDate = new Date(inv.FechaVencimiento);
-                    dueDate.setHours(0, 0, 0, 0);
-                    return dueDate <= today;
-                }
-            }
-            return false;
-        });
-        if (relevantInvoices.length === 0) {
-            showToast('No hay facturas vencidas o pendientes para este cliente.', 'info');
-            return;
-        }
-
-        // 3. Obtener grupo de WhatsApp
-        const destination = getWhatsAppDestination(client);
-        if (!destination || destination.type !== 'group') {
-            showToast('No se encontró grupo de WhatsApp para este cliente.', 'error');
-            return;
-        }
-        const groupId = destination.id;
-
-        // 4. Generar mensaje
-        const fechaHoy = new Date().toLocaleDateString('es-CR');
-        let message = `📋 Estado de cuenta - Arrendamiento\n`;
-        message += `📅 Fecha: ${fechaHoy}\n\n`;
-        message += `👤 ${client.Nombre || ''} / ${client.Placa || ''} / ${client.ID || ''}\n\n`;
-        let totalPendiente = 0;
-        relevantInvoices.forEach(inv => {
-            const montoOriginal = parseFloat(inv.MontoBase || 0);
-            const multa = parseFloat(inv.MontoMultas || 0);
-            const total = parseFloat(inv.MontoTotal || montoOriginal + multa);
-            totalPendiente += total;
-            const diasVencido = inv.DiasAtraso || '0';
-            const fechaVenc = inv.FechaVencimiento || '';
-            const numFactura = inv.NumeroFactura || '';
-            const semanaDesc = inv.SemanaDescripcion || '';
-            message += `* ${numFactura} (${semanaDesc})\n`;
-            message += `▶️ Fecha: ${fechaVenc}\n`;
-            message += `▶️ Días vencido: ${diasVencido}\n`;
-            message += `▶️ Monto original: ₡ ${montoOriginal.toLocaleString('es-CR')}\n`;
-            message += `▶️ Multa: ₡ ${multa.toLocaleString('es-CR')}\n`;
-            message += `✅ Total a pagar: ₡ ${total.toLocaleString('es-CR')}\n\n`;
-        });
-        message += `📊 Total Pendiente: ₡ ${totalPendiente.toLocaleString('es-CR')}\n`;
-        message += '──────────────────────────────\n\n';
-        message += 'Por favor atender los saldos pendientes. Si ya realizó el pago omita este mensaje, nuestro Departamento Contable lo aplicará pronto. ¡Gracias! 🙏';
-
-        // 5. Enviar mensaje por UltraMSG
-        const url = `${ULTRAMSG_CONFIG.BASE_URL}/${ULTRAMSG_CONFIG.INSTANCE_ID}/messages/chat`;
-        const payload = {
-            token: ULTRAMSG_CONFIG.TOKEN,
-            to: groupId,
-            body: message
-        };
-        showToast('Enviando estado de cuenta por WhatsApp...', 'info');
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Error UltraMSG: ${errorText}`);
-        }
-        showToast('Estado de cuenta enviado exitosamente al grupo de WhatsApp.', 'success');
-    } catch (error) {
-        console.error('❌ Error al enviar estado de cuenta:', error);
-        showToast('Error al enviar estado de cuenta: ' + error.message, 'error');
-    }
-}
-
 // ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
 window.openManualInvoiceModal = openManualInvoiceModal;
 window.closeManualInvoiceModal = closeManualInvoiceModal;
@@ -1100,6 +980,5 @@ window.renderClientDetails = renderClientDetails;
 window.updateStatsWithoutPending = updateStatsWithoutPending;
 window.renderInvoicesSection = renderInvoicesSection;
 window.parseInvoicePayments = parseInvoicePayments;
-window.sendAccountStatement = sendAccountStatement;
 
 console.log('✅ invoice-crud.js cargado - Sistema CRUD de facturas');
