@@ -80,6 +80,41 @@
         .main-btn.tertiary:hover {
             background: #28a745;
         }
+        .back-btn {
+            padding: 18px 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            background: #007aff;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+            box-shadow: 0 2px 8px rgba(0,122,255,0.08);
+            width: 100%;
+        }
+        .back-btn:hover {
+            background: #0056cc;
+        }
+        
+        .logout-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            z-index: 1000;
+        }
+        
+        .logout-btn:hover {
+            background: #c82333;
+        }
         @media (max-width: 600px) {
             .main-container { padding: 32px 8px 24px 8px; }
             .logo { max-width: 120px; }
@@ -89,6 +124,49 @@
 </head>
 <body>
     <script>
+      // Verificar autenticación al cargar
+      function checkAuthentication() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const isAdmin = urlParams.get('admin') === 'true';
+        const isVendor = urlParams.get('vendor') === 'true';
+        
+        // Si no hay parámetros de autenticación, verificar sesión
+        if (!isAdmin && !isVendor) {
+          const session = localStorage.getItem('vendorSession');
+          
+          if (session) {
+            const sessionData = JSON.parse(session);
+            const now = new Date();
+            const expiresAt = new Date(sessionData.expiresAt);
+            
+            if (now < expiresAt) {
+              console.log('✅ Sesión válida encontrada');
+              // Redirigir con parámetros de sesión
+              if (sessionData.vendorId === '112220831') {
+                window.location.href = '/index.html?admin=true';
+              } else {
+                window.location.href = '/index.html?vendor=true';
+              }
+              return;
+            } else {
+              console.log('❌ Sesión expirada');
+              localStorage.removeItem('vendorSession');
+            }
+          }
+          
+          // No hay sesión válida, redirigir al login
+          console.log('🔒 No hay sesión válida, redirigiendo al login');
+          window.location.href = '/login.html';
+          return;
+        }
+        
+        // Si hay parámetros de autenticación, continuar normalmente
+        console.log('✅ Acceso autorizado');
+      }
+      
+      // Ejecutar verificación al cargar
+      checkAuthentication();
+      
       const params = new URLSearchParams(window.location.search);
       if (params.get('clientId')) {
         window.location.href = `/facturas.html?clientId=${params.get('clientId')}`;
@@ -111,7 +189,16 @@
           buttonGroup.appendChild(adminButton);
         });
       }
+      
+      // Función para cerrar sesión
+      function logout() {
+        localStorage.removeItem('vendorSession');
+        window.location.href = '/login.html';
+      }
     </script>
+    <button class="back-btn" onclick="window.location.href='/'">← Volver</button>
+    <button class="logout-btn" onclick="logout()">🚪 Cerrar Sesión</button>
+    
     <div class="main-container">
         <img src="./Logotipo EasyCars Fondo Blanco con Slogan - Copy.jpg" alt="EasyCars Logo" class="logo">
         <div class="title">ERP de EasyCars</div>

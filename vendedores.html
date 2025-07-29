@@ -553,13 +553,33 @@
             const urlParams = new URLSearchParams(window.location.search);
             const isAdmin = urlParams.get('admin') === 'true';
             
-            if (!isAdmin) {
-                console.log('❌ Acceso denegado - No es super administrador');
-                window.location.href = '/login.html';
+            if (isAdmin) {
+                console.log('✅ Acceso de super administrador confirmado');
                 return;
             }
             
-            console.log('✅ Acceso de super administrador confirmado');
+            // Si no hay parámetro admin, verificar sesión
+            const session = localStorage.getItem('vendorSession');
+            
+            if (session) {
+                const sessionData = JSON.parse(session);
+                const now = new Date();
+                const expiresAt = new Date(sessionData.expiresAt);
+                
+                if (now < expiresAt && sessionData.vendorId === '112220831') {
+                    console.log('✅ Sesión de super administrador válida');
+                    // Redirigir con parámetro admin
+                    window.location.href = '/vendedores.html?admin=true';
+                    return;
+                } else {
+                    console.log('❌ Sesión inválida o no es super administrador');
+                    localStorage.removeItem('vendorSession');
+                }
+            }
+            
+            // No hay acceso válido, redirigir al login
+            console.log('❌ Acceso denegado - No es super administrador');
+            window.location.href = '/login.html';
         }
         
         // Cargar datos de vendedores

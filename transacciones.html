@@ -5456,4 +5456,47 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                 console.error('❌ Error inicializando sistema inteligente de transacciones:', error);
             }
         });
+
+        // Verificar autenticación al cargar
+        function checkAuthentication() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isAdmin = urlParams.get('admin') === 'true';
+            const isVendor = urlParams.get('vendor') === 'true';
+            
+            // Si no hay parámetros de autenticación, verificar sesión
+            if (!isAdmin && !isVendor) {
+                const session = localStorage.getItem('vendorSession');
+                
+                if (session) {
+                    const sessionData = JSON.parse(session);
+                    const now = new Date();
+                    const expiresAt = new Date(sessionData.expiresAt);
+                    
+                    if (now < expiresAt) {
+                        console.log('✅ Sesión válida encontrada');
+                        // Redirigir con parámetros de sesión
+                        if (sessionData.vendorId === '112220831') {
+                            window.location.href = '/transacciones.html?admin=true';
+                        } else {
+                            window.location.href = '/transacciones.html?vendor=true';
+                        }
+                        return;
+                    } else {
+                        console.log('❌ Sesión expirada');
+                        localStorage.removeItem('vendorSession');
+                    }
+                }
+                
+                // No hay sesión válida, redirigir al login
+                console.log('🔒 No hay sesión válida, redirigiendo al login');
+                window.location.href = '/login.html';
+                return;
+            }
+            
+            // Si hay parámetros de autenticación, continuar normalmente
+            console.log('✅ Acceso autorizado a transacciones');
+        }
+        
+        // Ejecutar verificación al cargar
+        checkAuthentication();
     </script>
