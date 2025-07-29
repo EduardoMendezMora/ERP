@@ -1181,27 +1181,76 @@
         }
 
         function updateStats() {
-            const totalClients = clients.length;
-            const activeContracts = clients.filter(client => 
-                client.fechaContrato && client.montoContrato && client.plazoContrato
-            ).length;
+            console.log('📊 Iniciando updateStats()...');
+            console.log('📊 Variables disponibles:', {
+                clients: clients.length,
+                invoices: invoices.length,
+                vendors: vendors.length
+            });
             
-            const billedClients = clients.filter(client => 
-                getClientBillingInfo(client.ID).status === 'billed'
-            ).length;
+            try {
+                const totalClients = clients.length;
+                const activeContracts = clients.filter(client => 
+                    client.fechaContrato && client.montoContrato && client.plazoContrato
+                ).length;
+                const billedClients = clients.filter(client => 
+                    getClientBillingInfo(client.ID).status === 'billed'
+                ).length;
+                
+                console.log('📊 Estadísticas calculadas:', {
+                    totalClients,
+                    activeContracts,
+                    billedClients
+                });
             
-            const totalPending = invoices
-                .filter(inv => inv.Estado === 'Vencido')
-                .reduce((sum, inv) => {
-                    const montoBase = parseFloat(inv.MontoTotal || 0);
-                    const multas = parseFloat(inv.Multas || 0);
-                    return sum + montoBase + multas;
-                }, 0);
+                const totalPending = invoices
+                    .filter(inv => inv.Estado === 'Vencido')
+                    .reduce((sum, inv) => {
+                        const montoBase = parseFloat(inv.MontoTotal || 0);
+                        const multas = parseFloat(inv.Multas || 0);
+                        return sum + montoBase + multas;
+                    }, 0);
 
-            document.getElementById('totalClients').textContent = totalClients;
-            document.getElementById('activeContracts').textContent = activeContracts;
-            document.getElementById('billedClients').textContent = billedClients;
-            document.getElementById('totalPending').textContent = `₡${totalPending.toLocaleString('es-CR')}`;
+                // Debug: Mostrar información sobre las facturas
+                console.log('🔍 DEBUG - Cálculo POR COBRAR:');
+                console.log('Total facturas cargadas:', invoices.length);
+                console.log('Facturas vencidas:', invoices.filter(inv => inv.Estado === 'Vencido').length);
+                console.log('Facturas por estado:', invoices.reduce((acc, inv) => {
+                    acc[inv.Estado] = (acc[inv.Estado] || 0) + 1;
+                    return acc;
+                }, {}));
+                
+                // Mostrar todos los estados únicos para verificar
+                const estadosUnicos = [...new Set(invoices.map(inv => inv.Estado))];
+                console.log('📊 Estados únicos encontrados:', estadosUnicos);
+                
+                const facturasVencidas = invoices.filter(inv => inv.Estado === 'Vencido');
+                if (facturasVencidas.length > 0) {
+                    console.log('📋 Detalle facturas vencidas:');
+                    facturasVencidas.forEach(inv => {
+                        console.log(`- ${inv.ID_Factura}: Monto=${inv.MontoTotal}, Multas=${inv.Multas}, Estado=${inv.Estado}`);
+                    });
+                }
+                
+                // También mostrar algunas facturas pendientes para verificar fechas
+                const facturasPendientes = invoices.filter(inv => inv.Estado === 'Pendiente').slice(0, 5);
+                if (facturasPendientes.length > 0) {
+                    console.log('📋 Muestra de facturas pendientes:');
+                    facturasPendientes.forEach(inv => {
+                        console.log(`- ${inv.ID_Factura}: Monto=${inv.MontoTotal}, FechaVencimiento=${inv.FechaVencimiento}, Estado=${inv.Estado}`);
+                    });
+                }
+                
+                console.log('💰 Total POR COBRAR calculado:', totalPending);
+
+                document.getElementById('totalClients').textContent = totalClients;
+                document.getElementById('activeContracts').textContent = activeContracts;
+                document.getElementById('billedClients').textContent = billedClients;
+                document.getElementById('totalPending').textContent = `₡${totalPending.toLocaleString('es-CR')}`;
+            } catch (error) {
+                console.error('Error en updateStats:', error);
+                showToast('Error al actualizar estadísticas', 'error');
+            }
         }
 
         async function billClient(clientId) {
