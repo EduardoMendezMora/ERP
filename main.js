@@ -1123,9 +1123,14 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         console.log('🔍 DEBUG PARSEO DE MONTO:');
         console.log('   - Valor original:', creditValue);
         console.log('   - Tipo de dato:', typeof creditValue);
-        console.log('   - Banco de transacción:', transaction.banco);
+        console.log('   - Banco de transacción (API):', transaction.banco);
+        console.log('   - Banco de parámetro:', bank);
         
-        const amount = parsePaymentAmountByBank(creditValue, transaction.banco);
+        // Usar el banco del parámetro si el de la API no está disponible
+        const bankToUse = transaction.banco || bank;
+        console.log('   - Banco a usar para parseo:', bankToUse);
+        
+        const amount = parsePaymentAmountByBank(creditValue, bankToUse);
         
         console.log('   - Monto parseado:', amount);
         console.log('   - Es NaN:', isNaN(amount));
@@ -1507,18 +1512,26 @@ window.syncExistingPayments = syncExistingPayments;
 function parsePaymentAmountByBank(creditValue, bank) {
     if (!creditValue) return 0;
     
+    console.log(`🔍 PARSEO DETALLADO:`);
+    console.log(`   - Valor original: "${creditValue}"`);
+    console.log(`   - Banco: "${bank}"`);
+    
     const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
+    console.log(`   - Valor limpio: "${cleanValue}"`);
     
     if (bank === 'BAC') {
+        console.log(`   - Procesando como BAC`);
         // BAC usa formato europeo: punto como separador de miles, coma como decimal
         // Ejemplos: 129.000,00 o 129.000
         if (cleanValue.includes(',')) {
             // Tiene decimales: 129.000,00 -> 129000.00
             const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
+            console.log(`   - Con decimales: "${cleanValue}" -> "${normalizedValue}"`);
             return parseFloat(normalizedValue);
         } else {
             // No tiene decimales: 129.000 -> 129000
             const normalizedValue = cleanValue.replace(/\./g, '');
+            console.log(`   - Sin decimales: "${cleanValue}" -> "${normalizedValue}"`);
             return parseFloat(normalizedValue);
         }
     } else if (bank === 'BN') {
