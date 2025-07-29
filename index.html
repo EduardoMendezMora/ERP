@@ -188,46 +188,46 @@
         userModules = sessionData.userModules || [];
       }
       
-      // Mostrar botones según permisos
-      if (isAdmin || isUser) {
+      // Mostrar botones según permisos - DESHABILITADO TEMPORALMENTE
+      // if (isAdmin || isUser) {
         document.addEventListener('DOMContentLoaded', function() {
           const buttonGroup = document.querySelector('.button-group');
           
           // Botón de Clientes
-          if (isAdmin || userModules.includes('clientes')) {
+          // if (isAdmin || userModules.includes('clientes')) {
             const clientesBtn = document.createElement('button');
             clientesBtn.className = 'main-btn';
             clientesBtn.onclick = function() {
-              window.location.href = '/clientes.html?admin=' + (isAdmin ? 'true' : 'false');
+              window.location.href = '/clientes.html?admin=true';
             };
             clientesBtn.textContent = 'Clientes';
             buttonGroup.appendChild(clientesBtn);
-          }
+          // }
           
           // Botón de Transacciones
-          if (isAdmin || userModules.includes('transacciones')) {
+          // if (isAdmin || userModules.includes('transacciones')) {
             const transaccionesBtn = document.createElement('button');
             transaccionesBtn.className = 'main-btn secondary';
             transaccionesBtn.onclick = function() {
-              window.location.href = '/transacciones.html?admin=' + (isAdmin ? 'true' : 'false');
+              window.location.href = '/transacciones.html?admin=true';
             };
             transaccionesBtn.textContent = 'Transacciones';
             buttonGroup.appendChild(transaccionesBtn);
-          }
+          // }
           
           // Botón de CRM
-          if (isAdmin || userModules.includes('crm')) {
+          // if (isAdmin || userModules.includes('crm')) {
             const crmBtn = document.createElement('button');
             crmBtn.className = 'main-btn tertiary';
             crmBtn.onclick = function() {
-              window.location.href = '/crm.html?admin=' + (isAdmin ? 'true' : 'false');
+              window.location.href = '/crm.html?admin=true';
             };
             crmBtn.textContent = 'CRM';
             buttonGroup.appendChild(crmBtn);
-          }
+          // }
           
           // Botón de Gestión de Usuarios (solo SuperAdmin)
-          if (isAdmin && userModules.includes('usuarios')) {
+          // if (isAdmin && userModules.includes('usuarios')) {
             const usuariosBtn = document.createElement('button');
             usuariosBtn.className = 'main-btn tertiary';
             usuariosBtn.onclick = function() {
@@ -235,9 +235,9 @@
             };
             usuariosBtn.textContent = 'Gestión Usuarios';
             buttonGroup.appendChild(usuariosBtn);
-          }
+          // }
         });
-      }
+      // }
       
       // Función para cerrar sesión
       function logout() {
@@ -245,7 +245,6 @@
         window.location.href = '/login.html';
       }
     </script>
-    <button class="back-btn" onclick="window.location.href='/'">← Volver</button>
     <button class="logout-btn" onclick="logout()">🚪 Cerrar Sesión</button>
     
     <div class="main-container">
@@ -253,9 +252,7 @@
         <div class="title">ERP de EasyCars</div>
         <div class="subtitle">Bienvenido. Selecciona una opción para continuar:</div>
         <div class="button-group">
-            <button class="main-btn" onclick="window.location.href='/clientes.html'">Clientes</button>
-            <button class="main-btn secondary" onclick="window.location.href='/transacciones.html'">Transacciones</button>
-            <button class="main-btn tertiary" onclick="window.location.href='/crm.html'">CRM</button>
+            <!-- Los botones se crean dinámicamente según los permisos del usuario -->
         </div>
     </div>
 </body>
