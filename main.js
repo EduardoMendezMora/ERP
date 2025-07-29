@@ -746,18 +746,32 @@ async function loadTransactionsTab() {
     `;
     
     try {
-        // Cargar transacciones desde la API
-        const apiUrl = 'https://sheetdb.io/api/v1/a7oekivxzreg7';
-        console.log('📡 Conectando a:', apiUrl);
+        // Cargar transacciones desde todas las hojas (BAC, BN, HuberBN)
+        const sheets = ['BAC', 'BN', 'HuberBN'];
+        let allTransactions = [];
         
-        const response = await fetch(apiUrl);
-        
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+        for (const sheet of sheets) {
+            try {
+                console.log(`📋 Consultando transacciones en ${sheet}...`);
+                const apiUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7?sheet=${sheet}`;
+                const response = await fetch(apiUrl);
+                
+                if (response.ok) {
+                    const sheetTransactions = await response.json();
+                    const transactionsWithBank = Array.isArray(sheetTransactions) ? 
+                        sheetTransactions.map(t => ({ ...t, banco: sheet })) : [];
+                    
+                    allTransactions.push(...transactionsWithBank);
+                    console.log(`✅ ${sheet}: ${transactionsWithBank.length} transacciones cargadas`);
+                } else if (response.status !== 404) {
+                    console.warn(`Error al cargar transacciones de ${sheet}:`, response.status);
+                }
+            } catch (error) {
+                console.warn(`No se pudieron cargar transacciones de ${sheet}:`, error);
+            }
         }
         
-        const transactions = await response.json();
-        console.log('📊 Transacciones cargadas:', transactions.length);
+        console.log('📊 Total transacciones cargadas:', allTransactions.length);
         
         // Filtrar transacciones pendientes de conciliar
         // NO mostrar las que tienen ID_Cliente, Observaciones o están conciliadas
@@ -765,7 +779,7 @@ async function loadTransactionsTab() {
         const cutoffDate = new Date('2025-07-10');
         cutoffDate.setHours(0, 0, 0, 0);
         
-        const pendingTransactions = transactions.filter(t => {
+        const pendingTransactions = allTransactions.filter(t => {
             // Si tiene ID_Cliente asignado, está conciliada
             if (t.ID_Cliente && t.ID_Cliente.trim() !== '' && t.ID_Cliente !== 'undefined') {
                 return false;
@@ -803,9 +817,9 @@ async function loadTransactionsTab() {
             <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
                 <h4 style="margin: 0 0 8px 0; color: #007aff;">🏦 Transacciones Pendientes de Conciliar</h4>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; font-size: 0.9rem;">
-                    <div><strong>Total:</strong> ${transactions.length} transacciones</div>
+                    <div><strong>Total:</strong> ${allTransactions.length} transacciones</div>
                     <div><strong>Pendientes:</strong> ${pendingTransactions.length} transacciones</div>
-                    <div><strong>Conciliadas:</strong> ${transactions.length - pendingTransactions.length} transacciones</div>
+                    <div><strong>Conciliadas:</strong> ${allTransactions.length - pendingTransactions.length} transacciones</div>
                 </div>
             </div>
             
