@@ -1535,15 +1535,18 @@ function parsePaymentAmountByBank(creditValue, bank) {
             return parseFloat(normalizedValue);
         }
     } else if (bank === 'BN') {
-        // BN usa punto como separador de miles (ej: 100.000)
+        console.log(`   - Procesando como BN`);
+        // BN usa formato americano: coma como separador de miles, punto como decimal
+        // Ejemplos: 200,000.00 o 200,000
         if (cleanValue.includes(',')) {
-            // Si tiene coma, es decimal (ej: 100.000,50)
-            const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
+            // Tiene coma como separador de miles: 200,000.00 -> 200000.00
+            const normalizedValue = cleanValue.replace(/,/g, '');
+            console.log(`   - Con separador de miles: "${cleanValue}" -> "${normalizedValue}"`);
             return parseFloat(normalizedValue);
         } else {
-            // Solo punto como separador de miles (ej: 100.000)
-            const normalizedValue = cleanValue.replace(/\./g, '');
-            return parseFloat(normalizedValue);
+            // No tiene separador de miles: 200000.00 -> 200000.00
+            console.log(`   - Sin separador de miles: "${cleanValue}" -> "${cleanValue}"`);
+            return parseFloat(cleanValue);
         }
     } else if (bank === 'HuberBN') {
         // HuberBN usa formato americano (ej: 100,000.00)
