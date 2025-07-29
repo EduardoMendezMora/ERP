@@ -1227,9 +1227,17 @@
                         return false;
                     })
                     .reduce((sum, inv) => {
-                        const montoBase = parseFloat(inv.MontoTotal || 0);
-                        const multas = parseFloat(inv.Multas || 0);
-                        return sum + montoBase + multas;
+                        // Parsear montos como enteros, no decimales
+                        const montoBase = parseInt(inv.MontoTotal || 0);
+                        const multas = parseInt(inv.Multas || 0);
+                        const subtotal = montoBase + multas;
+                        
+                        // Debug individual
+                        if (montoBase > 0 || multas > 0) {
+                            console.log(`🔍 Factura ${inv.ID_Factura}: MontoBase=${montoBase}, Multas=${multas}, Subtotal=${subtotal}`);
+                        }
+                        
+                        return sum + subtotal;
                     }, 0);
 
             // Debug: Mostrar información sobre las facturas
@@ -1271,14 +1279,14 @@
             // Mostrar detalle de facturas pendientes que ya vencieron
             if (facturasPendientesVencidas.length > 0) {
                 console.log('📋 Detalle facturas pendientes vencidas:');
-                facturasPendientesVencidas.slice(0, 10).forEach(inv => {
+                facturasPendientesVencidas.slice(0, 5).forEach(inv => {
                     const fechaVencimiento = parseDate(inv.FechaVencimiento);
                     const hoy = new Date();
                     const diasVencida = Math.floor((hoy - fechaVencimiento) / (1000 * 60 * 60 * 24));
-                    console.log(`- ${inv.ID_Factura}: Monto=${inv.MontoTotal}, FechaVencimiento=${inv.FechaVencimiento}, Vencida hace ${diasVencida} días`);
+                    console.log(`- ${inv.ID_Factura}: MontoRaw="${inv.MontoTotal}", MultasRaw="${inv.Multas}", FechaVencimiento=${inv.FechaVencimiento}, Vencida hace ${diasVencida} días`);
                 });
-                if (facturasPendientesVencidas.length > 10) {
-                    console.log(`... y ${facturasPendientesVencidas.length - 10} más`);
+                if (facturasPendientesVencidas.length > 5) {
+                    console.log(`... y ${facturasPendientesVencidas.length - 5} más`);
                 }
             }
             
