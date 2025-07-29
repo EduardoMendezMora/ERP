@@ -31,12 +31,14 @@ async function initializeApp() {
             loadPayments()
         ]);
         
-        // Calcular deudas y filtrar clientes
+        // Calcular deudas de todos los clientes
         const clientsWithDebt = calculateClientDebts();
-        filteredClients = filterClientsByMinAmount(clientsWithDebt);
         
         // Ordenar por deuda (mayor a menor)
-        filteredClients.sort((a, b) => b.totalDebt - a.totalDebt);
+        clientsWithDebt.sort((a, b) => b.totalDebt - a.totalDebt);
+        
+        // Tomar los 10 peores deudores (o todos si hay menos de 10)
+        filteredClients = clientsWithDebt.slice(0, 10);
         
         // Renderizar resultados
         renderStats();
@@ -205,8 +207,8 @@ function getDebtLevel(debt) {
 
 // ===== FILTRADO Y BÚSQUEDA =====
 function filterClientsByMinAmount(clients) {
-    const minAmount = parseInt(document.getElementById('minAmount').value) || 200000;
-    return clients.filter(client => client.totalDebt >= minAmount);
+    // Ya no filtramos por monto mínimo, solo aplicamos búsqueda si es necesario
+    return clients;
 }
 
 function filterClientsBySearch(clients, searchTerm) {
@@ -319,11 +321,19 @@ function viewClientInvoices(clientId) {
 
 // ===== EVENT LISTENERS =====
 function setupEventListeners() {
-    // Filtro por monto mínimo
+    // Filtro por monto mínimo (ahora opcional para búsqueda personalizada)
     document.getElementById('minAmount').addEventListener('input', function() {
-        const minAmount = parseInt(this.value) || 200000;
-        filteredClients = filterClientsByMinAmount(allClients.filter(c => c.totalDebt > 0));
-        filteredClients.sort((a, b) => b.totalDebt - a.totalDebt);
+        const minAmount = parseInt(this.value) || 0;
+        if (minAmount > 0) {
+            // Si se especifica un monto mínimo, filtrar por ese monto
+            const allClientsWithDebt = allClients.filter(c => c.totalDebt > 0);
+            const filteredByAmount = allClientsWithDebt.filter(c => c.totalDebt >= minAmount);
+            filteredClients = filteredByAmount.sort((a, b) => b.totalDebt - a.totalDebt).slice(0, 10);
+        } else {
+            // Si no hay monto mínimo, mostrar los 10 peores
+            const allClientsWithDebt = allClients.filter(c => c.totalDebt > 0);
+            filteredClients = allClientsWithDebt.sort((a, b) => b.totalDebt - a.totalDebt).slice(0, 10);
+        }
         renderStats();
         renderClients();
     });

@@ -348,16 +348,16 @@
 
     <div class="container">
         <div class="header">
-            <h1>📊 Capturas - Clientes con Deudas Altas</h1>
-            <p>Monitoreo de clientes con deudas superiores a ₡200,000</p>
+            <h1>📊 Capturas - Top 10 Peores Deudores</h1>
+            <p>Monitoreo de los 10 clientes con mayor deuda pendiente</p>
         </div>
 
         <div class="controls-section">
             <div class="controls-header">
                 <div class="filter-controls">
                     <div class="filter-group">
-                        <label class="filter-label">Monto mínimo</label>
-                        <input type="number" id="minAmount" class="filter-input" value="200000" min="0" step="10000">
+                        <label class="filter-label">Monto mínimo (opcional)</label>
+                        <input type="number" id="minAmount" class="filter-input" value="" min="0" step="10000" placeholder="Filtrar por monto">
                     </div>
                     <div class="filter-group">
                         <label class="filter-label">Buscar</label>
@@ -392,12 +392,12 @@
 
         <div id="loading" class="loading">
             <div class="spinner"></div>
-            <p>Cargando clientes con deudas altas...</p>
+            <p>Cargando top 10 peores deudores...</p>
         </div>
 
         <div id="emptyState" class="empty-state" style="display: none;">
             <h3>🎉 ¡Excelente!</h3>
-            <p>No hay clientes con deudas superiores al monto mínimo configurado.</p>
+            <p>No hay clientes con deudas pendientes en el sistema.</p>
         </div>
 
         <div id="clientsGrid" class="clients-grid" style="display: none;">
