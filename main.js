@@ -839,7 +839,6 @@ async function loadTransactionsTab() {
         } else {
             const transactionsHTML = pendingTransactions.map(transaction => {
                 // Parsear el monto correctamente
-                let amount = 0;
                 const creditValue = transaction.Créditos || '0';
                 const bank = transaction.banco || 'BAC';
                 
@@ -850,7 +849,7 @@ async function loadTransactionsTab() {
                 const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
                 
                 // Convertir a número según el banco usando la función centralizada
-                const amount = parsePaymentAmountByBank(creditValue, bank);
+                let amount = parsePaymentAmountByBank(creditValue, bank);
                 
                 // Verificar que sea un número válido
                 if (isNaN(amount)) {
@@ -1194,7 +1193,7 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         // ===== NUEVO: ACTUALIZAR CAMPO PAGOS DE LA FACTURA =====
         const newPayment = {
             reference: transactionReference,
-            bank: transactionBank,
+            bank: bank,
             amount: amountToApply,
             date: transactionDate
         };
@@ -1245,11 +1244,11 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         console.log('🔄 Iniciando actualización de transacción en API...');
         console.log('📋 Datos para actualizar:', {
             transactionReference,
-            transactionBank,
+            transactionBank: bank,
             formattedAssignments
         });
         
-        await updateTransactionAssignments(transactionReference, transactionBank, formattedAssignments);
+        await updateTransactionAssignments(transactionReference, bank, formattedAssignments);
         
         console.log('✅ Actualización de transacción completada');
 
