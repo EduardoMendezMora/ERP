@@ -321,12 +321,18 @@ async function loadClientAndInvoices(clientId) {
 
         // Depuración: mostrar clientes y clientId
         console.log('clients:', clients);
-        console.log('clientId:', clientId);
+        console.log('clientId:', clientId, 'typeof:', typeof clientId);
 
-        // Filtrar solo clientes válidos
+        if (!clientId) {
+            console.error('El clientId recibido es inválido:', clientId);
+            showToast('ID de cliente inválido', 'error');
+            return;
+        }
+
         const validClients = Array.isArray(clients) ? clients.filter(c => c && c.ID) : [];
         console.log('validClients:', validClients.map(c => c.ID));
-        const client = validClients.find(c => c.ID.toString() === clientId.toString());
+
+        const client = validClients.find(c => String(c.ID) === String(clientId));
         if (!client) {
             console.error('Cliente no encontrado. clientId:', clientId, 'IDs disponibles:', validClients.map(c => c.ID));
             showToast('Cliente no encontrado', 'error');
