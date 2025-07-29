@@ -1099,16 +1099,35 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
             throw new Error('Factura no encontrada');
         }
 
-        // Obtener datos de la transacción desde la API
-        const transactionResponse = await fetch('https://sheetdb.io/api/v1/a7oekivxzreg7');
-        if (!transactionResponse.ok) {
-            throw new Error('Error al obtener datos de transacciones');
-        }
-
-        const transactions = await transactionResponse.json();
-        console.log('🔍 Total de transacciones en API:', transactions.length);
+        // Obtener datos de la transacción desde todas las hojas de la API
+        const sheets = ['BAC', 'BN', 'HuberBN'];
+        let transaction = null;
+        let foundInSheet = null;
         
-        let transaction = transactions.find(t => t.Referencia === transactionReference);
+        for (const sheet of sheets) {
+            try {
+                console.log(`🔍 Buscando transacción ${transactionReference} en ${sheet}...`);
+                const apiUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7?sheet=${sheet}`;
+                const response = await fetch(apiUrl);
+                
+                if (response.ok) {
+                    const sheetTransactions = await response.json();
+                    const found = Array.isArray(sheetTransactions) ? 
+                        sheetTransactions.find(t => t.Referencia === transactionReference) : null;
+                    
+                    if (found) {
+                        transaction = { ...found, banco: sheet };
+                        foundInSheet = sheet;
+                        console.log(`✅ Transacción encontrada en ${sheet}`);
+                        break;
+                    }
+                }
+            } catch (error) {
+                console.warn(`Error al buscar en ${sheet}:`, error);
+            }
+        }
+        
+        console.log('🔍 Total de hojas consultadas:', sheets.length);
         
         // ===== NUEVO: BUSCAR EN UNASSIGNEDPAYMENTS COMO RESPALDO =====
         if (!transaction) {
@@ -1128,7 +1147,7 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
                     FacturasAsignadas: localPayment.FacturasAsignadas || ''
                 };
             } else {
-                throw new Error('Transacción no encontrada en la base de datos ni en datos locales');
+                throw new Error(`Transacción ${transactionReference} no encontrada en ninguna hoja (BAC, BN, HuberBN) ni en datos locales`);
             }
         }
 
