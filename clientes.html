@@ -1191,8 +1191,12 @@
             ).length;
             
             const totalPending = invoices
-                .filter(inv => inv.Estado === 'Pendiente' || inv.Estado === 'Vencido')
-                .reduce((sum, inv) => sum + parseFloat(inv.MontoTotal || 0), 0);
+                .filter(inv => inv.Estado === 'Vencido')
+                .reduce((sum, inv) => {
+                    const montoBase = parseFloat(inv.MontoTotal || 0);
+                    const multas = parseFloat(inv.Multas || 0);
+                    return sum + montoBase + multas;
+                }, 0);
 
             document.getElementById('totalClients').textContent = totalClients;
             document.getElementById('activeContracts').textContent = activeContracts;
