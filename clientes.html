@@ -116,6 +116,7 @@
         .client-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            border-color: #007aff;
         }
 
         .client-card.editing {
@@ -1045,13 +1046,13 @@
                     if (hasContract) {
                         if (!isBilled) {
                             actionButton = `
-                                <button class="btn btn-success" onclick="billClient('${client.ID}')" id="billBtn-${client.ID}">
+                                <button class="btn btn-success" onclick="event.stopPropagation(); billClient('${client.ID}')" id="billBtn-${client.ID}">
                                     📄 Facturar
                                 </button>
                             `;
                         } else {
                             actionButton = `
-                                <button class="btn btn-warning" onclick="viewInvoices('${client.ID}')">
+                                <button class="btn btn-warning" onclick="event.stopPropagation(); viewInvoices('${client.ID}')">
                                     📋 Ver Facturas
                                 </button>
                             `;
@@ -1090,7 +1091,7 @@
                         `;
                     }
                     return `
-                        <div class="client-card ${isBilled ? 'billed' : ''}" id="card-${client.ID}">
+                        <div class="client-card ${isBilled ? 'billed' : ''}" id="card-${client.ID}" onclick="viewInvoices('${client.ID}')" style="cursor: pointer;">
                             <div class="client-header">
                                 <div class="client-info">
                                     <div class="client-name">${client.Nombre || 'Sin nombre'}</div>
@@ -1156,11 +1157,11 @@
                             </div>
                             ${billingStatusHtml}
                             <div class="client-actions" style="margin-top: 18px; justify-content: flex-start;">
-                                <button class="btn btn-secondary" onclick="editClient('${client.ID}')">
+                                <button class="btn btn-secondary" onclick="event.stopPropagation(); editClient('${client.ID}')">
                                     ✏️ Editar
                                 </button>
                                 ${actionButton}
-                                <button class="btn btn-danger" onclick="deleteClient('${client.ID}')">
+                                <button class="btn btn-danger" onclick="event.stopPropagation(); deleteClient('${client.ID}')">
                                     🗑️ Eliminar
                                 </button>
                             </div>
@@ -1541,12 +1542,7 @@
                 showToast('Cliente no encontrado', 'error');
                 return;
             }
-            const billingInfo = getClientBillingInfo(clientId);
-            if (billingInfo.status !== 'billed') {
-                showToast('Este cliente no tiene facturas generadas', 'warning');
-                return;
-            }
-            // Redirigir a la URL correcta
+            // Redirigir a la URL correcta - siempre permitir navegación
             window.location.href = `https://arrendautos.app/facturas.html?clientId=${clientId}`;
         }
 
