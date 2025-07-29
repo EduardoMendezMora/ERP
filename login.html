@@ -739,8 +739,11 @@
             }
         }
         
-        // Verificar sesión al cargar
-        checkExistingSession();
+        // Verificar sesión al cargar - DESHABILITADO TEMPORALMENTE
+        // checkExistingSession();
+        
+        // Redirigir directamente al dashboard principal
+        window.location.href = '/index.html?admin=true';
         
         // ============================================
         // FUNCIONES ADICIONALES DEL SISTEMA DE LOGIN
