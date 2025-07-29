@@ -1287,7 +1287,7 @@
                 document.getElementById('totalClients').textContent = totalClients;
                 document.getElementById('activeContracts').textContent = activeContracts;
                 document.getElementById('billedClients').textContent = billedClients;
-                document.getElementById('totalPending').textContent = `₡${totalPending.toLocaleString('es-CR')}`;
+                document.getElementById('totalPending').textContent = `₡${totalPending.toLocaleString('es-CR', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
             } catch (error) {
                 console.error('Error en updateStats:', error);
                 showToast('Error al actualizar estadísticas', 'error');
