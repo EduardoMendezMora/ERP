@@ -432,6 +432,89 @@
     </style>
 </head>
 <body>
+    <script>
+        // Verificar autenticación al cargar la página
+        function checkAuthentication() {
+            const session = localStorage.getItem('vendorSession');
+            
+            if (!session) {
+                console.log('❌ No hay sesión activa');
+                window.location.href = '/login.html';
+                return;
+            }
+            
+            try {
+                const sessionData = JSON.parse(session);
+                const now = new Date();
+                const expiresAt = new Date(sessionData.expiresAt);
+                
+                if (now >= expiresAt) {
+                    console.log('❌ Sesión expirada');
+                    localStorage.removeItem('vendorSession');
+                    window.location.href = '/login.html';
+                    return;
+                }
+                
+                // Verificar si el usuario tiene acceso a este módulo
+                if (sessionData.userRole !== 'SuperAdmin' && 
+                    (!sessionData.userModules || !sessionData.userModules.includes('usuarios'))) {
+                    console.log('❌ Usuario sin permisos para este módulo');
+                    alert('No tienes permisos para acceder a este módulo.');
+                    window.location.href = '/index.html';
+                    return;
+                }
+                
+                console.log('✅ Usuario autenticado:', sessionData.userName);
+                
+                // Mostrar información del usuario
+                const userInfo = document.createElement('div');
+                userInfo.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: white;
+                    padding: 15px 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                    z-index: 1000;
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                `;
+                userInfo.innerHTML = `
+                    <div>
+                        <div style="font-weight: 600; color: #333;">${sessionData.userName}</div>
+                        <div style="font-size: 0.8rem; color: #666;">${sessionData.userRole}</div>
+                    </div>
+                    <button onclick="logout()" style="
+                        background: #dc3545;
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 0.9rem;
+                    ">Cerrar Sesión</button>
+                `;
+                document.body.appendChild(userInfo);
+                
+            } catch (error) {
+                console.error('❌ Error verificando sesión:', error);
+                localStorage.removeItem('vendorSession');
+                window.location.href = '/login.html';
+            }
+        }
+        
+        // Función de logout
+        function logout() {
+            localStorage.removeItem('vendorSession');
+            window.location.href = '/login.html';
+        }
+        
+        // Ejecutar verificación al cargar
+        checkAuthentication();
+    </script>
+    
     <button class="back-btn" onclick="window.location.href='/'">← Volver</button>
     
     <div class="vendors-container">
