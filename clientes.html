@@ -1228,13 +1228,18 @@
                     })
                     .reduce((sum, inv) => {
                         // Parsear montos como enteros, no decimales
-                        const montoBase = parseInt(inv.MontoTotal || 0);
-                        const multas = parseInt(inv.Multas || 0);
+                        // Limpiar formato costarricense: "104.000" -> "104000"
+                        const montoBaseRaw = (inv.MontoTotal || '0').toString();
+                        const multasRaw = (inv.Multas || '0').toString();
+                        
+                        // Remover puntos (separadores de miles) y convertir a entero
+                        const montoBase = parseInt(montoBaseRaw.replace(/\./g, ''));
+                        const multas = parseInt(multasRaw.replace(/\./g, ''));
                         const subtotal = montoBase + multas;
                         
                         // Debug individual
                         if (montoBase > 0 || multas > 0) {
-                            console.log(`🔍 Factura ${inv.ID_Factura}: MontoBase=${montoBase}, Multas=${multas}, Subtotal=${subtotal}`);
+                            console.log(`🔍 Factura ${inv.ID_Factura}: Raw="${montoBaseRaw}"->${montoBase}, MultasRaw="${multasRaw}"->${multas}, Subtotal=${subtotal}`);
                         }
                         
                         return sum + subtotal;
