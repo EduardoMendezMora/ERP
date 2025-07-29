@@ -509,10 +509,21 @@ async function confirmAssignPayment() {
     confirmBtn.textContent = '⏳ Asignando...';
 
     try {
-        await assignPaymentToInvoice(
+        // ===== NUEVO: USAR SISTEMA DE TRANSACCIONES BANCARIAS =====
+        // Mapear el banco al nombre de la hoja correcto
+        const sheetName = currentPaymentForAssignment.BankSource === 'BN' ? 'BN' :
+                         currentPaymentForAssignment.BankSource === 'HuberBN' ? 'HuberBN' :
+                         currentPaymentForAssignment.BankSource === 'AutosubastasBAC' ? 'AutosubastasBAC' :
+                         currentPaymentForAssignment.BankSource === 'AutosubastasBN' ? 'AutosubastasBN' : 'BAC';
+        
+        // Obtener el monto del pago
+        const paymentAmount = parseFloat(currentPaymentForAssignment.Créditos || 0);
+        
+        await assignTransactionToInvoice(
             currentPaymentForAssignment.Referencia,
-            currentPaymentForAssignment.BankSource,
-            selectedInvoiceForPayment
+            sheetName,
+            selectedInvoiceForPayment,
+            paymentAmount // Pasar el monto esperado
         );
 
         closeAssignPaymentModal();
