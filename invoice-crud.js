@@ -987,8 +987,16 @@ async function sendAccountStatement(clientId) {
         if (!clientResponse.ok) throw new Error('Error al cargar cliente');
         const clients = await clientResponse.json();
         // Cambio aquí para evitar error si hay elementos undefined o sin ID
-        const client = clients.find(c => c && c.ID && c.ID.toString() === clientId.toString());
-        if (!client) throw new Error('Cliente no encontrado');
+        const validClients = Array.isArray(clients) ? clients.filter(c => c && c.ID) : [];
+        console.log('clients:', clients);
+        console.log('clientId:', clientId);
+        // Filtrar solo clientes válidos
+        const client = validClients.find(c => String(c.ID) === String(clientId));
+        if (!client) {
+            console.error('Cliente no encontrado. clientId:', clientId, 'IDs disponibles:', validClients.map(c => c.ID));
+            showToast('Cliente no encontrado', 'error');
+            return;
+        }
 
         const invoicesResponse = await fetch(`${API_CONFIG.INVOICES}?sheet=Facturas`);
         if (!invoicesResponse.ok) throw new Error('Error al cargar facturas');
