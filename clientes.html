@@ -1164,27 +1164,20 @@
                 renderClients(clients);
                 updateStats();
                 
-                // Mejorar experiencia de usuario: filtrar y mostrar solo el cliente facturado
-                const searchInput = document.getElementById('searchInput');
-                if (searchInput) {
-                    // Llenar el campo de búsqueda con el nombre del cliente
-                    searchInput.value = client.Nombre;
-                    // Filtrar la lista para mostrar solo este cliente
-                    filterClients(client.Nombre);
-                }
+                // ===== NUEVO: REDIRIGIR AUTOMÁTICAMENTE A LA PÁGINA DE FACTURAS =====
+                showToast(`✅ Cliente facturado exitosamente: ${invoicesData.length} facturas generadas. Redirigiendo a facturas...`, 'success');
                 
-                // Hacer scroll hacia la tarjeta del cliente
-                setTimeout(() => {
-                    const clientCard = document.getElementById(`card-${clientId}`);
-                    if (clientCard) {
-                        clientCard.scrollIntoView({ 
-                            behavior: 'smooth', 
-                            block: 'center' 
-                        });
+                // Mostrar contador regresivo y redirigir
+                let countdown = 3;
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        showToast(`🔄 Redirigiendo a facturas en ${countdown} segundos...`, 'warning');
+                    } else {
+                        clearInterval(countdownInterval);
+                        window.location.href = `https://arrendautos.app/facturas.html?clientId=${clientId}`;
                     }
-                }, 100);
-                
-                showToast(`✅ Cliente facturado exitosamente: ${invoicesData.length} facturas generadas`, 'success');
+                }, 1000);
                 
             } catch (error) {
                 console.error('Error al facturar cliente:', error);
