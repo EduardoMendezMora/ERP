@@ -964,6 +964,102 @@ function parseInvoicePayments(paymentsString) {
     }
 }
 
+// ===== FUNCIONES DE ENVÍO DE ESTADO DE CUENTA POR WHATSAPP =====
+async function sendAccountStatement(clientId) {
+    try {
+        // 1. Cargar datos del cliente y sus facturas
+        const clientResponse = await fetch(`${API_CONFIG.CLIENTS}?sheet=Clientes`);
+        if (!clientResponse.ok) throw new Error('Error al cargar cliente');
+        const clients = await clientResponse.json();
+        const client = clients.find(c => c.ID && c.ID.toString() === clientId.toString());
+        if (!client) throw new Error('Cliente no encontrado');
+
+        const invoicesResponse = await fetch(`${API_CONFIG.INVOICES}?sheet=Facturas`);
+        if (!invoicesResponse.ok) throw new Error('Error al cargar facturas');
+        const allInvoices = await invoicesResponse.json();
+        const clientInvoices = allInvoices.filter(inv => inv.ID_Cliente && inv.ID_Cliente.toString() === clientId.toString());
+
+        // 2. Filtrar facturas vencidas y pendientes
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const relevantInvoices = clientInvoices.filter(inv => {
+            if (!inv.Estado) return false;
+            if (inv.Estado === 'Pagado') return false;
+            // Considerar vencidas y pendientes
+            if (inv.Estado === 'Vencido') return true;
+            if (inv.Estado === 'Pendiente') {
+                // Si la fecha de vencimiento es hoy o antes, es relevante
+                if (inv.FechaVencimiento) {
+                    const dueDate = new Date(inv.FechaVencimiento);
+                    dueDate.setHours(0, 0, 0, 0);
+                    return dueDate <= today;
+                }
+            }
+            return false;
+        });
+        if (relevantInvoices.length === 0) {
+            showToast('No hay facturas vencidas o pendientes para este cliente.', 'info');
+            return;
+        }
+
+        // 3. Obtener grupo de WhatsApp
+        const destination = getWhatsAppDestination(client);
+        if (!destination || destination.type !== 'group') {
+            showToast('No se encontró grupo de WhatsApp para este cliente.', 'error');
+            return;
+        }
+        const groupId = destination.id;
+
+        // 4. Generar mensaje
+        const fechaHoy = new Date().toLocaleDateString('es-CR');
+        let message = `📋 Estado de cuenta - Arrendamiento\n`;
+        message += `📅 Fecha: ${fechaHoy}\n\n`;
+        message += `👤 ${client.Nombre || ''} / ${client.Placa || ''} / ${client.ID || ''}\n\n`;
+        let totalPendiente = 0;
+        relevantInvoices.forEach(inv => {
+            const montoOriginal = parseFloat(inv.MontoBase || 0);
+            const multa = parseFloat(inv.MontoMultas || 0);
+            const total = parseFloat(inv.MontoTotal || montoOriginal + multa);
+            totalPendiente += total;
+            const diasVencido = inv.DiasAtraso || '0';
+            const fechaVenc = inv.FechaVencimiento || '';
+            const numFactura = inv.NumeroFactura || '';
+            const semanaDesc = inv.SemanaDescripcion || '';
+            message += `* ${numFactura} (${semanaDesc})\n`;
+            message += `▶️ Fecha: ${fechaVenc}\n`;
+            message += `▶️ Días vencido: ${diasVencido}\n`;
+            message += `▶️ Monto original: ₡ ${montoOriginal.toLocaleString('es-CR')}\n`;
+            message += `▶️ Multa: ₡ ${multa.toLocaleString('es-CR')}\n`;
+            message += `✅ Total a pagar: ₡ ${total.toLocaleString('es-CR')}\n\n`;
+        });
+        message += `📊 Total Pendiente: ₡ ${totalPendiente.toLocaleString('es-CR')}\n`;
+        message += '──────────────────────────────\n\n';
+        message += 'Por favor atender los saldos pendientes. Si ya realizó el pago omita este mensaje, nuestro Departamento Contable lo aplicará pronto. ¡Gracias! 🙏';
+
+        // 5. Enviar mensaje por UltraMSG
+        const url = `${ULTRAMSG_CONFIG.BASE_URL}/${ULTRAMSG_CONFIG.INSTANCE_ID}/messages/chat`;
+        const payload = {
+            token: ULTRAMSG_CONFIG.TOKEN,
+            to: groupId,
+            body: message
+        };
+        showToast('Enviando estado de cuenta por WhatsApp...', 'info');
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error UltraMSG: ${errorText}`);
+        }
+        showToast('Estado de cuenta enviado exitosamente al grupo de WhatsApp.', 'success');
+    } catch (error) {
+        console.error('❌ Error al enviar estado de cuenta:', error);
+        showToast('Error al enviar estado de cuenta: ' + error.message, 'error');
+    }
+}
+
 // ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
 window.openManualInvoiceModal = openManualInvoiceModal;
 window.closeManualInvoiceModal = closeManualInvoiceModal;
@@ -980,5 +1076,6 @@ window.renderClientDetails = renderClientDetails;
 window.updateStatsWithoutPending = updateStatsWithoutPending;
 window.renderInvoicesSection = renderInvoicesSection;
 window.parseInvoicePayments = parseInvoicePayments;
+window.sendAccountStatement = sendAccountStatement;
 
 console.log('✅ invoice-crud.js cargado - Sistema CRUD de facturas');
