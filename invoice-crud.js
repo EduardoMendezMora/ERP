@@ -319,18 +319,25 @@ async function loadClientAndInvoices(clientId) {
         const clientsData = await clientResponse.json();
         const clients = Array.isArray(clientsData) ? clientsData : [];
 
-        // ✅ FIX: Encontrar cliente y asignar a AMBAS variables
-        const foundClient = clients.find(c => c.ID && c.ID.toString() === clientId.toString());
+        // Depuración: mostrar clientes y clientId
+        console.log('clients:', clients);
+        console.log('clientId:', clientId);
 
-        if (!foundClient) {
-            throw new Error('Cliente no encontrado con ID: ' + clientId);
+        // Filtrar solo clientes válidos
+        const validClients = Array.isArray(clients) ? clients.filter(c => c && c.ID) : [];
+        console.log('validClients:', validClients.map(c => c.ID));
+        const client = validClients.find(c => c.ID.toString() === clientId.toString());
+        if (!client) {
+            console.error('Cliente no encontrado. clientId:', clientId, 'IDs disponibles:', validClients.map(c => c.ID));
+            showToast('Cliente no encontrado', 'error');
+            return;
         }
 
         // ✅ CRÍTICO: Actualizar AMBAS variables (local y global)
-        currentClient = foundClient;
-        window.currentClient = foundClient;  // ⭐ ESTO FALTABA
+        currentClient = client;
+        window.currentClient = client;  // ⭐ ESTO FALTABA
 
-        console.log('✅ Cliente encontrado:', foundClient.Nombre);
+        console.log('✅ Cliente encontrado:', client.Nombre);
         console.log('🔗 Variables sincronizadas - currentClient y window.currentClient actualizadas');
 
         // Cargar facturas
