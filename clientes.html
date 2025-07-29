@@ -1213,44 +1213,76 @@
                 });
             
                 const totalPending = invoices
-                    .filter(inv => inv.Estado === 'Vencido')
+                    .filter(inv => {
+                        // Incluir facturas con estado "Vencido" O facturas pendientes que ya vencieron
+                        if (inv.Estado === 'Vencido') return true;
+                        
+                        // Verificar si es una factura pendiente que ya venció
+                        if (inv.Estado === 'Pendiente' && inv.FechaVencimiento) {
+                            const fechaVencimiento = parseDate(inv.FechaVencimiento);
+                            const hoy = new Date();
+                            return fechaVencimiento < hoy;
+                        }
+                        
+                        return false;
+                    })
                     .reduce((sum, inv) => {
                         const montoBase = parseFloat(inv.MontoTotal || 0);
                         const multas = parseFloat(inv.Multas || 0);
                         return sum + montoBase + multas;
                     }, 0);
 
-                // Debug: Mostrar información sobre las facturas
-                console.log('🔍 DEBUG - Cálculo POR COBRAR:');
-                console.log('Total facturas cargadas:', invoices.length);
-                console.log('Facturas vencidas:', invoices.filter(inv => inv.Estado === 'Vencido').length);
-                console.log('Facturas por estado:', invoices.reduce((acc, inv) => {
-                    acc[inv.Estado] = (acc[inv.Estado] || 0) + 1;
-                    return acc;
-                }, {}));
-                
-                // Mostrar todos los estados únicos para verificar
-                const estadosUnicos = [...new Set(invoices.map(inv => inv.Estado))];
-                console.log('📊 Estados únicos encontrados:', estadosUnicos);
-                
-                const facturasVencidas = invoices.filter(inv => inv.Estado === 'Vencido');
-                if (facturasVencidas.length > 0) {
-                    console.log('📋 Detalle facturas vencidas:');
-                    facturasVencidas.forEach(inv => {
-                        console.log(`- ${inv.ID_Factura}: Monto=${inv.MontoTotal}, Multas=${inv.Multas}, Estado=${inv.Estado}`);
-                    });
+            // Debug: Mostrar información sobre las facturas
+            console.log('🔍 DEBUG - Cálculo POR COBRAR:');
+            console.log('Total facturas cargadas:', invoices.length);
+            
+            // Verificar facturas vencidas por estado
+            const facturasVencidasPorEstado = invoices.filter(inv => inv.Estado === 'Vencido');
+            console.log('Facturas con estado "Vencido":', facturasVencidasPorEstado.length);
+            
+            // Verificar facturas pendientes que ya vencieron
+            const facturasPendientesVencidas = invoices.filter(inv => {
+                if (inv.Estado === 'Pendiente' && inv.FechaVencimiento) {
+                    const fechaVencimiento = parseDate(inv.FechaVencimiento);
+                    const hoy = new Date();
+                    return fechaVencimiento < hoy;
                 }
-                
-                // También mostrar algunas facturas pendientes para verificar fechas
-                const facturasPendientes = invoices.filter(inv => inv.Estado === 'Pendiente').slice(0, 5);
-                if (facturasPendientes.length > 0) {
-                    console.log('📋 Muestra de facturas pendientes:');
-                    facturasPendientes.forEach(inv => {
-                        console.log(`- ${inv.ID_Factura}: Monto=${inv.MontoTotal}, FechaVencimiento=${inv.FechaVencimiento}, Estado=${inv.Estado}`);
-                    });
+                return false;
+            });
+            console.log('Facturas pendientes que ya vencieron:', facturasPendientesVencidas.length);
+            
+            console.log('Facturas por estado:', invoices.reduce((acc, inv) => {
+                acc[inv.Estado] = (acc[inv.Estado] || 0) + 1;
+                return acc;
+            }, {}));
+            
+            // Mostrar todos los estados únicos para verificar
+            const estadosUnicos = [...new Set(invoices.map(inv => inv.Estado))];
+            console.log('📊 Estados únicos encontrados:', estadosUnicos);
+            
+            // Mostrar detalle de facturas vencidas por estado
+            if (facturasVencidasPorEstado.length > 0) {
+                console.log('📋 Detalle facturas con estado "Vencido":');
+                facturasVencidasPorEstado.forEach(inv => {
+                    console.log(`- ${inv.ID_Factura}: Monto=${inv.MontoTotal}, Multas=${inv.Multas}, Estado=${inv.Estado}`);
+                });
+            }
+            
+            // Mostrar detalle de facturas pendientes que ya vencieron
+            if (facturasPendientesVencidas.length > 0) {
+                console.log('📋 Detalle facturas pendientes vencidas:');
+                facturasPendientesVencidas.slice(0, 10).forEach(inv => {
+                    const fechaVencimiento = parseDate(inv.FechaVencimiento);
+                    const hoy = new Date();
+                    const diasVencida = Math.floor((hoy - fechaVencimiento) / (1000 * 60 * 60 * 24));
+                    console.log(`- ${inv.ID_Factura}: Monto=${inv.MontoTotal}, FechaVencimiento=${inv.FechaVencimiento}, Vencida hace ${diasVencida} días`);
+                });
+                if (facturasPendientesVencidas.length > 10) {
+                    console.log(`... y ${facturasPendientesVencidas.length - 10} más`);
                 }
-                
-                console.log('💰 Total POR COBRAR calculado:', totalPending);
+            }
+            
+            console.log('💰 Total POR COBRAR calculado:', totalPending);
 
                 document.getElementById('totalClients').textContent = totalClients;
                 document.getElementById('activeContracts').textContent = activeContracts;
