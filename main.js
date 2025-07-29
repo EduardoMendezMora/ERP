@@ -1112,10 +1112,28 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         const transactions = await transactionResponse.json();
         console.log('🔍 Total de transacciones en API:', transactions.length);
         
-        const transaction = transactions.find(t => t.Referencia === transactionReference);
+        let transaction = transactions.find(t => t.Referencia === transactionReference);
         
+        // ===== NUEVO: BUSCAR EN UNASSIGNEDPAYMENTS COMO RESPALDO =====
         if (!transaction) {
-            throw new Error('Transacción no encontrada en la base de datos');
+            console.log('🔍 Transacción no encontrada en API, buscando en unassignedPayments...');
+            const localPayment = unassignedPayments.find(p => 
+                p.Referencia === transactionReference && p.BankSource === bank
+            );
+            
+            if (localPayment) {
+                console.log('✅ Transacción encontrada en datos locales');
+                // Convertir el formato de unassignedPayments al formato de transacciones
+                transaction = {
+                    Referencia: localPayment.Referencia,
+                    Créditos: localPayment.Créditos,
+                    Fecha: localPayment.Fecha,
+                    banco: localPayment.BankSource,
+                    FacturasAsignadas: localPayment.FacturasAsignadas || ''
+                };
+            } else {
+                throw new Error('Transacción no encontrada en la base de datos ni en datos locales');
+            }
         }
 
         // Parsear el monto de la transacción
