@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Vendedores - EasyCars</title>
+    <title>Gestión de Usuarios - EasyCars</title>
     <link rel="stylesheet" href="styles.css">
     <style>
         .vendors-container {
@@ -154,6 +154,26 @@
         .status-inactive {
             background: #f8d7da;
             color: #721c24;
+        }
+        
+        .status-superadmin {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-admin {
+            background: #cce5ff;
+            color: #004085;
+        }
+        
+        .status-vendor {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-user {
+            background: #e2e3e5;
+            color: #383d41;
         }
         
         .action-buttons {
@@ -416,21 +436,21 @@
     
     <div class="vendors-container">
         <div class="vendors-header">
-            <h1 class="vendors-title">Gestión de Vendedores</h1>
-            <p class="vendors-subtitle">Administra el equipo de vendedores</p>
+            <h1 class="vendors-title">Gestión de Usuarios</h1>
+            <p class="vendors-subtitle">Administra usuarios y permisos del sistema</p>
             <button class="add-vendor-btn" onclick="openAddVendorModal()">
-                + Agregar Vendedor
+                + Agregar Usuario
             </button>
         </div>
         
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-number" id="totalVendors">-</div>
-                <div class="stat-label">Total Vendedores</div>
+                <div class="stat-label">Total Usuarios</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="activeVendors">-</div>
-                <div class="stat-label">Vendedores Activos</div>
+                <div class="stat-label">Usuarios Activos</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="totalClients">-</div>
@@ -438,21 +458,21 @@
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="avgClientsPerVendor">-</div>
-                <div class="stat-label">Promedio Clientes/Vendedor</div>
+                <div class="stat-label">Promedio Clientes/Usuario</div>
             </div>
         </div>
         
         <div class="vendors-section">
             <div class="section-header">
-                <h2 class="section-title">Lista de Vendedores</h2>
+                <h2 class="section-title">Lista de Usuarios</h2>
                 <div class="search-box">
                     <input type="text" id="searchVendors" class="search-input" 
-                           placeholder="Buscar vendedor..." oninput="filterVendors()">
+                           placeholder="Buscar usuario..." oninput="filterVendors()">
                 </div>
             </div>
             <div id="vendorsTableContainer">
                 <div style="text-align: center; padding: 40px; color: #666;">
-                    Cargando vendedores...
+                    Cargando usuarios...
                 </div>
             </div>
         </div>
@@ -462,13 +482,13 @@
     <div id="vendorModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title" id="modalTitle">Agregar Vendedor</h3>
+                <h3 class="modal-title" id="modalTitle">Agregar Usuario</h3>
                 <button class="close-modal" onclick="closeVendorModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="vendorForm">
                     <div class="form-group">
-                        <label class="form-label">ID de Vendedor *</label>
+                        <label class="form-label">ID de Usuario *</label>
                         <input type="text" id="vendorId" class="form-input" required 
                                placeholder="112220831" maxlength="9" 
                                oninput="this.value = this.value.replace(/[^0-9]/g, '')">
@@ -487,10 +507,40 @@
                                    placeholder="8888-8888" maxlength="15">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Email</label>
-                            <input type="email" id="vendorEmail" class="form-input" 
-                                   placeholder="vendedor@email.com" maxlength="100">
+                            <label class="form-label">Rol *</label>
+                            <select id="vendorRole" class="form-input" required>
+                                <option value="">-- Seleccionar rol --</option>
+                                <option value="SuperAdmin">Super Administrador</option>
+                                <option value="Admin">Administrador</option>
+                                <option value="Vendedor">Vendedor</option>
+                                <option value="Usuario">Usuario</option>
+                            </select>
                         </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Módulos Permitidos</label>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" value="clientes" onchange="updateModules()"> Clientes
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" value="facturas" onchange="updateModules()"> Facturas
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" value="transacciones" onchange="updateModules()"> Transacciones
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" value="crm" onchange="updateModules()"> CRM
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" value="usuarios" onchange="updateModules()"> Usuarios
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" value="reportes" onchange="updateModules()"> Reportes
+                            </label>
+                        </div>
+                        <input type="hidden" id="vendorModules" class="form-input">
                     </div>
                     
                     <div class="form-row">
@@ -525,7 +575,7 @@
                 <button class="btn-cancel" onclick="closeVendorModal()">Cancelar</button>
                 <button class="btn-save" onclick="saveVendor()" id="saveVendorBtn">
                     <span class="loading-spinner" style="display: none;"></span>
-                    Guardar Vendedor
+                    Guardar Usuario
                 </button>
             </div>
         </div>
@@ -539,7 +589,7 @@
         
         // Inicializar la aplicación
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Inicializando gestión de vendedores...');
+            console.log('🚀 Inicializando gestión de usuarios...');
             
             // Verificar si es super administrador
             checkAdminAccess();
@@ -582,14 +632,14 @@
             window.location.href = '/login.html';
         }
         
-        // Cargar datos de vendedores
+        // Cargar datos de usuarios
         async function loadVendorsData() {
             try {
-                console.log('📊 Cargando datos de vendedores...');
+                console.log('📊 Cargando datos de usuarios...');
                 
-                // Cargar vendedores y clientes en paralelo
+                // Cargar usuarios y clientes en paralelo
                 const [vendorsResponse, clientsResponse] = await Promise.all([
-                    fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Vendedores'),
+                    fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Usuarios'),
                     fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy')
                 ]);
                 
@@ -601,7 +651,7 @@
                 allClients = await clientsResponse.json();
                 
                 console.log('✅ Datos cargados:', {
-                    vendors: allVendors.length,
+                    users: allVendors.length,
                     clients: allClients.length
                 });
                 
@@ -616,7 +666,7 @@
         
         // Procesar datos de vendedores
         function processVendorsData() {
-            console.log('🔍 Procesando datos de vendedores...');
+            console.log('🔍 Procesando datos de usuarios...');
             
             // Calcular estadísticas
             const totalVendors = allVendors.length;
@@ -644,15 +694,22 @@
             document.getElementById('avgClientsPerVendor').textContent = stats.avgClientsPerVendor;
         }
         
-        // Mostrar tabla de vendedores
+        // Actualizar módulos seleccionados
+        function updateModules() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+            const modules = Array.from(checkboxes).map(cb => cb.value).join(',');
+            document.getElementById('vendorModules').value = modules;
+        }
+        
+        // Mostrar tabla de usuarios
         function displayVendorsTable(vendors) {
             const container = document.getElementById('vendorsTableContainer');
             
             if (vendors.length === 0) {
                 container.innerHTML = `
                     <div style="text-align: center; padding: 60px 20px; color: #666;">
-                        <h3>No hay vendedores registrados</h3>
-                        <p>Agrega el primer vendedor para comenzar.</p>
+                        <h3>No hay usuarios registrados</h3>
+                        <p>Agrega el primer usuario para comenzar.</p>
                     </div>
                 `;
                 return;
@@ -665,32 +722,30 @@
                             <th>ID</th>
                             <th>Nombre</th>
                             <th>Teléfono</th>
-                            <th>Email</th>
-                            <th>Instancia</th>
+                            <th>Rol</th>
+                            <th>Módulos</th>
                             <th>Estado</th>
-                            <th>Clientes</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${vendors.map(vendor => {
-                            const clientCount = allClients.filter(client => 
-                                client.ID_Vendedor === vendor.id
-                            ).length;
-                            
                             return `
                                 <tr>
                                     <td class="vendor-id">${vendor.id}</td>
                                     <td>${vendor.nombre || 'Sin nombre'}</td>
                                     <td>${vendor.telefono || 'No especificado'}</td>
-                                    <td>${vendor.email || 'No especificado'}</td>
-                                    <td>${vendor.instancia || 'No especificado'}</td>
+                                    <td>
+                                        <span class="vendor-status ${getRoleColor(vendor.rol)}">
+                                            ${vendor.rol || 'Sin rol'}
+                                        </span>
+                                    </td>
+                                    <td>${vendor.modulos || 'Sin módulos'}</td>
                                     <td>
                                         <span class="vendor-status ${vendor.estado === 'Activo' ? 'status-active' : 'status-inactive'}">
                                             ${vendor.estado || 'Activo'}
                                         </span>
                                     </td>
-                                    <td>${clientCount}</td>
                                     <td>
                                         <div class="action-buttons">
                                             <button class="btn-edit" onclick="editVendor('${vendor.id}')">
@@ -711,6 +766,17 @@
             container.innerHTML = tableHTML;
         }
         
+        // Obtener color del rol
+        function getRoleColor(rol) {
+            switch(rol) {
+                case 'SuperAdmin': return 'status-superadmin';
+                case 'Admin': return 'status-admin';
+                case 'Vendedor': return 'status-vendor';
+                case 'Usuario': return 'status-user';
+                default: return 'status-inactive';
+            }
+        }
+        
         // Filtrar vendedores
         function filterVendors() {
             const searchTerm = document.getElementById('searchVendors').value.toLowerCase();
@@ -726,10 +792,10 @@
         
         // Abrir modal para agregar vendedor
         function openAddVendorModal() {
-            console.log('📝 Abriendo modal para agregar vendedor...');
+            console.log('📝 Abriendo modal para agregar usuario...');
             editingVendor = null;
             
-            document.getElementById('modalTitle').textContent = 'Agregar Vendedor';
+            document.getElementById('modalTitle').textContent = 'Agregar Usuario';
             document.getElementById('vendorForm').reset();
             document.getElementById('vendorModal').style.display = 'block';
             
@@ -741,25 +807,25 @@
         
         // Cerrar modal
         function closeVendorModal() {
-            console.log('❌ Cerrando modal de vendedor...');
+            console.log('❌ Cerrando modal de usuario...');
             document.getElementById('vendorModal').style.display = 'none';
             editingVendor = null;
         }
         
         // Editar vendedor
         function editVendor(vendorId) {
-            console.log('✏️ Editando vendedor:', vendorId);
+            console.log('✏️ Editando usuario:', vendorId);
             
             const vendor = allVendors.find(v => v.ID === vendorId);
             if (!vendor) {
-                showToast('Vendedor no encontrado.', 'error');
+                showToast('Usuario no encontrado.', 'error');
                 return;
             }
             
             editingVendor = vendor;
             
             // Llenar formulario
-            document.getElementById('modalTitle').textContent = 'Editar Vendedor';
+            document.getElementById('modalTitle').textContent = 'Editar Usuario';
             document.getElementById('vendorId').value = vendor.id;
             document.getElementById('vendorId').disabled = true; // No permitir cambiar ID
             document.getElementById('vendorName').value = vendor.nombre || '';
@@ -790,7 +856,8 @@
                 id: document.getElementById('vendorId').value.trim(),
                 nombre: document.getElementById('vendorName').value.trim(),
                 telefono: document.getElementById('vendorPhone').value.trim(),
-                email: document.getElementById('vendorEmail').value.trim(),
+                rol: document.getElementById('vendorRole').value,
+                modulos: document.getElementById('vendorModules').value.trim(),
                 instancia: document.getElementById('vendorInstance').value.trim(),
                 token: document.getElementById('vendorToken').value.trim(),
                 estado: document.getElementById('vendorStatus').value,
@@ -798,7 +865,7 @@
                 fechaRegistro: editingVendor ? editingVendor.fechaRegistro : new Date().toLocaleDateString('es-CR')
             };
             
-            console.log('💾 Guardando vendedor:', vendorData);
+            console.log('💾 Guardando usuario:', vendorData);
             
             // Mostrar loading
             saveBtn.disabled = true;
@@ -809,7 +876,7 @@
                 let response;
                 
                 if (editingVendor) {
-                    // Actualizar vendedor existente
+                    // Actualizar usuario existente
                     response = await fetch(`https://sheetdb.io/api/v1/qu62bagiwlgqy/ID/${vendorData.id}?sheet=Vendedores`, {
                         method: 'PATCH',
                         headers: {
@@ -818,7 +885,7 @@
                         body: JSON.stringify(vendorData)
                     });
                 } else {
-                    // Crear nuevo vendedor
+                    // Crear nuevo usuario
                     response = await fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Vendedores', {
                         method: 'POST',
                         headers: {
@@ -833,10 +900,10 @@
                 }
                 
                 const result = await response.json();
-                console.log('✅ Vendedor guardado exitosamente:', result);
+                console.log('✅ Usuario guardado exitosamente:', result);
                 
                 // Mostrar mensaje de éxito
-                showToast(`Vendedor ${editingVendor ? 'actualizado' : 'agregado'} exitosamente!`, 'success');
+                showToast(`Usuario ${editingVendor ? 'actualizado' : 'agregado'} exitosamente!`, 'success');
                 
                 // Cerrar modal
                 closeVendorModal();
@@ -845,23 +912,23 @@
                 await loadVendorsData();
                 
             } catch (error) {
-                console.error('❌ Error guardando vendedor:', error);
-                showToast('Error al guardar el vendedor. Intenta de nuevo.', 'error');
+                console.error('❌ Error guardando usuario:', error);
+                showToast('Error al guardar el usuario. Intenta de nuevo.', 'error');
             } finally {
                 // Restaurar botón
                 saveBtn.disabled = false;
                 spinner.style.display = 'none';
-                saveBtn.innerHTML = 'Guardar Vendedor';
+                saveBtn.innerHTML = 'Guardar Usuario';
             }
         }
         
         // Eliminar vendedor
         async function deleteVendor(vendorId) {
-            if (!confirm('¿Estás seguro de que quieres eliminar este vendedor?')) {
+            if (!confirm('¿Estás seguro de que quieres eliminar este usuario?')) {
                 return;
             }
             
-            console.log('🗑️ Eliminando vendedor:', vendorId);
+            console.log('🗑️ Eliminando usuario:', vendorId);
             
             try {
                 const response = await fetch(`https://sheetdb.io/api/v1/qu62bagiwlgqy/ID/${vendorId}?sheet=Vendedores`, {
@@ -872,15 +939,15 @@
                     throw new Error(`Error ${response.status}: ${response.statusText}`);
                 }
                 
-                console.log('✅ Vendedor eliminado exitosamente');
-                showToast('Vendedor eliminado exitosamente!', 'success');
+                console.log('✅ Usuario eliminado exitosamente');
+                showToast('Usuario eliminado exitosamente!', 'success');
                 
                 // Recargar datos
                 await loadVendorsData();
                 
             } catch (error) {
-                console.error('❌ Error eliminando vendedor:', error);
-                showToast('Error al eliminar el vendedor. Intenta de nuevo.', 'error');
+                console.error('❌ Error eliminando usuario:', error);
+                showToast('Error al eliminar el usuario. Intenta de nuevo.', 'error');
             }
         }
         

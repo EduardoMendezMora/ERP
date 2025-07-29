@@ -129,9 +129,10 @@
         const urlParams = new URLSearchParams(window.location.search);
         const isAdmin = urlParams.get('admin') === 'true';
         const isVendor = urlParams.get('vendor') === 'true';
+        const isUser = urlParams.get('user') === 'true';
         
         // Si no hay parámetros de autenticación, verificar sesión
-        if (!isAdmin && !isVendor) {
+        if (!isAdmin && !isVendor && !isUser) {
           const session = localStorage.getItem('vendorSession');
           
           if (session) {
@@ -142,10 +143,12 @@
             if (now < expiresAt) {
               console.log('✅ Sesión válida encontrada');
               // Redirigir con parámetros de sesión
-              if (sessionData.vendorId === '112220831') {
+              if (sessionData.userRole === 'SuperAdmin') {
                 window.location.href = '/index.html?admin=true';
+              } else if (sessionData.userRole === 'Vendedor') {
+                window.location.href = '/crm.html?vendor=true';
               } else {
-                window.location.href = '/index.html?vendor=true';
+                window.location.href = '/index.html?user=true';
               }
               return;
             } else {
@@ -175,18 +178,64 @@
       // Verificar si es super administrador
       const isAdmin = params.get('admin') === 'true';
       const isVendor = params.get('vendor') === 'true';
+      const isUser = params.get('user') === 'true';
       
-      // Mostrar botón de gestión de vendedores solo para super admin
-      if (isAdmin) {
+      // Obtener módulos del usuario desde la sesión
+      let userModules = [];
+      const session = localStorage.getItem('vendorSession');
+      if (session) {
+        const sessionData = JSON.parse(session);
+        userModules = sessionData.userModules || [];
+      }
+      
+      // Mostrar botones según permisos
+      if (isAdmin || isUser) {
         document.addEventListener('DOMContentLoaded', function() {
           const buttonGroup = document.querySelector('.button-group');
-          const adminButton = document.createElement('button');
-          adminButton.className = 'main-btn tertiary';
-          adminButton.onclick = function() {
-            window.location.href = '/vendedores.html?admin=true';
-          };
-          adminButton.textContent = 'Gestión Vendedores';
-          buttonGroup.appendChild(adminButton);
+          
+          // Botón de Clientes
+          if (isAdmin || userModules.includes('clientes')) {
+            const clientesBtn = document.createElement('button');
+            clientesBtn.className = 'main-btn';
+            clientesBtn.onclick = function() {
+              window.location.href = '/clientes.html?admin=' + (isAdmin ? 'true' : 'false');
+            };
+            clientesBtn.textContent = 'Clientes';
+            buttonGroup.appendChild(clientesBtn);
+          }
+          
+          // Botón de Transacciones
+          if (isAdmin || userModules.includes('transacciones')) {
+            const transaccionesBtn = document.createElement('button');
+            transaccionesBtn.className = 'main-btn secondary';
+            transaccionesBtn.onclick = function() {
+              window.location.href = '/transacciones.html?admin=' + (isAdmin ? 'true' : 'false');
+            };
+            transaccionesBtn.textContent = 'Transacciones';
+            buttonGroup.appendChild(transaccionesBtn);
+          }
+          
+          // Botón de CRM
+          if (isAdmin || userModules.includes('crm')) {
+            const crmBtn = document.createElement('button');
+            crmBtn.className = 'main-btn tertiary';
+            crmBtn.onclick = function() {
+              window.location.href = '/crm.html?admin=' + (isAdmin ? 'true' : 'false');
+            };
+            crmBtn.textContent = 'CRM';
+            buttonGroup.appendChild(crmBtn);
+          }
+          
+          // Botón de Gestión de Usuarios (solo SuperAdmin)
+          if (isAdmin && userModules.includes('usuarios')) {
+            const usuariosBtn = document.createElement('button');
+            usuariosBtn.className = 'main-btn tertiary';
+            usuariosBtn.onclick = function() {
+              window.location.href = '/vendedores.html?admin=true';
+            };
+            usuariosBtn.textContent = 'Gestión Usuarios';
+            buttonGroup.appendChild(usuariosBtn);
+          }
         });
       }
       

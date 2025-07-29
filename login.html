@@ -399,34 +399,24 @@
             validateBtn.innerHTML = '<span class="loading"></span>Validando...';
             
             try {
-                // Buscar vendedor en la API
-                const response = await fetch(`https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Vendedores&id=${vendorId}`);
+                // Buscar usuario en la API
+                const response = await fetch(`https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Usuarios&id=${vendorId}`);
                 
                 if (!response.ok) {
                     throw new Error('Error al conectar con el servidor');
                 }
                 
-                const vendors = await response.json();
+                const users = await response.json();
                 
-                if (vendors.length === 0) {
-                    showMessage('ID de vendedor no encontrado.', 'error');
+                if (users.length === 0) {
+                    showMessage('ID de usuario no encontrado.', 'error');
                     return;
                 }
                 
-                currentVendor = vendors[0];
-                console.log('✅ Vendedor encontrado:', currentVendor);
+                currentVendor = users[0];
+                console.log('✅ Usuario encontrado:', currentVendor);
                 
-                // Verificar si es super administrador
-                if (vendorId === '112220831') {
-                    console.log('👑 Super administrador detectado');
-                    showMessage('Acceso directo como Super Administrador.', 'success');
-                    setTimeout(() => {
-                        window.location.href = '/index.html?admin=true';
-                    }, 1500);
-                    return;
-                }
-                
-                // Para vendedores regulares, enviar código SMS
+                // TODOS los usuarios necesitan autenticación por SMS
                 await sendVerificationCode();
                 
             } catch (error) {
@@ -522,8 +512,10 @@
                     
                     // Guardar sesión
                     const session = {
-                        vendorId: currentVendor.id,
-                        vendorName: currentVendor.nombre,
+                        userId: currentVendor.id,
+                        userName: currentVendor.nombre,
+                        userRole: currentVendor.rol,
+                        userModules: currentVendor.modulos ? currentVendor.modulos.split(',') : [],
                         loginTime: new Date().toISOString(),
                         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 horas
                     };
@@ -533,7 +525,14 @@
                     showMessage('¡Acceso exitoso! Redirigiendo...', 'success');
                     
                     setTimeout(() => {
-                        window.location.href = '/index.html?vendor=true';
+                        // Redirigir según el rol del usuario
+                        if (session.userRole === 'SuperAdmin') {
+                            window.location.href = '/index.html?admin=true';
+                        } else if (session.userRole === 'Vendedor') {
+                            window.location.href = '/crm.html?vendor=true';
+                        } else {
+                            window.location.href = '/index.html?user=true';
+                        }
                     }, 1500);
                     
                 } else {
