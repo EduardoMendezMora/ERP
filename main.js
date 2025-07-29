@@ -1510,12 +1510,16 @@ function parsePaymentAmountByBank(creditValue, bank) {
     const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
     
     if (bank === 'BAC') {
-        // BAC usa comas como separador decimal (ej: 20.000,00)
+        // BAC usa formato europeo: punto como separador de miles, coma como decimal
+        // Ejemplos: 129.000,00 o 129.000
         if (cleanValue.includes(',')) {
+            // Tiene decimales: 129.000,00 -> 129000.00
             const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
             return parseFloat(normalizedValue);
         } else {
-            return parseFloat(cleanValue);
+            // No tiene decimales: 129.000 -> 129000
+            const normalizedValue = cleanValue.replace(/\./g, '');
+            return parseFloat(normalizedValue);
         }
     } else if (bank === 'BN') {
         // BN usa punto como separador de miles (ej: 100.000)
