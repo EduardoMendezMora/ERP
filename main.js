@@ -517,7 +517,7 @@ async function confirmAssignPayment() {
                          currentPaymentForAssignment.BankSource === 'AutosubastasBN' ? 'AutosubastasBN' : 'BAC';
         
         // Obtener el monto del pago
-        const paymentAmount = parseFloat(currentPaymentForAssignment.Créditos || 0);
+        const paymentAmount = parsePaymentAmountByBank(currentPaymentForAssignment.Créditos, sheetName);
         
         await assignTransactionToInvoice(
             currentPaymentForAssignment.Referencia,
@@ -849,36 +849,8 @@ async function loadTransactionsTab() {
                 // Limpiar el valor de espacios y caracteres extraños
                 const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
                 
-                // Convertir a número según el banco
-                if (bank === 'BAC') {
-                    // BAC usa comas como separador decimal (ej: 20.000,00)
-                    if (cleanValue.includes(',')) {
-                        // Reemplazar punto por nada y coma por punto
-                        const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
-                        amount = parseFloat(normalizedValue);
-                    } else {
-                        amount = parseFloat(cleanValue);
-                    }
-                } else if (bank === 'BN') {
-                    // BN usa punto como separador de miles (ej: 100.000)
-                    if (cleanValue.includes(',')) {
-                        // Si tiene coma, es decimal (ej: 100.000,50)
-                        const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
-                        amount = parseFloat(normalizedValue);
-                    } else {
-                        // Solo punto como separador de miles (ej: 100.000)
-                        const normalizedValue = cleanValue.replace(/\./g, '');
-                        amount = parseFloat(normalizedValue);
-                    }
-                } else {
-                    // Otros bancos (HuberBN, etc.) - usar lógica general
-                    if (cleanValue.includes(',')) {
-                        // Si tiene coma, reemplazarla por punto
-                        amount = parseFloat(cleanValue.replace(',', '.'));
-                    } else {
-                        amount = parseFloat(cleanValue);
-                    }
-                }
+                // Convertir a número según el banco usando la función centralizada
+                const amount = parsePaymentAmountByBank(creditValue, bank);
                 
                 // Verificar que sea un número válido
                 if (isNaN(amount)) {
@@ -1154,45 +1126,8 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         console.log('   - Tipo de dato:', typeof creditValue);
         console.log('   - Banco de transacción:', transaction.banco);
         
-        const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
-        console.log('   - Valor limpio:', cleanValue);
+        const amount = parsePaymentAmountByBank(creditValue, transaction.banco);
         
-        let amount = 0;
-
-        // Usar la misma lógica de parseo que en loadTransactionsTab
-        const transactionBank = transaction.banco || 'BAC';
-        
-        // Convertir a número según el banco (misma lógica que loadTransactionsTab)
-        if (transactionBank === 'BAC') {
-            // BAC usa comas como separador decimal (ej: 20.000,00)
-            if (cleanValue.includes(',')) {
-                // Reemplazar punto por nada y coma por punto
-                const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
-                amount = parseFloat(normalizedValue);
-            } else {
-                amount = parseFloat(cleanValue);
-            }
-        } else if (transactionBank === 'BN') {
-            // BN usa punto como separador de miles (ej: 100.000)
-            if (cleanValue.includes(',')) {
-                // Si tiene coma, es decimal (ej: 100.000,50)
-                const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
-                amount = parseFloat(normalizedValue);
-            } else {
-                // Solo punto como separador de miles (ej: 100.000)
-                const normalizedValue = cleanValue.replace(/\./g, '');
-                amount = parseFloat(normalizedValue);
-            }
-        } else {
-            // Otros bancos (HuberBN, etc.) - usar lógica general
-            if (cleanValue.includes(',')) {
-                // Si tiene coma, reemplazarla por punto
-                amount = parseFloat(cleanValue.replace(',', '.'));
-            } else {
-                amount = parseFloat(cleanValue);
-            }
-        }
-
         console.log('   - Monto parseado:', amount);
         console.log('   - Es NaN:', isNaN(amount));
         console.log('   - Es <= 0:', amount <= 0);
@@ -1568,3 +1503,38 @@ window.parseTransactionAssignments = parseTransactionAssignments;
 window.formatTransactionAssignments = formatTransactionAssignments;
 window.updateTransactionAssignments = updateTransactionAssignments;
 window.syncExistingPayments = syncExistingPayments;
+
+// ===== FUNCIÓN AUXILIAR PARA PARSEAR MONTOS POR BANCO =====
+function parsePaymentAmountByBank(creditValue, bank) {
+    if (!creditValue) return 0;
+    
+    const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
+    
+    if (bank === 'BAC') {
+        // BAC usa comas como separador decimal (ej: 20.000,00)
+        if (cleanValue.includes(',')) {
+            const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
+            return parseFloat(normalizedValue);
+        } else {
+            return parseFloat(cleanValue);
+        }
+    } else if (bank === 'BN') {
+        // BN usa punto como separador de miles (ej: 100.000)
+        if (cleanValue.includes(',')) {
+            // Si tiene coma, es decimal (ej: 100.000,50)
+            const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
+            return parseFloat(normalizedValue);
+        } else {
+            // Solo punto como separador de miles (ej: 100.000)
+            const normalizedValue = cleanValue.replace(/\./g, '');
+            return parseFloat(normalizedValue);
+        }
+    } else {
+        // Otros bancos (HuberBN, etc.) - usar lógica general
+        if (cleanValue.includes(',')) {
+            return parseFloat(cleanValue.replace(',', '.'));
+        } else {
+            return parseFloat(cleanValue);
+        }
+    }
+}
