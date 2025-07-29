@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capturas - Clientes con Deudas Altas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: #86868b;
+        }
+
+        .controls-section {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 32px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #f2f2f7;
+        }
+
+        .controls-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .filter-label {
+            font-size: 0.85rem;
+            color: #86868b;
+            font-weight: 500;
+        }
+
+        .filter-input {
+            padding: 8px 12px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 120px;
+        }
+
+        .search-input {
+            padding: 12px 16px;
+            border: 1px solid #d2d2d7;
+            border-radius: 12px;
+            font-size: 16px;
+            min-width: 250px;
+            background: #f9f9f9;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #007aff;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #f2f2f7;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #86868b;
+            font-weight: 500;
+        }
+
+        .stat-critical { color: #ff3b30; }
+        .stat-high { color: #ff9500; }
+        .stat-medium { color: #ffcc00; }
+        .stat-total { color: #007aff; }
+
+        .clients-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 24px;
+        }
+
+        .client-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #f2f2f7;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .client-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        .client-card.critical {
+            border-left: 6px solid #ff3b30;
+            background: linear-gradient(135deg, #fff 0%, #fff5f5 100%);
+        }
+
+        .client-card.high {
+            border-left: 6px solid #ff9500;
+            background: linear-gradient(135deg, #fff 0%, #fff9f0 100%);
+        }
+
+        .client-card.medium {
+            border-left: 6px solid #ffcc00;
+            background: linear-gradient(135deg, #fff 0%, #fffef5 100%);
+        }
+
+        .client-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .client-info h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 4px;
+        }
+
+        .client-id {
+            color: #86868b;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .debt-amount {
+            font-size: 2rem;
+            font-weight: 700;
+            text-align: right;
+            margin-bottom: 8px;
+        }
+
+        .debt-critical { color: #ff3b30; }
+        .debt-high { color: #ff9500; }
+        .debt-medium { color: #ffcc00; }
+
+        .debt-label {
+            font-size: 0.8rem;
+            color: #86868b;
+            text-align: right;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .client-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .detail-label {
+            font-size: 0.8rem;
+            color: #86868b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            font-weight: 600;
+            color: #1d1d1f;
+            font-size: 0.95rem;
+        }
+
+        .client-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: #007aff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056cc;
+            transform: translateY(-1px);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #86868b;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007aff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #86868b;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #1d1d1f;
+        }
+
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            border: 1px solid #d2d2d7;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1d1d1f;
+            text-decoration: none;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .back-button:hover {
+            background: #f9f9f9;
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 768px) {
+            .controls-header {
+                flex-direction: column;
+                gap: 16px;
+                align-items: stretch;
+            }
+
+            .filter-controls {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .clients-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .client-details {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-button">← Volver</a>
+
+    <div class="container">
+        <div class="header">
+            <h1>📊 Capturas - Clientes con Deudas Altas</h1>
+            <p>Monitoreo de clientes con deudas superiores a ₡200,000</p>
+        </div>
+
+        <div class="controls-section">
+            <div class="controls-header">
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label class="filter-label">Monto mínimo</label>
+                        <input type="number" id="minAmount" class="filter-input" value="200000" min="0" step="10000">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Buscar</label>
+                        <input type="text" id="searchInput" class="search-input" placeholder="Nombre, placa o ID del cliente...">
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Total clientes</label>
+                    <div id="totalClients" class="filter-input" style="background: #f9f9f9; border: none; text-align: center; font-weight: 600;">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value stat-total" id="totalDebt">₡0</div>
+                <div class="stat-label">Total por Cobrar</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value stat-critical" id="criticalCount">0</div>
+                <div class="stat-label">Crítico (>₡400k)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value stat-high" id="highCount">0</div>
+                <div class="stat-label">Alto (₡300k-400k)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value stat-medium" id="mediumCount">0</div>
+                <div class="stat-label">Medio (₡200k-300k)</div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Cargando clientes con deudas altas...</p>
+        </div>
+
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <h3>🎉 ¡Excelente!</h3>
+            <p>No hay clientes con deudas superiores al monto mínimo configurado.</p>
+        </div>
+
+        <div id="clientsGrid" class="clients-grid" style="display: none;">
+            <!-- Las tarjetas de clientes se generarán dinámicamente aquí -->
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="capturas.js"></script>
+</body>
+</html> 

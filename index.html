@@ -236,6 +236,16 @@
             usuariosBtn.textContent = 'Gestión Usuarios';
             buttonGroup.appendChild(usuariosBtn);
           // }
+          
+          // Botón de Capturas
+          const capturasBtn = document.createElement('button');
+          capturasBtn.className = 'main-btn';
+          capturasBtn.style.background = '#ff3b30';
+          capturasBtn.onclick = function() {
+            window.location.href = '/capturas.html';
+          };
+          capturasBtn.textContent = '📊 Capturas';
+          buttonGroup.appendChild(capturasBtn);
         });
       // }
       
