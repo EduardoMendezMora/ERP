@@ -1173,6 +1173,7 @@ window.showUnassignConfirmation = showUnassignConfirmation;
 window.loadUnassignedPayments = loadUnassignedPayments;
 window.loadAssignedPayments = loadAssignedPayments;
 window.updateInvoiceStatus = updateInvoiceStatus;
+window.reloadDataAndRender = reloadDataAndRender;
 
 // Funciones de distribución
 window.showPaymentDistributionModal = showPaymentDistributionModal;

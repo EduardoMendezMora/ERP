@@ -1290,9 +1290,19 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         
         console.log('✅ Actualización de transacción completada');
 
-        // Re-renderizar solo la página (sin recargar datos de la API)
-        if (typeof renderPage === 'function') {
-            renderPage();
+        // Esperar un momento para que los datos se propaguen en la API
+        console.log('⏳ Esperando propagación de datos en la API...');
+        await new Promise(resolve => setTimeout(resolve, 2000)); // 2 segundos de espera
+
+        // Recargar datos y re-renderizar la página
+        console.log('🔄 Recargando datos después de la asignación...');
+        if (typeof reloadDataAndRender === 'function') {
+            await reloadDataAndRender();
+        } else {
+            // Fallback: solo renderizar si no está disponible reloadDataAndRender
+            if (typeof renderPage === 'function') {
+                renderPage();
+            }
         }
 
         // Mostrar mensaje
