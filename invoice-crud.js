@@ -330,18 +330,20 @@ async function loadClientAndInvoices(clientId) {
         }
 
         const validClients = Array.isArray(clients) ? clients.filter(c => c && c.ID) : [];
-        console.log('validClients:', validClients.map(c => c.ID));
-
-        const client = validClients.find(c => String(c.ID) === String(clientId));
+        console.log('validClients:', validClients);
+        console.log('clientId:', clientId);
+        for (let i = 0; i < validClients.length; i++) {
+            if (!validClients[i] || !validClients[i].ID) {
+                console.error('Elemento inválido en validClients:', validClients[i], 'en posición', i);
+            }
+        }
+        // Find ultra seguro
+        const client = validClients.find(c => c && c.ID && String(c.ID) === String(clientId));
         if (!client) {
-            console.error('Cliente no encontrado. clientId:', clientId, 'IDs disponibles:', validClients.map(c => c.ID));
+            console.error('Cliente no encontrado. clientId:', clientId, 'IDs disponibles:', validClients.map(c => c && c.ID));
             showToast('Cliente no encontrado', 'error');
             return;
         }
-
-        // ✅ CRÍTICO: Actualizar AMBAS variables (local y global)
-        currentClient = client;
-        window.currentClient = client;  // ⭐ ESTO FALTABA
 
         console.log('✅ Cliente encontrado:', client.Nombre);
         console.log('🔗 Variables sincronizadas - currentClient y window.currentClient actualizadas');
