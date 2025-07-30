@@ -1,7 +1,7 @@
 // ===== CONFIGURACIÓN DE APIs =====
 const API_CONFIG = {
     CLIENTS: 'https://sheetdb.io/api/v1/qu62bagiwlgqy',
-    INVOICES: 'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Facturas',
+    INVOICES: 'https://sheetdb.io/api/v1/qu62bagiwlgqy',
     PAYMENTS: 'https://sheetdb.io/api/v1/a7oekivxzreg7'
 };
 
@@ -133,30 +133,11 @@ function validateSystemState() {
 
 // ===== FUNCIONES DE FECHA =====
 function parseDate(dateStr) {
-    if (!dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') {
+        console.warn('parseDate: valor vacío o no es string:', dateStr);
         return null;
     }
-    
-    // Si ya es un objeto Date, devolverlo directamente
-    if (dateStr instanceof Date) {
-        return dateStr;
-    }
-    
-    // Si no es string, intentar convertirlo
-    if (typeof dateStr !== 'string') {
-        try {
-            const date = new Date(dateStr);
-            if (!isNaN(date.getTime())) {
-                return date;
-            }
-        } catch (error) {
-            console.warn('parseDate: no se pudo convertir a fecha:', dateStr);
-            return null;
-        }
-        return null;
-    }
-    
-    // Intentar parsear la fecha como string
+    // Intentar parsear la fecha
     const parts = dateStr.split(/[\/\-]/);
     if (parts.length < 3) {
         console.warn('parseDate: formato de fecha no reconocido:', dateStr);
@@ -174,7 +155,7 @@ function parseDate(dateStr) {
 
 function formatDateForDisplay(dateString) {
     const date = parseDate(dateString);
-    if (!date) return 'N/A';
+    if (!date) return dateString || 'Fecha inválida';
 
     try {
         return date.toLocaleDateString('es-CR', {
@@ -183,7 +164,7 @@ function formatDateForDisplay(dateString) {
             year: 'numeric'
         });
     } catch (error) {
-        return 'N/A';
+        return dateString;
     }
 }
 

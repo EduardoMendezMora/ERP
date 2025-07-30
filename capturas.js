@@ -37,31 +37,14 @@ async function initializeApp() {
         // Ordenar por deuda (mayor a menor)
         clientsWithDebt.sort((a, b) => b.totalDebt - a.totalDebt);
         
-        // Tomar los 5 peores deudores (cambiado de 10 a 5)
-        filteredClients = clientsWithDebt.slice(0, 5);
-        
-        // Si no hay clientes con deuda, mostrar todos los clientes (para debug)
-        if (filteredClients.length === 0) {
-            console.log('⚠️ No hay clientes con deuda, mostrando todos los clientes para debug...');
-            filteredClients = allClients.slice(0, 5).map(client => ({
-                ...client,
-                totalDebt: 0,
-                overdueInvoices: 0,
-                totalFines: 0,
-                averageDaysOverdue: 0,
-                lastInvoiceDate: 'N/A',
-                debtLevel: 'low',
-                clientId: client.ID || client.ID_Cliente
-            }));
-        }
+        // Tomar los 10 peores deudores (o todos si hay menos de 10)
+        filteredClients = clientsWithDebt.slice(0, 10);
         
         // Renderizar resultados
         renderStats();
         renderClients();
         
         showLoading(false);
-        
-        console.log(`✅ Carga completada: ${filteredClients.length} clientes mostrados`);
         
     } catch (error) {
         console.error('❌ Error al inicializar:', error);
@@ -73,128 +56,20 @@ async function initializeApp() {
 // ===== CARGA DE DATOS =====
 async function loadClients() {
     console.log('📋 Cargando clientes...');
-    console.log('🔗 URL:', API_CONFIG.CLIENTS);
+    const response = await fetch(API_CONFIG.CLIENTS);
+    if (!response.ok) throw new Error('Error al cargar clientes');
     
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
-        
-        const response = await fetch(API_CONFIG.CLIENTS, {
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        console.log('📡 Respuesta:', response.status, response.statusText);
-        
-        if (!response.ok) throw new Error(`Error al cargar clientes: ${response.status}`);
-        
-        const rawData = await response.json();
-        console.log(`📊 Datos crudos recibidos: ${rawData.length} registros`);
-        
-        // Filtrar solo registros que sean clientes (no facturas)
-        allClients = rawData.filter(client => 
-            client.ID && client.Nombre && 
-            !client.NumeroFactura && 
-            !client.MontoBase
-        );
-        
-        console.log(`✅ ${allClients.length} clientes válidos después del filtrado`);
-        
-        if (allClients.length === 0) {
-            console.warn('⚠️ No se encontraron clientes válidos. Verificando datos crudos...');
-            console.log('📋 Muestra de datos crudos:', rawData.slice(0, 3));
-        } else {
-            console.log('📋 Primeros 3 clientes:', allClients.slice(0, 3));
-        }
-    } catch (error) {
-        console.error('❌ Error al cargar clientes:', error);
-        throw error;
-    }
+    allClients = await response.json();
+    console.log(`✅ ${allClients.length} clientes cargados`);
 }
 
 async function loadInvoices() {
     console.log('📋 Cargando facturas...');
-    console.log('🔗 URL:', API_CONFIG.INVOICES);
+    const response = await fetch(API_CONFIG.INVOICES);
+    if (!response.ok) throw new Error('Error al cargar facturas');
     
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
-        
-        const response = await fetch(API_CONFIG.INVOICES, {
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        console.log('📡 Respuesta:', response.status, response.statusText);
-        
-        if (!response.ok) throw new Error(`Error al cargar facturas: ${response.status}`);
-        
-        const allData = await response.json();
-        console.log(`📊 Datos crudos recibidos: ${allData.length} registros`);
-        
-        // Filtrar solo registros que sean facturas
-        allInvoices = allData.filter(item => 
-            item.NumeroFactura && 
-            (item.MontoBase || item.Monto) && 
-            (item.ID_Cliente || item.ID)
-        );
-        
-        // Si no se encontraron facturas con el filtro estricto, intentar con filtro más flexible
-        if (allInvoices.length === 0) {
-            console.log('🔄 Intentando filtro más flexible para facturas...');
-            allInvoices = allData.filter(item => 
-                item.NumeroFactura && 
-                (item.MontoBase || item.Monto || item.MontoTotal || item.Total)
-            );
-            console.log(`✅ ${allInvoices.length} facturas encontradas con filtro flexible`);
-        }
-        
-        // Si aún no se encuentran, mostrar todos los datos para debug
-        if (allInvoices.length === 0) {
-            console.log('🔄 Mostrando todos los datos para análisis...');
-            console.log('📋 Todos los datos recibidos:', allData);
-            
-            // Intentar identificar qué campos podrían ser facturas
-            if (allData.length > 0) {
-                const sample = allData[0];
-                console.log('🔍 Campos disponibles en los datos:', Object.keys(sample));
-                
-                // Buscar cualquier campo que contenga "factura" o "monto"
-                const possibleInvoiceFields = Object.keys(sample).filter(key => 
-                    key.toLowerCase().includes('factura') || 
-                    key.toLowerCase().includes('monto') || 
-                    key.toLowerCase().includes('total') ||
-                    key.toLowerCase().includes('invoice')
-                );
-                console.log('🎯 Campos que podrían ser facturas:', possibleInvoiceFields);
-            }
-        }
-        
-        console.log(`✅ ${allInvoices.length} facturas cargadas`);
-        
-        if (allInvoices.length === 0) {
-            console.warn('⚠️ No se encontraron facturas válidas. Verificando datos crudos...');
-            console.log('📋 Muestra de datos crudos:', allData.slice(0, 3));
-            
-            // Analizar estructura de los datos
-            if (allData.length > 0) {
-                console.log('🔍 Análisis de estructura de datos:');
-                const sample = allData[0];
-                console.log('  Campos disponibles:', Object.keys(sample));
-                console.log('  Campos que podrían ser facturas:');
-                Object.keys(sample).forEach(key => {
-                    if (key.toLowerCase().includes('factura') || key.toLowerCase().includes('monto') || key.toLowerCase().includes('total')) {
-                        console.log(`    - ${key}: ${sample[key]}`);
-                    }
-                });
-            }
-        } else {
-            console.log('📋 Primeras 3 facturas:', allInvoices.slice(0, 3));
-        }
-    } catch (error) {
-        console.error('❌ Error al cargar facturas:', error);
-        throw error;
-    }
+    allInvoices = await response.json();
+    console.log(`✅ ${allInvoices.length} facturas cargadas`);
 }
 
 async function loadPayments() {
@@ -204,53 +79,30 @@ async function loadPayments() {
     
     for (const sheet of sheets) {
         try {
-            const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
-            console.log(`🔗 Consultando ${sheet}:`, url);
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
-            
-            const response = await fetch(url, {
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            console.log(`📡 Respuesta ${sheet}:`, response.status, response.statusText);
-            
+            const response = await fetch(`${API_CONFIG.PAYMENTS}?sheet=${sheet}`);
             if (response.ok) {
                 const sheetPayments = await response.json();
                 const paymentsWithBank = Array.isArray(sheetPayments) ? 
                     sheetPayments.map(p => ({ ...p, banco: sheet })) : [];
                 allPayments.push(...paymentsWithBank);
-                console.log(`✅ ${sheet}: ${paymentsWithBank.length} pagos cargados`);
-            } else {
-                console.warn(`❌ ${sheet}: Error ${response.status}`);
             }
         } catch (error) {
-            console.warn(`❌ Error al cargar pagos de ${sheet}:`, error);
+            console.warn(`Error al cargar pagos de ${sheet}:`, error);
         }
     }
     
-    console.log(`✅ Total: ${allPayments.length} pagos cargados`);
-    console.log('📋 Primeros 3 pagos:', allPayments.slice(0, 3));
+    console.log(`✅ ${allPayments.length} pagos cargados`);
 }
 
 // ===== CÁLCULO DE DEUDAS =====
 function calculateClientDebts() {
     console.log('🧮 Calculando deudas de clientes...');
-    console.log(`📊 Datos disponibles:`);
-    console.log(`  - Clientes: ${allClients.length}`);
-    console.log(`  - Facturas: ${allInvoices.length}`);
-    console.log(`  - Pagos: ${allPayments.length}`);
     
     const clientsWithDebt = [];
     
     for (const client of allClients) {
         const clientId = client.ID || client.ID_Cliente;
-        if (!clientId) {
-            console.log(`⚠️ Cliente sin ID:`, client);
-            continue;
-        }
+        if (!clientId) continue;
         
         // Obtener facturas del cliente
         const clientInvoices = allInvoices.filter(inv => 
@@ -263,8 +115,8 @@ function calculateClientDebts() {
             if (payment.ID_Cliente && payment.ID_Cliente.toString() === clientId.toString()) {
                 return true;
             }
-            // Caso 2: ID_Cliente está en Observaciones (búsqueda simple)
-            if (payment.Observaciones && payment.Observaciones.toString().includes(clientId.toString())) {
+            // Caso 2: ID_Cliente está en Observaciones
+            if (payment.Observaciones && isClientIdInObservations(payment.Observaciones, clientId)) {
                 return true;
             }
             return false;
@@ -273,14 +125,12 @@ function calculateClientDebts() {
         // Calcular deuda total
         const debtInfo = calculateTotalDebt(clientInvoices, clientPayments);
         
-        // Incluir TODOS los clientes con deuda, sin importar el monto
         if (debtInfo.totalDebt > 0) {
             clientsWithDebt.push({
                 ...client,
                 ...debtInfo,
                 clientId: clientId
             });
-            console.log(`💰 Cliente ${client.Nombre} (${clientId}): ₡${debtInfo.totalDebt.toLocaleString('es-CR')}`);
         }
     }
     
@@ -295,72 +145,24 @@ function calculateTotalDebt(invoices, payments) {
     let averageDaysOverdue = 0;
     let lastInvoiceDate = null;
     
-    // Usar EXACTAMENTE la misma lógica que invoice-crud.js
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Filtrar facturas no pagadas
-    const unpaidInvoices = invoices.filter(inv => inv.Estado !== 'Pagado');
-
-    // Aplicar la misma lógica de actualización que invoice-crud.js
-    unpaidInvoices.forEach(invoice => {
-        const baseAmount = parseFloat(invoice.MontoBase || invoice.Monto || 0);
+    // Calcular deuda de facturas
+    for (const invoice of invoices) {
+        if (invoice.Estado === 'Pagado') continue;
         
-        // Buscar campo de fecha de vencimiento
-        const dueDateStr = invoice.FechaVencimiento || invoice.FechaVto || invoice.Vencimiento || invoice.FechaVenc;
+        const baseAmount = parseFloat(invoice.MontoBase || 0);
+        const fines = parseFloat(invoice.MontoMultas || 0);
+        const invoiceTotal = baseAmount + fines;
         
-        if (dueDateStr && dueDateStr !== '' && dueDateStr !== 'undefined') {
-            const dueDate = parseDate(dueDateStr);
-            
-            if (dueDate && !isNaN(dueDate)) {
-                dueDate.setHours(0, 0, 0, 0);
-                
-                let newStatus = 'Pendiente';
-                let newDaysOverdue = 0;
-                let newFines = 0;
-                
-                // EXACTAMENTE la misma lógica que invoice-crud.js líneas 375-378
-                if (today >= dueDate) {
-                    const diffTime = today.getTime() - dueDate.getTime();
-                    newDaysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                    newStatus = 'Vencido';
-                    
-                    // Solo calcular multas para facturas de arrendamiento (NO manuales)
-                    const isManualInvoice = invoice.TipoFactura === 'Manual' ||
-                        invoice.NumeroFactura?.startsWith('MAN-') ||
-                        invoice.ConceptoManual;
-                    
-                    if (!isManualInvoice) {
-                        newFines = newDaysOverdue * 2000; // ₡2,000 por día
-                    }
-                }
-                
-                // Actualizar campos como en invoice-crud.js
-                invoice.DiasAtraso = newDaysOverdue;
-                invoice.MontoMultas = newFines;
-                invoice.Estado = newStatus;
-                
-                // Contar facturas vencidas y sumar solo las vencidas al total
-                if (newStatus === 'Vencido') {
-                    overdueInvoices++;
-                    averageDaysOverdue += newDaysOverdue;
-                    totalFines += newFines;
-                    
-                    // Sumar al total de deuda SOLO las facturas vencidas
-                    totalDebt += baseAmount + newFines;
-                    
-                    // Debug para las primeras facturas vencidas
-                    if (overdueInvoices <= 3) {
-                        console.log(`🔴 Factura vencida: ${invoice.NumeroFactura} - ${newDaysOverdue} días de atraso (Fecha: ${dueDateStr}) - Monto: ₡${(baseAmount + newFines).toLocaleString('es-CR')}`);
-                    }
-                }
-            } else {
-                // Si no se puede parsear la fecha, solo sumar el monto base
-                totalDebt += baseAmount;
-            }
-        } else {
-            // Si no hay fecha de vencimiento, solo sumar el monto base
-            totalDebt += baseAmount;
+        totalDebt += invoiceTotal;
+        totalFines += fines;
+        
+        if (invoice.Estado === 'Vencido') {
+            overdueInvoices++;
+        }
+        
+        // Calcular días de atraso promedio
+        if (invoice.DiasAtraso) {
+            averageDaysOverdue += parseInt(invoice.DiasAtraso);
         }
         
         // Obtener fecha de última factura
@@ -368,7 +170,7 @@ function calculateTotalDebt(invoices, payments) {
         if (invoiceDate && (!lastInvoiceDate || invoiceDate > lastInvoiceDate)) {
             lastInvoiceDate = invoiceDate;
         }
-    });
+    }
     
     // Restar pagos aplicados
     for (const payment of payments) {
@@ -382,17 +184,9 @@ function calculateTotalDebt(invoices, payments) {
     // Asegurar que la deuda no sea negativa
     totalDebt = Math.max(0, totalDebt);
     
-    // Calcular promedio de días de atraso (solo de facturas vencidas)
-    averageDaysOverdue = overdueInvoices > 0 ? Math.round(averageDaysOverdue / overdueInvoices) : 0;
-    
-    // Debug del cálculo
-    if (overdueInvoices > 0) {
-        console.log(`📊 Debug capturas: ${overdueInvoices} facturas vencidas, ${averageDaysOverdue} días promedio`);
-        console.log(`💰 Total deuda (solo vencidas): ₡${totalDebt.toLocaleString('es-CR')}`);
-        console.log(`💸 Total multas: ₡${totalFines.toLocaleString('es-CR')}`);
-    } else {
-        console.log(`📊 Debug capturas: 0 facturas vencidas - Total deuda: ₡${totalDebt.toLocaleString('es-CR')}`);
-    }
+    // Calcular promedio de días de atraso
+    const totalInvoices = invoices.filter(inv => inv.Estado !== 'Pagado').length;
+    averageDaysOverdue = totalInvoices > 0 ? Math.round(averageDaysOverdue / totalInvoices) : 0;
     
     return {
         totalDebt,
@@ -506,9 +300,6 @@ function renderClients() {
                 <button class="btn btn-primary" onclick="event.stopPropagation(); viewClientInvoices('${client.clientId}')">
                     📋 Ver Facturas
                 </button>
-                <button class="btn btn-secondary" onclick="event.stopPropagation(); analyzeClientInvoices('${client.clientId}')" style="margin-left: 8px;">
-                    🔍 Analizar
-                </button>
             </div>
         </div>
     `).join('');
@@ -535,13 +326,13 @@ function setupEventListeners() {
         const minAmount = parseInt(this.value) || 0;
         if (minAmount > 0) {
             // Si se especifica un monto mínimo, filtrar por ese monto
-            const allClientsWithDebt = calculateClientDebts();
+            const allClientsWithDebt = allClients.filter(c => c.totalDebt > 0);
             const filteredByAmount = allClientsWithDebt.filter(c => c.totalDebt >= minAmount);
-            filteredClients = filteredByAmount.sort((a, b) => b.totalDebt - a.totalDebt).slice(0, 5);
+            filteredClients = filteredByAmount.sort((a, b) => b.totalDebt - a.totalDebt).slice(0, 10);
         } else {
-            // Si no hay monto mínimo, mostrar los 5 peores
-            const allClientsWithDebt = calculateClientDebts();
-            filteredClients = allClientsWithDebt.sort((a, b) => b.totalDebt - a.totalDebt).slice(0, 5);
+            // Si no hay monto mínimo, mostrar los 10 peores
+            const allClientsWithDebt = allClients.filter(c => c.totalDebt > 0);
+            filteredClients = allClientsWithDebt.sort((a, b) => b.totalDebt - a.totalDebt).slice(0, 10);
         }
         renderStats();
         renderClients();
@@ -654,420 +445,6 @@ function parsePaymentAmount(paymentAmount, bankSource) {
         } else {
             return parseFloat(cleanValue);
         }
-    }
-}
-
-// ===== FUNCIÓN DE FALLBACK =====
-function isClientIdInObservations(observations, clientId) {
-    // Verificar si existe la función en utils.js (que es más completa)
-    if (typeof window.isClientIdInObservations === 'function' && window.isClientIdInObservations !== isClientIdInObservations) {
-        return window.isClientIdInObservations(observations, clientId);
-    }
-    
-    // Fallback simple: buscar el ID en las observaciones
-    if (!observations || !clientId) return false;
-    
-    const obsText = observations.toString().trim();
-    const targetId = clientId.toString();
-    
-    // Búsqueda simple y directa
-    return obsText.includes(targetId);
-}
-
-// ===== FUNCIÓN DE DEBUG =====
-function debugData() {
-    console.log('🔍 === DEBUG DE DATOS ===');
-    console.log('📊 Variables globales:');
-    console.log('  allClients:', allClients?.length || 0);
-    console.log('  allInvoices:', allInvoices?.length || 0);
-    console.log('  allPayments:', allPayments?.length || 0);
-    console.log('  filteredClients:', filteredClients?.length || 0);
-    
-    console.log('🔗 URLs de API:');
-    console.log('  CLIENTS:', API_CONFIG?.CLIENTS);
-    console.log('  INVOICES:', API_CONFIG?.INVOICES);
-    console.log('  PAYMENTS:', API_CONFIG?.PAYMENTS);
-    
-    console.log('📋 Muestra de datos:');
-    if (allClients?.length > 0) {
-        console.log('  Primer cliente:', allClients[0]);
-    }
-    if (allInvoices?.length > 0) {
-        console.log('  Primera factura:', allInvoices[0]);
-    }
-    if (allPayments?.length > 0) {
-        console.log('  Primer pago:', allPayments[0]);
-    }
-    
-    // Debug adicional para entender el problema
-    console.log('🔍 === ANÁLISIS DETALLADO ===');
-    
-    // Verificar si hay datos crudos
-    if (allClients?.length > 0) {
-        console.log('📋 Tipos de registros en allClients:');
-        const tipos = {};
-        allClients.forEach(item => {
-            const tipo = item.NumeroFactura ? 'Factura' : 'Cliente';
-            tipos[tipo] = (tipos[tipo] || 0) + 1;
-        });
-        console.log('  Distribución:', tipos);
-    }
-    
-    // Verificar clientes con deuda
-    if (filteredClients?.length > 0) {
-        console.log('💰 Clientes con deuda encontrados:');
-        filteredClients.forEach((client, index) => {
-            console.log(`  ${index + 1}. ${client.Nombre} (ID: ${client.clientId}) - ₡${client.totalDebt.toLocaleString('es-CR')}`);
-        });
-    } else {
-        console.log('❌ No se encontraron clientes con deuda');
-        
-        // Intentar recalcular
-        console.log('🔄 Intentando recalcular deudas...');
-        const clientsWithDebt = calculateClientDebts();
-        console.log(`  Clientes con deuda recalculados: ${clientsWithDebt.length}`);
-        
-        if (clientsWithDebt.length > 0) {
-            console.log('  Top 5 recalculados:');
-            clientsWithDebt.slice(0, 5).forEach((client, index) => {
-                console.log(`    ${index + 1}. ${client.Nombre} - ₡${client.totalDebt.toLocaleString('es-CR')}`);
-            });
-        }
-    }
-    
-    console.log('========================');
-}
-
-// ===== FUNCIÓN DE RECARGA =====
-function reloadData() {
-    console.log('🔄 Recargando datos...');
-    showToast('Recargando datos...', 'info');
-    initializeApp();
-}
-
-// ===== FUNCIÓN DE LIMPIEZA DE CONSOLA =====
-function clearConsole() {
-    console.clear();
-    console.log('🧹 Consola limpiada');
-    console.log('✅ Sistema de capturas funcionando correctamente');
-}
-
-// ===== FUNCIÓN DE ANÁLISIS DE DATOS =====
-function analyzeDataStructure() {
-    console.log('🔍 === ANÁLISIS DE ESTRUCTURA DE DATOS ===');
-    
-    if (allClients && allClients.length > 0) {
-        console.log('📋 Estructura de clientes:');
-        const clientSample = allClients[0];
-        console.log('  Campos:', Object.keys(clientSample));
-        console.log('  Muestra:', clientSample);
-    }
-    
-    // Analizar facturas cargadas
-    if (allInvoices && allInvoices.length > 0) {
-        console.log('📋 Análisis de facturas cargadas:');
-        console.log('  Total facturas:', allInvoices.length);
-        
-        const sampleInvoice = allInvoices[0];
-        console.log('  Campos disponibles:', Object.keys(sampleInvoice));
-        console.log('  Muestra de factura:', sampleInvoice);
-        
-        // Buscar campos de fecha
-        const dateFields = Object.keys(sampleInvoice).filter(key => 
-            key.toLowerCase().includes('fecha') || 
-            key.toLowerCase().includes('date') ||
-            key.toLowerCase().includes('venc') ||
-            key.toLowerCase().includes('creacion')
-        );
-        console.log('  Campos de fecha encontrados:', dateFields);
-        
-        // Analizar estados de facturas
-        const estados = {};
-        allInvoices.forEach(inv => {
-            const estado = inv.Estado || 'Sin estado';
-            estados[estado] = (estados[estado] || 0) + 1;
-        });
-        console.log('  Distribución de estados:', estados);
-        
-        // Buscar facturas con fechas de vencimiento
-        const facturasConVencimiento = allInvoices.filter(inv => 
-            inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc
-        );
-        console.log(`  Facturas con fecha de vencimiento: ${facturasConVencimiento.length}`);
-        
-        if (facturasConVencimiento.length > 0) {
-            console.log('  Muestra de factura con vencimiento:', facturasConVencimiento[0]);
-        }
-    }
-    
-    // Intentar cargar datos crudos de facturas
-    fetch(API_CONFIG.INVOICES)
-        .then(response => response.json())
-        .then(data => {
-            console.log('📋 Datos crudos de facturas:');
-            console.log('  Total registros:', data.length);
-            if (data.length > 0) {
-                console.log('  Campos disponibles:', Object.keys(data[0]));
-                console.log('  Primeros 3 registros:', data.slice(0, 3));
-                
-                // Buscar registros que podrían ser facturas
-                const possibleInvoices = data.filter(item => 
-                    item.NumeroFactura || 
-                    item.Factura || 
-                    item.NúmeroFactura ||
-                    item.MontoBase ||
-                    item.Monto ||
-                    item.Total
-                );
-                console.log(`  Posibles facturas encontradas: ${possibleInvoices.length}`);
-                if (possibleInvoices.length > 0) {
-                    console.log('  Muestra de posibles facturas:', possibleInvoices.slice(0, 3));
-                }
-            }
-        })
-        .catch(error => {
-            console.error('❌ Error al analizar datos:', error);
-        });
-    
-    // Probar diferentes URLs para facturas
-    console.log('🔄 Probando diferentes URLs para facturas...');
-    
-    const testUrls = [
-        'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Facturas',
-        'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=facturas',
-        'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Invoices',
-        'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=invoices',
-        'https://sheetdb.io/api/v1/qu62bagiwlgqy'
-    ];
-    
-    testUrls.forEach((url, index) => {
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                console.log(`📋 URL ${index + 1} (${url}): ${data.length} registros`);
-                if (data.length > 0) {
-                    console.log(`  Campos: ${Object.keys(data[0]).join(', ')}`);
-                }
-            })
-            .catch(error => {
-                console.log(`❌ URL ${index + 1} (${url}): Error - ${error.message}`);
-            });
-    });
-}
-
-// ===== FUNCIÓN DE ANÁLISIS DE FECHAS DE VENCIMIENTO =====
-function analyzeClientInvoices(clientId) {
-    console.log(`🔍 === ANÁLISIS DE FACTURAS DEL CLIENTE ${clientId} ===`);
-    
-    const clientInvoices = allInvoices.filter(inv => 
-        inv.ID_Cliente && inv.ID_Cliente.toString() === clientId.toString()
-    );
-    
-    console.log(`📋 Total facturas del cliente: ${clientInvoices.length}`);
-    
-    if (clientInvoices.length > 0) {
-        console.log('📋 Muestra de facturas:');
-        clientInvoices.slice(0, 3).forEach((inv, index) => {
-            console.log(`  Factura ${index + 1}:`, {
-                NumeroFactura: inv.NumeroFactura,
-                Estado: inv.Estado,
-                MontoBase: inv.MontoBase,
-                FechaVencimiento: inv.FechaVencimiento,
-                FechaVto: inv.FechaVto,
-                Vencimiento: inv.Vencimiento,
-                FechaVenc: inv.FechaVenc,
-                FechaCreacion: inv.FechaCreacion,
-                DiasAtraso: inv.DiasAtraso
-            });
-        });
-        
-        // Analizar fechas de vencimiento usando la misma lógica que facturas.html
-        let overdueCount = 0;
-        let totalDaysOverdue = 0;
-        
-        clientInvoices.forEach(inv => {
-            if (inv.Estado === 'Pagado') return;
-            
-            const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
-            if (dueDateField) {
-                // Usar la función calculateDaysOverdue (misma que facturas.html)
-                const daysOverdue = calculateDaysOverdue(dueDateField);
-                if (daysOverdue > 0) {
-                    overdueCount++;
-                    totalDaysOverdue += daysOverdue;
-                    console.log(`  ⚠️ Factura vencida: ${inv.NumeroFactura} - ${daysOverdue} días de atraso (Fecha: ${dueDateField})`);
-                }
-            }
-        });
-        
-        console.log(`📊 Resumen: ${overdueCount} facturas vencidas, ${totalDaysOverdue} días total de atraso`);
-        
-        // También mostrar el cálculo manual para comparar
-        console.log('🔍 Comparación con cálculo manual:');
-        clientInvoices.slice(0, 3).forEach(inv => {
-            const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
-            if (dueDateField) {
-                const daysOverdue = calculateDaysOverdue(dueDateField);
-                const parsedDate = parseDate(dueDateField);
-                console.log(`  ${inv.NumeroFactura}: ${dueDateField} → ${parsedDate ? parsedDate.toLocaleDateString('es-CR') : 'Error'} → ${daysOverdue} días`);
-            }
-        });
-    }
-}
-
-// ===== FUNCIÓN DE ANÁLISIS DE DÍAS DE ATRASO =====
-function analyzeDaysOverdue() {
-    console.log('🔍 === ANÁLISIS DE DÍAS DE ATRASO ===');
-    
-    if (!allInvoices || allInvoices.length === 0) {
-        console.log('❌ No hay facturas cargadas');
-        return;
-    }
-    
-    // Analizar las primeras 10 facturas
-    const sampleInvoices = allInvoices.slice(0, 10);
-    
-    sampleInvoices.forEach((inv, index) => {
-        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
-        const daysOverdue = dueDateField ? calculateDaysOverdue(dueDateField) : 0;
-        const parsedDate = dueDateField ? parseDate(dueDateField) : null;
-        
-        console.log(`${index + 1}. ${inv.NumeroFactura}:`);
-        console.log(`   - Fecha vencimiento: ${dueDateField}`);
-        console.log(`   - Fecha parseada: ${parsedDate ? parsedDate.toLocaleDateString('es-CR') : 'Error'}`);
-        console.log(`   - Días de atraso: ${daysOverdue}`);
-        console.log(`   - Estado: ${inv.Estado}`);
-        console.log(`   - DiasAtraso (BD): ${inv.DiasAtraso || 0}`);
-        console.log(`   - Monto: ₡${parseFloat(inv.MontoBase || 0).toLocaleString('es-CR')}`);
-        console.log('');
-    });
-    
-    // Mostrar estadísticas generales
-    const overdueInvoices = allInvoices.filter(inv => {
-        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
-        return dueDateField && calculateDaysOverdue(dueDateField) > 0;
-    });
-    
-    console.log(`📊 Estadísticas:`);
-    console.log(`   - Total facturas: ${allInvoices.length}`);
-    console.log(`   - Facturas vencidas: ${overdueInvoices.length}`);
-    
-    if (overdueInvoices.length > 0) {
-        const totalDays = overdueInvoices.reduce((sum, inv) => {
-            const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
-            return sum + calculateDaysOverdue(dueDateField);
-        }, 0);
-        
-        console.log(`   - Total días de atraso: ${totalDays}`);
-        console.log(`   - Promedio días de atraso: ${Math.round(totalDays / overdueInvoices.length)}`);
-    }
-}
-
-// ===== FUNCIÓN DE ANÁLISIS ESPECÍFICO DE CLIENTE =====
-function analyzeSpecificClient(clientId) {
-    console.log(`🔍 === ANÁLISIS ESPECÍFICO CLIENTE ${clientId} ===`);
-    
-    if (!allInvoices || allInvoices.length === 0) {
-        console.log('❌ No hay facturas cargadas');
-        return;
-    }
-    
-    // Buscar facturas de este cliente específico
-    const clientInvoices = allInvoices.filter(inv => {
-        const invClientId = inv.ID_Cliente || inv.ID;
-        return invClientId && invClientId.toString() === clientId.toString();
-    });
-    
-    console.log(`📋 Facturas encontradas para cliente ${clientId}: ${clientInvoices.length}`);
-    
-    if (clientInvoices.length === 0) {
-        console.log('❌ No se encontraron facturas para este cliente');
-        return;
-    }
-    
-    // Analizar cada factura del cliente
-    clientInvoices.forEach((inv, index) => {
-        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
-        const daysOverdue = dueDateField ? calculateDaysOverdue(dueDateField) : 0;
-        const parsedDate = dueDateField ? parseDate(dueDateField) : null;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        console.log(`${index + 1}. Factura ${inv.NumeroFactura}:`);
-        console.log(`   - Fecha vencimiento (raw): "${dueDateField}"`);
-        console.log(`   - Fecha parseada: ${parsedDate ? parsedDate.toLocaleDateString('es-CR') : 'Error'}`);
-        console.log(`   - Fecha actual: ${today.toLocaleDateString('es-CR')}`);
-        console.log(`   - Días de atraso calculados: ${daysOverdue}`);
-        console.log(`   - Estado en BD: ${inv.Estado}`);
-        console.log(`   - DiasAtraso en BD: ${inv.DiasAtraso || 0}`);
-        console.log(`   - Monto: ₡${parseFloat(inv.MontoBase || 0).toLocaleString('es-CR')}`);
-        console.log(`   - ¿Está vencida? ${daysOverdue > 0 ? 'SÍ' : 'NO'}`);
-        console.log('');
-    });
-    
-    // Calcular totales
-    const overdueInvoices = clientInvoices.filter(inv => {
-        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
-        return dueDateField && calculateDaysOverdue(dueDateField) > 0;
-    });
-    
-    const totalDays = overdueInvoices.reduce((sum, inv) => {
-        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
-        return sum + calculateDaysOverdue(dueDateField);
-    }, 0);
-    
-    console.log(`📊 RESUMEN CLIENTE ${clientId}:`);
-    console.log(`   - Total facturas: ${clientInvoices.length}`);
-    console.log(`   - Facturas vencidas: ${overdueInvoices.length}`);
-    console.log(`   - Total días de atraso: ${totalDays}`);
-    console.log(`   - Promedio días de atraso: ${overdueInvoices.length > 0 ? Math.round(totalDays / overdueInvoices.length) : 0}`);
-}
-
-// ===== FUNCIÓN DE ANÁLISIS DE DÍAS DE ATRASO =====
-function analyzeDaysOverdue() {
-    console.log('🔍 === ANÁLISIS DE DÍAS DE ATRASO ===');
-    
-    if (!allInvoices || allInvoices.length === 0) {
-        console.log('❌ No hay facturas cargadas');
-        return;
-    }
-    
-    // Analizar las primeras 10 facturas
-    const sampleInvoices = allInvoices.slice(0, 10);
-    
-    sampleInvoices.forEach((inv, index) => {
-        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
-        const daysOverdue = dueDateField ? calculateDaysOverdue(dueDateField) : 0;
-        const parsedDate = dueDateField ? parseDate(dueDateField) : null;
-        
-        console.log(`${index + 1}. ${inv.NumeroFactura}:`);
-        console.log(`   - Fecha vencimiento: ${dueDateField}`);
-        console.log(`   - Fecha parseada: ${parsedDate ? parsedDate.toLocaleDateString('es-CR') : 'Error'}`);
-        console.log(`   - Días de atraso: ${daysOverdue}`);
-        console.log(`   - Estado: ${inv.Estado}`);
-        console.log(`   - DiasAtraso (BD): ${inv.DiasAtraso || 0}`);
-        console.log(`   - Monto: ₡${parseFloat(inv.MontoBase || 0).toLocaleString('es-CR')}`);
-        console.log('');
-    });
-    
-    // Mostrar estadísticas generales
-    const overdueInvoices = allInvoices.filter(inv => {
-        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
-        return dueDateField && calculateDaysOverdue(dueDateField) > 0;
-    });
-    
-    console.log(`📊 Estadísticas:`);
-    console.log(`   - Total facturas: ${allInvoices.length}`);
-    console.log(`   - Facturas vencidas: ${overdueInvoices.length}`);
-    
-    if (overdueInvoices.length > 0) {
-        const totalDays = overdueInvoices.reduce((sum, inv) => {
-            const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
-            return sum + calculateDaysOverdue(dueDateField);
-        }, 0);
-        
-        console.log(`   - Total días de atraso: ${totalDays}`);
-        console.log(`   - Promedio días de atraso: ${Math.round(totalDays / overdueInvoices.length)}`);
     }
 }
 

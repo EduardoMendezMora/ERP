@@ -348,8 +348,8 @@
 
     <div class="container">
         <div class="header">
-            <h1>📊 Capturas - Top 5 Peores Deudores</h1>
-            <p>Monitoreo de los 5 clientes con mayor deuda pendiente</p>
+            <h1>📊 Capturas - Top 10 Peores Deudores</h1>
+            <p>Monitoreo de los 10 clientes con mayor deuda pendiente</p>
         </div>
 
         <div class="controls-section">
@@ -363,11 +363,6 @@
                         <label class="filter-label">Buscar</label>
                         <input type="text" id="searchInput" class="search-input" placeholder="Nombre, placa o ID del cliente...">
                     </div>
-                    <button onclick="debugData()" class="btn btn-secondary" style="margin-top: 20px;">🐛 Debug Datos</button>
-                    <button onclick="analyzeDataStructure()" class="btn btn-secondary" style="margin-top: 20px;">🔍 Analizar Datos</button>
-                    <button onclick="analyzeDaysOverdue()" class="btn btn-secondary" style="margin-top: 20px;">📅 Analizar Días</button>
-                    <button onclick="clearConsole()" class="btn btn-secondary" style="margin-top: 20px;">🧹 Limpiar Consola</button>
-                    <button onclick="reloadData()" class="btn btn-primary" style="margin-top: 20px;">🔄 Recargar Datos</button>
                 </div>
                 <div class="filter-group">
                     <label class="filter-label">Total clientes</label>
@@ -397,14 +392,12 @@
 
         <div id="loading" class="loading">
             <div class="spinner"></div>
-            <p>Cargando top 5 peores deudores...</p>
+            <p>Cargando top 10 peores deudores...</p>
         </div>
 
         <div id="emptyState" class="empty-state" style="display: none;">
-            <h3>🔍 No se encontraron datos</h3>
-            <p>No se pudieron cargar clientes con deudas pendientes.</p>
-            <p>Verifica la conexión a internet y las APIs, o usa el botón "Debug Datos" para más información.</p>
-            <button onclick="debugData()" class="btn btn-secondary" style="margin-top: 16px;">🐛 Debug Datos</button>
+            <h3>🎉 ¡Excelente!</h3>
+            <p>No hay clientes con deudas pendientes en el sistema.</p>
         </div>
 
         <div id="clientsGrid" class="clients-grid" style="display: none;">
