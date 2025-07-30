@@ -340,18 +340,18 @@ function calculateTotalDebt(invoices, payments) {
                 invoice.MontoMultas = newFines;
                 invoice.Estado = newStatus;
                 
-                // Sumar al total de deuda
-                totalDebt += baseAmount + newFines;
-                totalFines += newFines;
-                
-                // Contar facturas vencidas (solo las que realmente están vencidas)
+                // Contar facturas vencidas y sumar solo las vencidas al total
                 if (newStatus === 'Vencido') {
                     overdueInvoices++;
                     averageDaysOverdue += newDaysOverdue;
+                    totalFines += newFines;
+                    
+                    // Sumar al total de deuda SOLO las facturas vencidas
+                    totalDebt += baseAmount + newFines;
                     
                     // Debug para las primeras facturas vencidas
                     if (overdueInvoices <= 3) {
-                        console.log(`🔴 Factura vencida: ${invoice.NumeroFactura} - ${newDaysOverdue} días de atraso (Fecha: ${dueDateStr})`);
+                        console.log(`🔴 Factura vencida: ${invoice.NumeroFactura} - ${newDaysOverdue} días de atraso (Fecha: ${dueDateStr}) - Monto: ₡${(baseAmount + newFines).toLocaleString('es-CR')}`);
                     }
                 }
             } else {
@@ -388,6 +388,10 @@ function calculateTotalDebt(invoices, payments) {
     // Debug del cálculo
     if (overdueInvoices > 0) {
         console.log(`📊 Debug capturas: ${overdueInvoices} facturas vencidas, ${averageDaysOverdue} días promedio`);
+        console.log(`💰 Total deuda (solo vencidas): ₡${totalDebt.toLocaleString('es-CR')}`);
+        console.log(`💸 Total multas: ₡${totalFines.toLocaleString('es-CR')}`);
+    } else {
+        console.log(`📊 Debug capturas: 0 facturas vencidas - Total deuda: ₡${totalDebt.toLocaleString('es-CR')}`);
     }
     
     return {
