@@ -1,7 +1,7 @@
 // ===== CONFIGURACIÓN DE APIs =====
 const API_CONFIG = {
     CLIENTS: 'https://sheetdb.io/api/v1/qu62bagiwlgqy',
-    INVOICES: 'https://sheetdb.io/api/v1/qu62bagiwlgqy',
+    INVOICES: 'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Facturas',
     PAYMENTS: 'https://sheetdb.io/api/v1/a7oekivxzreg7'
 };
 

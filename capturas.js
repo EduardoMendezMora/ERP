@@ -149,6 +149,27 @@ async function loadInvoices() {
             console.log(`✅ ${allInvoices.length} facturas encontradas con filtro flexible`);
         }
         
+        // Si aún no se encuentran, mostrar todos los datos para debug
+        if (allInvoices.length === 0) {
+            console.log('🔄 Mostrando todos los datos para análisis...');
+            console.log('📋 Todos los datos recibidos:', allData);
+            
+            // Intentar identificar qué campos podrían ser facturas
+            if (allData.length > 0) {
+                const sample = allData[0];
+                console.log('🔍 Campos disponibles en los datos:', Object.keys(sample));
+                
+                // Buscar cualquier campo que contenga "factura" o "monto"
+                const possibleInvoiceFields = Object.keys(sample).filter(key => 
+                    key.toLowerCase().includes('factura') || 
+                    key.toLowerCase().includes('monto') || 
+                    key.toLowerCase().includes('total') ||
+                    key.toLowerCase().includes('invoice')
+                );
+                console.log('🎯 Campos que podrían ser facturas:', possibleInvoiceFields);
+            }
+        }
+        
         console.log(`✅ ${allInvoices.length} facturas cargadas`);
         
         if (allInvoices.length === 0) {
@@ -704,6 +725,31 @@ function analyzeDataStructure() {
         .catch(error => {
             console.error('❌ Error al analizar datos:', error);
         });
+    
+    // Probar diferentes URLs para facturas
+    console.log('🔄 Probando diferentes URLs para facturas...');
+    
+    const testUrls = [
+        'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Facturas',
+        'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=facturas',
+        'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Invoices',
+        'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=invoices',
+        'https://sheetdb.io/api/v1/qu62bagiwlgqy'
+    ];
+    
+    testUrls.forEach((url, index) => {
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                console.log(`📋 URL ${index + 1} (${url}): ${data.length} registros`);
+                if (data.length > 0) {
+                    console.log(`  Campos: ${Object.keys(data[0]).join(', ')}`);
+                }
+            })
+            .catch(error => {
+                console.log(`❌ URL ${index + 1} (${url}): Error - ${error.message}`);
+            });
+    });
 }
 
 console.log('✅ capturas.js cargado - Sistema de capturas listo'); 
