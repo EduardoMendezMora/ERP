@@ -330,8 +330,9 @@ function calculateTotalDebt(invoices, payments) {
             }
         }
         
-        // Calcular días de atraso promedio
+        // Actualizar el campo DiasAtraso de la factura (como se hace en facturas.html)
         if (daysOverdue > 0) {
+            invoice.DiasAtraso = daysOverdue;
             averageDaysOverdue += daysOverdue;
         } else if (invoice.DiasAtraso) {
             averageDaysOverdue += parseInt(invoice.DiasAtraso);
@@ -359,6 +360,11 @@ function calculateTotalDebt(invoices, payments) {
     // Calcular promedio de días de atraso
     const totalInvoices = invoices.filter(inv => inv.Estado !== 'Pagado').length;
     averageDaysOverdue = totalInvoices > 0 ? Math.round(averageDaysOverdue / totalInvoices) : 0;
+    
+    // Debug del cálculo de promedio
+    if (overdueInvoices > 0) {
+        console.log(`📊 Debug promedio: ${averageDaysOverdue} días / ${totalInvoices} facturas = ${Math.round(averageDaysOverdue)} días promedio`);
+    }
     
     return {
         totalDebt,
@@ -878,6 +884,54 @@ function analyzeClientInvoices(clientId) {
                 console.log(`  ${inv.NumeroFactura}: ${dueDateField} → ${parsedDate ? parsedDate.toLocaleDateString('es-CR') : 'Error'} → ${daysOverdue} días`);
             }
         });
+    }
+}
+
+// ===== FUNCIÓN DE ANÁLISIS DE DÍAS DE ATRASO =====
+function analyzeDaysOverdue() {
+    console.log('🔍 === ANÁLISIS DE DÍAS DE ATRASO ===');
+    
+    if (!allInvoices || allInvoices.length === 0) {
+        console.log('❌ No hay facturas cargadas');
+        return;
+    }
+    
+    // Analizar las primeras 10 facturas
+    const sampleInvoices = allInvoices.slice(0, 10);
+    
+    sampleInvoices.forEach((inv, index) => {
+        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
+        const daysOverdue = dueDateField ? calculateDaysOverdue(dueDateField) : 0;
+        const parsedDate = dueDateField ? parseDate(dueDateField) : null;
+        
+        console.log(`${index + 1}. ${inv.NumeroFactura}:`);
+        console.log(`   - Fecha vencimiento: ${dueDateField}`);
+        console.log(`   - Fecha parseada: ${parsedDate ? parsedDate.toLocaleDateString('es-CR') : 'Error'}`);
+        console.log(`   - Días de atraso: ${daysOverdue}`);
+        console.log(`   - Estado: ${inv.Estado}`);
+        console.log(`   - DiasAtraso (BD): ${inv.DiasAtraso || 0}`);
+        console.log(`   - Monto: ₡${parseFloat(inv.MontoBase || 0).toLocaleString('es-CR')}`);
+        console.log('');
+    });
+    
+    // Mostrar estadísticas generales
+    const overdueInvoices = allInvoices.filter(inv => {
+        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
+        return dueDateField && calculateDaysOverdue(dueDateField) > 0;
+    });
+    
+    console.log(`📊 Estadísticas:`);
+    console.log(`   - Total facturas: ${allInvoices.length}`);
+    console.log(`   - Facturas vencidas: ${overdueInvoices.length}`);
+    
+    if (overdueInvoices.length > 0) {
+        const totalDays = overdueInvoices.reduce((sum, inv) => {
+            const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
+            return sum + calculateDaysOverdue(dueDateField);
+        }, 0);
+        
+        console.log(`   - Total días de atraso: ${totalDays}`);
+        console.log(`   - Promedio días de atraso: ${Math.round(totalDays / overdueInvoices.length)}`);
     }
 }
 
