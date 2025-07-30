@@ -308,7 +308,7 @@ function calculateTotalDebt(invoices, payments) {
         totalDebt += invoiceTotal;
         totalFines += fines;
         
-        // Calcular si la factura está vencida basándose en la fecha de vencimiento
+        // Calcular si la factura está vencida usando la misma lógica que facturas.html
         let isOverdue = false;
         let daysOverdue = 0;
         
@@ -316,19 +316,18 @@ function calculateTotalDebt(invoices, payments) {
         const dueDateField = invoice.FechaVencimiento || invoice.FechaVto || invoice.Vencimiento || invoice.FechaVenc;
         
         if (dueDateField) {
-            const dueDate = parseDate(dueDateField);
-            if (dueDate) {
-                dueDate.setHours(0, 0, 0, 0);
-                isOverdue = today > dueDate;
-                if (isOverdue) {
-                    daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
-                }
-            }
+            // Usar la función calculateDaysOverdue de utils.js (misma que usa facturas.html)
+            daysOverdue = calculateDaysOverdue(dueDateField);
+            isOverdue = daysOverdue > 0;
         }
         
-        // También verificar el estado explícito
+        // Verificar estado explícito O cálculo por fecha
         if (invoice.Estado === 'Vencido' || isOverdue) {
             overdueInvoices++;
+            // Debug para las primeras facturas vencidas
+            if (overdueInvoices <= 3) {
+                console.log(`🔴 Factura vencida: ${invoice.NumeroFactura} - ${daysOverdue} días de atraso (Estado: ${invoice.Estado}, Fecha: ${dueDateField})`);
+            }
         }
         
         // Calcular días de atraso promedio
@@ -848,10 +847,7 @@ function analyzeClientInvoices(clientId) {
             });
         });
         
-        // Analizar fechas de vencimiento
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
+        // Analizar fechas de vencimiento usando la misma lógica que facturas.html
         let overdueCount = 0;
         let totalDaysOverdue = 0;
         
@@ -860,21 +856,28 @@ function analyzeClientInvoices(clientId) {
             
             const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
             if (dueDateField) {
-                const dueDate = parseDate(dueDateField);
-                if (dueDate) {
-                    dueDate.setHours(0, 0, 0, 0);
-                    const isOverdue = today > dueDate;
-                    if (isOverdue) {
-                        overdueCount++;
-                        const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
-                        totalDaysOverdue += daysOverdue;
-                        console.log(`  ⚠️ Factura vencida: ${inv.NumeroFactura} - ${daysOverdue} días de atraso`);
-                    }
+                // Usar la función calculateDaysOverdue (misma que facturas.html)
+                const daysOverdue = calculateDaysOverdue(dueDateField);
+                if (daysOverdue > 0) {
+                    overdueCount++;
+                    totalDaysOverdue += daysOverdue;
+                    console.log(`  ⚠️ Factura vencida: ${inv.NumeroFactura} - ${daysOverdue} días de atraso (Fecha: ${dueDateField})`);
                 }
             }
         });
         
         console.log(`📊 Resumen: ${overdueCount} facturas vencidas, ${totalDaysOverdue} días total de atraso`);
+        
+        // También mostrar el cálculo manual para comparar
+        console.log('🔍 Comparación con cálculo manual:');
+        clientInvoices.slice(0, 3).forEach(inv => {
+            const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
+            if (dueDateField) {
+                const daysOverdue = calculateDaysOverdue(dueDateField);
+                const parsedDate = parseDate(dueDateField);
+                console.log(`  ${inv.NumeroFactura}: ${dueDateField} → ${parsedDate ? parsedDate.toLocaleDateString('es-CR') : 'Error'} → ${daysOverdue} días`);
+            }
+        });
     }
 }
 
