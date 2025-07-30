@@ -37,14 +37,16 @@ async function initializeApp() {
         // Ordenar por deuda (mayor a menor)
         clientsWithDebt.sort((a, b) => b.totalDebt - a.totalDebt);
         
-        // Tomar los 10 peores deudores (o todos si hay menos de 10)
-        filteredClients = clientsWithDebt.slice(0, 10);
+        // Tomar los 5 peores deudores (cambiado de 10 a 5)
+        filteredClients = clientsWithDebt.slice(0, 5);
         
         // Renderizar resultados
         renderStats();
         renderClients();
         
         showLoading(false);
+        
+        console.log(`✅ Carga completada: ${filteredClients.length} clientes mostrados`);
         
     } catch (error) {
         console.error('❌ Error al inicializar:', error);
@@ -56,20 +58,84 @@ async function initializeApp() {
 // ===== CARGA DE DATOS =====
 async function loadClients() {
     console.log('📋 Cargando clientes...');
-    const response = await fetch(API_CONFIG.CLIENTS);
-    if (!response.ok) throw new Error('Error al cargar clientes');
+    console.log('🔗 URL:', API_CONFIG.CLIENTS);
     
-    allClients = await response.json();
-    console.log(`✅ ${allClients.length} clientes cargados`);
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
+        
+        const response = await fetch(API_CONFIG.CLIENTS, {
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        console.log('📡 Respuesta:', response.status, response.statusText);
+        
+        if (!response.ok) throw new Error(`Error al cargar clientes: ${response.status}`);
+        
+        const rawData = await response.json();
+        console.log(`📊 Datos crudos recibidos: ${rawData.length} registros`);
+        
+        // Filtrar solo registros que sean clientes (no facturas)
+        allClients = rawData.filter(client => 
+            client.ID && client.Nombre && 
+            !client.NumeroFactura && 
+            !client.MontoBase
+        );
+        
+        console.log(`✅ ${allClients.length} clientes válidos después del filtrado`);
+        
+        if (allClients.length === 0) {
+            console.warn('⚠️ No se encontraron clientes válidos. Verificando datos crudos...');
+            console.log('📋 Muestra de datos crudos:', rawData.slice(0, 3));
+        } else {
+            console.log('📋 Primeros 3 clientes:', allClients.slice(0, 3));
+        }
+    } catch (error) {
+        console.error('❌ Error al cargar clientes:', error);
+        throw error;
+    }
 }
 
 async function loadInvoices() {
     console.log('📋 Cargando facturas...');
-    const response = await fetch(API_CONFIG.INVOICES);
-    if (!response.ok) throw new Error('Error al cargar facturas');
+    console.log('🔗 URL:', API_CONFIG.INVOICES);
     
-    allInvoices = await response.json();
-    console.log(`✅ ${allInvoices.length} facturas cargadas`);
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
+        
+        const response = await fetch(API_CONFIG.INVOICES, {
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        console.log('📡 Respuesta:', response.status, response.statusText);
+        
+        if (!response.ok) throw new Error(`Error al cargar facturas: ${response.status}`);
+        
+        const allData = await response.json();
+        console.log(`📊 Datos crudos recibidos: ${allData.length} registros`);
+        
+        // Filtrar solo registros que sean facturas
+        allInvoices = allData.filter(item => 
+            item.NumeroFactura && 
+            item.MontoBase && 
+            item.ID_Cliente
+        );
+        
+        console.log(`✅ ${allInvoices.length} facturas cargadas`);
+        
+        if (allInvoices.length === 0) {
+            console.warn('⚠️ No se encontraron facturas válidas. Verificando datos crudos...');
+            console.log('📋 Muestra de datos crudos:', allData.slice(0, 3));
+        } else {
+            console.log('📋 Primeras 3 facturas:', allInvoices.slice(0, 3));
+        }
+    } catch (error) {
+        console.error('❌ Error al cargar facturas:', error);
+        throw error;
+    }
 }
 
 async function loadPayments() {
@@ -79,30 +145,53 @@ async function loadPayments() {
     
     for (const sheet of sheets) {
         try {
-            const response = await fetch(`${API_CONFIG.PAYMENTS}?sheet=${sheet}`);
+            const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
+            console.log(`🔗 Consultando ${sheet}:`, url);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
+            
+            const response = await fetch(url, {
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            console.log(`📡 Respuesta ${sheet}:`, response.status, response.statusText);
+            
             if (response.ok) {
                 const sheetPayments = await response.json();
                 const paymentsWithBank = Array.isArray(sheetPayments) ? 
                     sheetPayments.map(p => ({ ...p, banco: sheet })) : [];
                 allPayments.push(...paymentsWithBank);
+                console.log(`✅ ${sheet}: ${paymentsWithBank.length} pagos cargados`);
+            } else {
+                console.warn(`❌ ${sheet}: Error ${response.status}`);
             }
         } catch (error) {
-            console.warn(`Error al cargar pagos de ${sheet}:`, error);
+            console.warn(`❌ Error al cargar pagos de ${sheet}:`, error);
         }
     }
     
-    console.log(`✅ ${allPayments.length} pagos cargados`);
+    console.log(`✅ Total: ${allPayments.length} pagos cargados`);
+    console.log('📋 Primeros 3 pagos:', allPayments.slice(0, 3));
 }
 
 // ===== CÁLCULO DE DEUDAS =====
 function calculateClientDebts() {
     console.log('🧮 Calculando deudas de clientes...');
+    console.log(`📊 Datos disponibles:`);
+    console.log(`  - Clientes: ${allClients.length}`);
+    console.log(`  - Facturas: ${allInvoices.length}`);
+    console.log(`  - Pagos: ${allPayments.length}`);
     
     const clientsWithDebt = [];
     
     for (const client of allClients) {
         const clientId = client.ID || client.ID_Cliente;
-        if (!clientId) continue;
+        if (!clientId) {
+            console.log(`⚠️ Cliente sin ID:`, client);
+            continue;
+        }
         
         // Obtener facturas del cliente
         const clientInvoices = allInvoices.filter(inv => 
@@ -116,7 +205,7 @@ function calculateClientDebts() {
                 return true;
             }
             // Caso 2: ID_Cliente está en Observaciones
-            if (payment.Observaciones && isClientIdInObservations(payment.Observaciones, clientId)) {
+            if (payment.Observaciones && typeof isClientIdInObservations === 'function' && isClientIdInObservations(payment.Observaciones, clientId)) {
                 return true;
             }
             return false;
@@ -125,12 +214,14 @@ function calculateClientDebts() {
         // Calcular deuda total
         const debtInfo = calculateTotalDebt(clientInvoices, clientPayments);
         
+        // Incluir TODOS los clientes con deuda, sin importar el monto
         if (debtInfo.totalDebt > 0) {
             clientsWithDebt.push({
                 ...client,
                 ...debtInfo,
                 clientId: clientId
             });
+            console.log(`💰 Cliente ${client.Nombre} (${clientId}): ₡${debtInfo.totalDebt.toLocaleString('es-CR')}`);
         }
     }
     
@@ -326,13 +417,13 @@ function setupEventListeners() {
         const minAmount = parseInt(this.value) || 0;
         if (minAmount > 0) {
             // Si se especifica un monto mínimo, filtrar por ese monto
-            const allClientsWithDebt = allClients.filter(c => c.totalDebt > 0);
+            const allClientsWithDebt = calculateClientDebts();
             const filteredByAmount = allClientsWithDebt.filter(c => c.totalDebt >= minAmount);
-            filteredClients = filteredByAmount.sort((a, b) => b.totalDebt - a.totalDebt).slice(0, 10);
+            filteredClients = filteredByAmount.sort((a, b) => b.totalDebt - a.totalDebt).slice(0, 5);
         } else {
-            // Si no hay monto mínimo, mostrar los 10 peores
-            const allClientsWithDebt = allClients.filter(c => c.totalDebt > 0);
-            filteredClients = allClientsWithDebt.sort((a, b) => b.totalDebt - a.totalDebt).slice(0, 10);
+            // Si no hay monto mínimo, mostrar los 5 peores
+            const allClientsWithDebt = calculateClientDebts();
+            filteredClients = allClientsWithDebt.sort((a, b) => b.totalDebt - a.totalDebt).slice(0, 5);
         }
         renderStats();
         renderClients();
@@ -446,6 +537,88 @@ function parsePaymentAmount(paymentAmount, bankSource) {
             return parseFloat(cleanValue);
         }
     }
+}
+
+// ===== FUNCIÓN DE FALLBACK =====
+function isClientIdInObservations(observations, clientId) {
+    if (typeof window.isClientIdInObservations === 'function') {
+        return window.isClientIdInObservations(observations, clientId);
+    }
+    
+    // Fallback simple: buscar el ID en las observaciones
+    if (!observations || !clientId) return false;
+    return observations.includes(clientId.toString());
+}
+
+// ===== FUNCIÓN DE DEBUG =====
+function debugData() {
+    console.log('🔍 === DEBUG DE DATOS ===');
+    console.log('📊 Variables globales:');
+    console.log('  allClients:', allClients?.length || 0);
+    console.log('  allInvoices:', allInvoices?.length || 0);
+    console.log('  allPayments:', allPayments?.length || 0);
+    console.log('  filteredClients:', filteredClients?.length || 0);
+    
+    console.log('🔗 URLs de API:');
+    console.log('  CLIENTS:', API_CONFIG?.CLIENTS);
+    console.log('  INVOICES:', API_CONFIG?.INVOICES);
+    console.log('  PAYMENTS:', API_CONFIG?.PAYMENTS);
+    
+    console.log('📋 Muestra de datos:');
+    if (allClients?.length > 0) {
+        console.log('  Primer cliente:', allClients[0]);
+    }
+    if (allInvoices?.length > 0) {
+        console.log('  Primera factura:', allInvoices[0]);
+    }
+    if (allPayments?.length > 0) {
+        console.log('  Primer pago:', allPayments[0]);
+    }
+    
+    // Debug adicional para entender el problema
+    console.log('🔍 === ANÁLISIS DETALLADO ===');
+    
+    // Verificar si hay datos crudos
+    if (allClients?.length > 0) {
+        console.log('📋 Tipos de registros en allClients:');
+        const tipos = {};
+        allClients.forEach(item => {
+            const tipo = item.NumeroFactura ? 'Factura' : 'Cliente';
+            tipos[tipo] = (tipos[tipo] || 0) + 1;
+        });
+        console.log('  Distribución:', tipos);
+    }
+    
+    // Verificar clientes con deuda
+    if (filteredClients?.length > 0) {
+        console.log('💰 Clientes con deuda encontrados:');
+        filteredClients.forEach((client, index) => {
+            console.log(`  ${index + 1}. ${client.Nombre} (ID: ${client.clientId}) - ₡${client.totalDebt.toLocaleString('es-CR')}`);
+        });
+    } else {
+        console.log('❌ No se encontraron clientes con deuda');
+        
+        // Intentar recalcular
+        console.log('🔄 Intentando recalcular deudas...');
+        const clientsWithDebt = calculateClientDebts();
+        console.log(`  Clientes con deuda recalculados: ${clientsWithDebt.length}`);
+        
+        if (clientsWithDebt.length > 0) {
+            console.log('  Top 5 recalculados:');
+            clientsWithDebt.slice(0, 5).forEach((client, index) => {
+                console.log(`    ${index + 1}. ${client.Nombre} - ₡${client.totalDebt.toLocaleString('es-CR')}`);
+            });
+        }
+    }
+    
+    console.log('========================');
+}
+
+// ===== FUNCIÓN DE RECARGA =====
+function reloadData() {
+    console.log('🔄 Recargando datos...');
+    showToast('Recargando datos...', 'info');
+    initializeApp();
 }
 
 console.log('✅ capturas.js cargado - Sistema de capturas listo'); 
