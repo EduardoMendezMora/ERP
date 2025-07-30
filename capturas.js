@@ -686,6 +686,13 @@ function reloadData() {
     initializeApp();
 }
 
+// ===== FUNCIÓN DE LIMPIEZA DE CONSOLA =====
+function clearConsole() {
+    console.clear();
+    console.log('🧹 Consola limpiada');
+    console.log('✅ Sistema de capturas funcionando correctamente');
+}
+
 // ===== FUNCIÓN DE ANÁLISIS DE DATOS =====
 function analyzeDataStructure() {
     console.log('🔍 === ANÁLISIS DE ESTRUCTURA DE DATOS ===');

@@ -133,11 +133,30 @@ function validateSystemState() {
 
 // ===== FUNCIONES DE FECHA =====
 function parseDate(dateStr) {
-    if (!dateStr || typeof dateStr !== 'string') {
-        console.warn('parseDate: valor vacío o no es string:', dateStr);
+    if (!dateStr) {
         return null;
     }
-    // Intentar parsear la fecha
+    
+    // Si ya es un objeto Date, devolverlo directamente
+    if (dateStr instanceof Date) {
+        return dateStr;
+    }
+    
+    // Si no es string, intentar convertirlo
+    if (typeof dateStr !== 'string') {
+        try {
+            const date = new Date(dateStr);
+            if (!isNaN(date.getTime())) {
+                return date;
+            }
+        } catch (error) {
+            console.warn('parseDate: no se pudo convertir a fecha:', dateStr);
+            return null;
+        }
+        return null;
+    }
+    
+    // Intentar parsear la fecha como string
     const parts = dateStr.split(/[\/\-]/);
     if (parts.length < 3) {
         console.warn('parseDate: formato de fecha no reconocido:', dateStr);
@@ -155,7 +174,7 @@ function parseDate(dateStr) {
 
 function formatDateForDisplay(dateString) {
     const date = parseDate(dateString);
-    if (!date) return dateString || 'Fecha inválida';
+    if (!date) return 'N/A';
 
     try {
         return date.toLocaleDateString('es-CR', {
@@ -164,7 +183,7 @@ function formatDateForDisplay(dateString) {
             year: 'numeric'
         });
     } catch (error) {
-        return dateString;
+        return 'N/A';
     }
 }
 
