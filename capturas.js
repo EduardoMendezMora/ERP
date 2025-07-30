@@ -294,48 +294,73 @@ function calculateTotalDebt(invoices, payments) {
     let totalFines = 0;
     let averageDaysOverdue = 0;
     let lastInvoiceDate = null;
+    
+    // Usar EXACTAMENTE la misma lógica que invoice-crud.js
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
-    // Calcular deuda de facturas
-    for (const invoice of invoices) {
-        if (invoice.Estado === 'Pagado') continue;
+
+    // Filtrar facturas no pagadas
+    const unpaidInvoices = invoices.filter(inv => inv.Estado !== 'Pagado');
+
+    // Aplicar la misma lógica de actualización que invoice-crud.js
+    unpaidInvoices.forEach(invoice => {
+        const baseAmount = parseFloat(invoice.MontoBase || invoice.Monto || 0);
         
-        const baseAmount = parseFloat(invoice.MontoBase || 0);
-        const fines = parseFloat(invoice.MontoMultas || 0);
-        const invoiceTotal = baseAmount + fines;
+        // Buscar campo de fecha de vencimiento
+        const dueDateStr = invoice.FechaVencimiento || invoice.FechaVto || invoice.Vencimiento || invoice.FechaVenc;
         
-        totalDebt += invoiceTotal;
-        totalFines += fines;
-        
-        // Calcular si la factura está vencida usando la misma lógica que facturas.html
-        let isOverdue = false;
-        let daysOverdue = 0;
-        
-        // Buscar diferentes campos de fecha de vencimiento
-        const dueDateField = invoice.FechaVencimiento || invoice.FechaVto || invoice.Vencimiento || invoice.FechaVenc;
-        
-        if (dueDateField) {
-            // Usar la función calculateDaysOverdue de utils.js (misma que usa facturas.html)
-            daysOverdue = calculateDaysOverdue(dueDateField);
-            isOverdue = daysOverdue > 0;
-        }
-        
-        // Verificar estado explícito O cálculo por fecha
-        if (invoice.Estado === 'Vencido' || isOverdue) {
-            overdueInvoices++;
-            // Debug para las primeras facturas vencidas
-            if (overdueInvoices <= 3) {
-                console.log(`🔴 Factura vencida: ${invoice.NumeroFactura} - ${daysOverdue} días de atraso (Estado: ${invoice.Estado}, Fecha: ${dueDateField})`);
+        if (dueDateStr && dueDateStr !== '' && dueDateStr !== 'undefined') {
+            const dueDate = parseDate(dueDateStr);
+            
+            if (dueDate && !isNaN(dueDate)) {
+                dueDate.setHours(0, 0, 0, 0);
+                
+                let newStatus = 'Pendiente';
+                let newDaysOverdue = 0;
+                let newFines = 0;
+                
+                // EXACTAMENTE la misma lógica que invoice-crud.js líneas 375-378
+                if (today >= dueDate) {
+                    const diffTime = today.getTime() - dueDate.getTime();
+                    newDaysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    newStatus = 'Vencido';
+                    
+                    // Solo calcular multas para facturas de arrendamiento (NO manuales)
+                    const isManualInvoice = invoice.TipoFactura === 'Manual' ||
+                        invoice.NumeroFactura?.startsWith('MAN-') ||
+                        invoice.ConceptoManual;
+                    
+                    if (!isManualInvoice) {
+                        newFines = newDaysOverdue * 2000; // ₡2,000 por día
+                    }
+                }
+                
+                // Actualizar campos como en invoice-crud.js
+                invoice.DiasAtraso = newDaysOverdue;
+                invoice.MontoMultas = newFines;
+                invoice.Estado = newStatus;
+                
+                // Sumar al total de deuda
+                totalDebt += baseAmount + newFines;
+                totalFines += newFines;
+                
+                // Contar facturas vencidas (solo las que realmente están vencidas)
+                if (newStatus === 'Vencido') {
+                    overdueInvoices++;
+                    averageDaysOverdue += newDaysOverdue;
+                    
+                    // Debug para las primeras facturas vencidas
+                    if (overdueInvoices <= 3) {
+                        console.log(`🔴 Factura vencida: ${invoice.NumeroFactura} - ${newDaysOverdue} días de atraso (Fecha: ${dueDateStr})`);
+                    }
+                }
+            } else {
+                // Si no se puede parsear la fecha, solo sumar el monto base
+                totalDebt += baseAmount;
             }
-        }
-        
-        // Actualizar el campo DiasAtraso de la factura (como se hace en facturas.html)
-        if (daysOverdue > 0) {
-            invoice.DiasAtraso = daysOverdue;
-            averageDaysOverdue += daysOverdue;
-        } else if (invoice.DiasAtraso) {
-            averageDaysOverdue += parseInt(invoice.DiasAtraso);
+        } else {
+            // Si no hay fecha de vencimiento, solo sumar el monto base
+            totalDebt += baseAmount;
         }
         
         // Obtener fecha de última factura
@@ -343,7 +368,7 @@ function calculateTotalDebt(invoices, payments) {
         if (invoiceDate && (!lastInvoiceDate || invoiceDate > lastInvoiceDate)) {
             lastInvoiceDate = invoiceDate;
         }
-    }
+    });
     
     // Restar pagos aplicados
     for (const payment of payments) {
@@ -357,13 +382,12 @@ function calculateTotalDebt(invoices, payments) {
     // Asegurar que la deuda no sea negativa
     totalDebt = Math.max(0, totalDebt);
     
-    // Calcular promedio de días de atraso
-    const totalInvoices = invoices.filter(inv => inv.Estado !== 'Pagado').length;
-    averageDaysOverdue = totalInvoices > 0 ? Math.round(averageDaysOverdue / totalInvoices) : 0;
+    // Calcular promedio de días de atraso (solo de facturas vencidas)
+    averageDaysOverdue = overdueInvoices > 0 ? Math.round(averageDaysOverdue / overdueInvoices) : 0;
     
-    // Debug del cálculo de promedio
+    // Debug del cálculo
     if (overdueInvoices > 0) {
-        console.log(`📊 Debug promedio: ${averageDaysOverdue} días / ${totalInvoices} facturas = ${Math.round(averageDaysOverdue)} días promedio`);
+        console.log(`📊 Debug capturas: ${overdueInvoices} facturas vencidas, ${averageDaysOverdue} días promedio`);
     }
     
     return {
@@ -885,6 +909,114 @@ function analyzeClientInvoices(clientId) {
             }
         });
     }
+}
+
+// ===== FUNCIÓN DE ANÁLISIS DE DÍAS DE ATRASO =====
+function analyzeDaysOverdue() {
+    console.log('🔍 === ANÁLISIS DE DÍAS DE ATRASO ===');
+    
+    if (!allInvoices || allInvoices.length === 0) {
+        console.log('❌ No hay facturas cargadas');
+        return;
+    }
+    
+    // Analizar las primeras 10 facturas
+    const sampleInvoices = allInvoices.slice(0, 10);
+    
+    sampleInvoices.forEach((inv, index) => {
+        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
+        const daysOverdue = dueDateField ? calculateDaysOverdue(dueDateField) : 0;
+        const parsedDate = dueDateField ? parseDate(dueDateField) : null;
+        
+        console.log(`${index + 1}. ${inv.NumeroFactura}:`);
+        console.log(`   - Fecha vencimiento: ${dueDateField}`);
+        console.log(`   - Fecha parseada: ${parsedDate ? parsedDate.toLocaleDateString('es-CR') : 'Error'}`);
+        console.log(`   - Días de atraso: ${daysOverdue}`);
+        console.log(`   - Estado: ${inv.Estado}`);
+        console.log(`   - DiasAtraso (BD): ${inv.DiasAtraso || 0}`);
+        console.log(`   - Monto: ₡${parseFloat(inv.MontoBase || 0).toLocaleString('es-CR')}`);
+        console.log('');
+    });
+    
+    // Mostrar estadísticas generales
+    const overdueInvoices = allInvoices.filter(inv => {
+        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
+        return dueDateField && calculateDaysOverdue(dueDateField) > 0;
+    });
+    
+    console.log(`📊 Estadísticas:`);
+    console.log(`   - Total facturas: ${allInvoices.length}`);
+    console.log(`   - Facturas vencidas: ${overdueInvoices.length}`);
+    
+    if (overdueInvoices.length > 0) {
+        const totalDays = overdueInvoices.reduce((sum, inv) => {
+            const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
+            return sum + calculateDaysOverdue(dueDateField);
+        }, 0);
+        
+        console.log(`   - Total días de atraso: ${totalDays}`);
+        console.log(`   - Promedio días de atraso: ${Math.round(totalDays / overdueInvoices.length)}`);
+    }
+}
+
+// ===== FUNCIÓN DE ANÁLISIS ESPECÍFICO DE CLIENTE =====
+function analyzeSpecificClient(clientId) {
+    console.log(`🔍 === ANÁLISIS ESPECÍFICO CLIENTE ${clientId} ===`);
+    
+    if (!allInvoices || allInvoices.length === 0) {
+        console.log('❌ No hay facturas cargadas');
+        return;
+    }
+    
+    // Buscar facturas de este cliente específico
+    const clientInvoices = allInvoices.filter(inv => {
+        const invClientId = inv.ID_Cliente || inv.ID;
+        return invClientId && invClientId.toString() === clientId.toString();
+    });
+    
+    console.log(`📋 Facturas encontradas para cliente ${clientId}: ${clientInvoices.length}`);
+    
+    if (clientInvoices.length === 0) {
+        console.log('❌ No se encontraron facturas para este cliente');
+        return;
+    }
+    
+    // Analizar cada factura del cliente
+    clientInvoices.forEach((inv, index) => {
+        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
+        const daysOverdue = dueDateField ? calculateDaysOverdue(dueDateField) : 0;
+        const parsedDate = dueDateField ? parseDate(dueDateField) : null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        console.log(`${index + 1}. Factura ${inv.NumeroFactura}:`);
+        console.log(`   - Fecha vencimiento (raw): "${dueDateField}"`);
+        console.log(`   - Fecha parseada: ${parsedDate ? parsedDate.toLocaleDateString('es-CR') : 'Error'}`);
+        console.log(`   - Fecha actual: ${today.toLocaleDateString('es-CR')}`);
+        console.log(`   - Días de atraso calculados: ${daysOverdue}`);
+        console.log(`   - Estado en BD: ${inv.Estado}`);
+        console.log(`   - DiasAtraso en BD: ${inv.DiasAtraso || 0}`);
+        console.log(`   - Monto: ₡${parseFloat(inv.MontoBase || 0).toLocaleString('es-CR')}`);
+        console.log(`   - ¿Está vencida? ${daysOverdue > 0 ? 'SÍ' : 'NO'}`);
+        console.log('');
+    });
+    
+    // Calcular totales
+    const overdueInvoices = clientInvoices.filter(inv => {
+        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
+        return dueDateField && calculateDaysOverdue(dueDateField) > 0;
+    });
+    
+    const totalDays = overdueInvoices.reduce((sum, inv) => {
+        const dueDateField = inv.FechaVencimiento || inv.FechaVto || inv.Vencimiento || inv.FechaVenc;
+        return sum + calculateDaysOverdue(dueDateField);
+    }, 0);
+    
+    console.log(`📊 RESUMEN CLIENTE ${clientId}:`);
+    console.log(`   - Total facturas: ${clientInvoices.length}`);
+    console.log(`   - Facturas vencidas: ${overdueInvoices.length}`);
+    console.log(`   - Total días de atraso: ${totalDays}`);
+    console.log(`   - Promedio días de atraso: ${overdueInvoices.length > 0 ? Math.round(totalDays / overdueInvoices.length) : 0}`);
 }
 
 // ===== FUNCIÓN DE ANÁLISIS DE DÍAS DE ATRASO =====
