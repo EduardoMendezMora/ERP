@@ -40,6 +40,21 @@ async function initializeApp() {
         // Tomar los 5 peores deudores (cambiado de 10 a 5)
         filteredClients = clientsWithDebt.slice(0, 5);
         
+        // Si no hay clientes con deuda, mostrar todos los clientes (para debug)
+        if (filteredClients.length === 0) {
+            console.log('⚠️ No hay clientes con deuda, mostrando todos los clientes para debug...');
+            filteredClients = allClients.slice(0, 5).map(client => ({
+                ...client,
+                totalDebt: 0,
+                overdueInvoices: 0,
+                totalFines: 0,
+                averageDaysOverdue: 0,
+                lastInvoiceDate: 'N/A',
+                debtLevel: 'low',
+                clientId: client.ID || client.ID_Cliente
+            }));
+        }
+        
         // Renderizar resultados
         renderStats();
         renderClients();
@@ -120,15 +135,38 @@ async function loadInvoices() {
         // Filtrar solo registros que sean facturas
         allInvoices = allData.filter(item => 
             item.NumeroFactura && 
-            item.MontoBase && 
-            item.ID_Cliente
+            (item.MontoBase || item.Monto) && 
+            (item.ID_Cliente || item.ID)
         );
+        
+        // Si no se encontraron facturas con el filtro estricto, intentar con filtro más flexible
+        if (allInvoices.length === 0) {
+            console.log('🔄 Intentando filtro más flexible para facturas...');
+            allInvoices = allData.filter(item => 
+                item.NumeroFactura && 
+                (item.MontoBase || item.Monto || item.MontoTotal || item.Total)
+            );
+            console.log(`✅ ${allInvoices.length} facturas encontradas con filtro flexible`);
+        }
         
         console.log(`✅ ${allInvoices.length} facturas cargadas`);
         
         if (allInvoices.length === 0) {
             console.warn('⚠️ No se encontraron facturas válidas. Verificando datos crudos...');
             console.log('📋 Muestra de datos crudos:', allData.slice(0, 3));
+            
+            // Analizar estructura de los datos
+            if (allData.length > 0) {
+                console.log('🔍 Análisis de estructura de datos:');
+                const sample = allData[0];
+                console.log('  Campos disponibles:', Object.keys(sample));
+                console.log('  Campos que podrían ser facturas:');
+                Object.keys(sample).forEach(key => {
+                    if (key.toLowerCase().includes('factura') || key.toLowerCase().includes('monto') || key.toLowerCase().includes('total')) {
+                        console.log(`    - ${key}: ${sample[key]}`);
+                    }
+                });
+            }
         } else {
             console.log('📋 Primeras 3 facturas:', allInvoices.slice(0, 3));
         }
@@ -204,8 +242,8 @@ function calculateClientDebts() {
             if (payment.ID_Cliente && payment.ID_Cliente.toString() === clientId.toString()) {
                 return true;
             }
-            // Caso 2: ID_Cliente está en Observaciones
-            if (payment.Observaciones && typeof isClientIdInObservations === 'function' && isClientIdInObservations(payment.Observaciones, clientId)) {
+            // Caso 2: ID_Cliente está en Observaciones (búsqueda simple)
+            if (payment.Observaciones && payment.Observaciones.toString().includes(clientId.toString())) {
                 return true;
             }
             return false;
@@ -541,13 +579,19 @@ function parsePaymentAmount(paymentAmount, bankSource) {
 
 // ===== FUNCIÓN DE FALLBACK =====
 function isClientIdInObservations(observations, clientId) {
-    if (typeof window.isClientIdInObservations === 'function') {
+    // Verificar si existe la función en utils.js (que es más completa)
+    if (typeof window.isClientIdInObservations === 'function' && window.isClientIdInObservations !== isClientIdInObservations) {
         return window.isClientIdInObservations(observations, clientId);
     }
     
     // Fallback simple: buscar el ID en las observaciones
     if (!observations || !clientId) return false;
-    return observations.includes(clientId.toString());
+    
+    const obsText = observations.toString().trim();
+    const targetId = clientId.toString();
+    
+    // Búsqueda simple y directa
+    return obsText.includes(targetId);
 }
 
 // ===== FUNCIÓN DE DEBUG =====
@@ -619,6 +663,47 @@ function reloadData() {
     console.log('🔄 Recargando datos...');
     showToast('Recargando datos...', 'info');
     initializeApp();
+}
+
+// ===== FUNCIÓN DE ANÁLISIS DE DATOS =====
+function analyzeDataStructure() {
+    console.log('🔍 === ANÁLISIS DE ESTRUCTURA DE DATOS ===');
+    
+    if (allClients && allClients.length > 0) {
+        console.log('📋 Estructura de clientes:');
+        const clientSample = allClients[0];
+        console.log('  Campos:', Object.keys(clientSample));
+        console.log('  Muestra:', clientSample);
+    }
+    
+    // Intentar cargar datos crudos de facturas
+    fetch(API_CONFIG.INVOICES)
+        .then(response => response.json())
+        .then(data => {
+            console.log('📋 Datos crudos de facturas:');
+            console.log('  Total registros:', data.length);
+            if (data.length > 0) {
+                console.log('  Campos disponibles:', Object.keys(data[0]));
+                console.log('  Primeros 3 registros:', data.slice(0, 3));
+                
+                // Buscar registros que podrían ser facturas
+                const possibleInvoices = data.filter(item => 
+                    item.NumeroFactura || 
+                    item.Factura || 
+                    item.NúmeroFactura ||
+                    item.MontoBase ||
+                    item.Monto ||
+                    item.Total
+                );
+                console.log(`  Posibles facturas encontradas: ${possibleInvoices.length}`);
+                if (possibleInvoices.length > 0) {
+                    console.log('  Muestra de posibles facturas:', possibleInvoices.slice(0, 3));
+                }
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error al analizar datos:', error);
+        });
 }
 
 console.log('✅ capturas.js cargado - Sistema de capturas listo'); 
