@@ -178,7 +178,15 @@ function calculateTotalDebt(invoices, payments) {
         const assignments = parseTransactionAssignments(payment.FacturasAsignadas || '');
         const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
         
-        totalDebt -= assignedAmount;
+        // LIMITAR AL MONTO REAL DEL DEPÓSITO
+        const amountToSubtract = Math.min(assignedAmount, paymentAmount);
+        
+        // Log de debugging para casos problemáticos
+        if (assignedAmount > paymentAmount) {
+            console.warn(`⚠️ Pago ${payment.Referencia || 'N/A'}: Asignaciones (₡${assignedAmount.toLocaleString('es-CR')}) exceden monto real (₡${paymentAmount.toLocaleString('es-CR')}). Limitando a ₡${paymentAmount.toLocaleString('es-CR')}`);
+        }
+        
+        totalDebt -= amountToSubtract;
     }
     
     // Asegurar que la deuda no sea negativa
