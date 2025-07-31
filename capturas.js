@@ -178,13 +178,20 @@ function calculateTotalDebt(invoices, payments) {
         const assignments = parseTransactionAssignments(payment.FacturasAsignadas || '');
         const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
         
-        // LIMITAR AL MONTO REAL DEL DEPÓSITO
-        const amountToSubtract = Math.min(assignedAmount, paymentAmount);
+        // CALCULAR MONTO DISPONIBLE (descontando asignaciones previas)
+        const previouslyAssignedAmount = assignedAmount;
+        const availableAmount = paymentAmount - previouslyAssignedAmount;
+        
+        // SOLO RESTAR EL MONTO REALMENTE DISPONIBLE
+        const amountToSubtract = Math.max(0, availableAmount);
         
         // Log de debugging para casos problemáticos
         if (assignedAmount > paymentAmount) {
-            console.warn(`⚠️ Pago ${payment.Referencia || 'N/A'}: Asignaciones (₡${assignedAmount.toLocaleString('es-CR')}) exceden monto real (₡${paymentAmount.toLocaleString('es-CR')}). Limitando a ₡${paymentAmount.toLocaleString('es-CR')}`);
+            console.warn(`⚠️ Pago ${payment.Referencia || 'N/A'}: Asignaciones (₡${assignedAmount.toLocaleString('es-CR')}) exceden monto real (₡${paymentAmount.toLocaleString('es-CR')}). Solo restando ₡${amountToSubtract.toLocaleString('es-CR')} disponible`);
         }
+        
+        // Log detallado para debugging
+        console.log(`💰 Pago ${payment.Referencia || 'N/A'}: Total=${paymentAmount.toLocaleString('es-CR')}, Asignado=${assignedAmount.toLocaleString('es-CR')}, Disponible=${availableAmount.toLocaleString('es-CR')}, Restando=${amountToSubtract.toLocaleString('es-CR')}`);
         
         totalDebt -= amountToSubtract;
     }

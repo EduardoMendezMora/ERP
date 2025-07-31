@@ -118,14 +118,29 @@ async function applySinglePayment(payment, invoice, availableAmount) {
         // Si el pago está completamente asignado, removerlo de no asignados
         const totalAssigned = newAssignments.reduce((sum, a) => sum + a.amount, 0);
         const totalPayment = parsePaymentAmount(payment.Créditos, payment.BankSource);
+        
+        // CALCULAR ASIGNACIONES ACUMULADAS TOTALES (previas + nuevas)
+        const previousAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+        const previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+        const totalAccumulatedAssignments = previouslyAssignedAmount + totalAssigned;
+        
+        console.log(`🔍 Verificando si pago está completamente asignado:`);
+        console.log(`   - Asignaciones previas: ₡${previouslyAssignedAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Nuevas asignaciones: ₡${totalAssigned.toLocaleString('es-CR')}`);
+        console.log(`   - Total acumulado: ₡${totalAccumulatedAssignments.toLocaleString('es-CR')}`);
+        console.log(`   - Monto total del pago: ₡${totalPayment.toLocaleString('es-CR')}`);
 
-        if (Math.abs(totalAssigned - totalPayment) < 0.01) {
+        if (Math.abs(totalAccumulatedAssignments - totalPayment) < 0.01) {
+            console.log(`✅ Pago completamente asignado - Removiendo de lista no asignados`);
             const paymentIndex = unassignedPayments.findIndex(p =>
                 p.Referencia === payment.Referencia && p.BankSource === payment.BankSource
             );
             if (paymentIndex > -1) {
                 unassignedPayments.splice(paymentIndex, 1);
             }
+        } else {
+            console.log(`⚠️ Pago parcialmente asignado - Manteniendo en lista no asignados`);
+            console.log(`   - Disponible restante: ₡${(totalPayment - totalAccumulatedAssignments).toLocaleString('es-CR')}`);
         }
 
         // Re-cargar y renderizar
@@ -432,8 +447,20 @@ async function confirmPaymentDistribution() {
         // Verificar si el pago está completamente asignado
         const totalAssigned = newAssignments.reduce((sum, a) => sum + a.amount, 0);
         const totalPayment = parsePaymentAmount(currentPaymentForDistribution.Créditos, currentPaymentForDistribution.BankSource);
+        
+        // CALCULAR ASIGNACIONES ACUMULADAS TOTALES (previas + nuevas)
+        const previousAssignments = parseAssignedInvoices(currentPaymentForDistribution.FacturasAsignadas || '');
+        const previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+        const totalAccumulatedAssignments = previouslyAssignedAmount + totalAssigned;
+        
+        console.log(`🔍 Verificando si pago distribuido está completamente asignado:`);
+        console.log(`   - Asignaciones previas: ₡${previouslyAssignedAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Nuevas asignaciones: ₡${totalAssigned.toLocaleString('es-CR')}`);
+        console.log(`   - Total acumulado: ₡${totalAccumulatedAssignments.toLocaleString('es-CR')}`);
+        console.log(`   - Monto total del pago: ₡${totalPayment.toLocaleString('es-CR')}`);
 
-        if (Math.abs(totalAssigned - totalPayment) < 0.01) {
+        if (Math.abs(totalAccumulatedAssignments - totalPayment) < 0.01) {
+            console.log(`✅ Pago distribuido completamente asignado - Removiendo de lista no asignados`);
             const paymentIndex = unassignedPayments.findIndex(p =>
                 p.Referencia === currentPaymentForDistribution.Referencia &&
                 p.BankSource === currentPaymentForDistribution.BankSource
@@ -441,6 +468,9 @@ async function confirmPaymentDistribution() {
             if (paymentIndex > -1) {
                 unassignedPayments.splice(paymentIndex, 1);
             }
+        } else {
+            console.log(`⚠️ Pago distribuido parcialmente asignado - Manteniendo en lista no asignados`);
+            console.log(`   - Disponible restante: ₡${(totalPayment - totalAccumulatedAssignments).toLocaleString('es-CR')}`);
         }
 
         // Cerrar modal y recargar datos
