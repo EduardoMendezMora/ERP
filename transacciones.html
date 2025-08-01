@@ -390,6 +390,41 @@
             gap: 8px;
         }
 
+        /* ESTILOS PARA BOTONES DE SUGERENCIAS POR DEMANDA */
+        .suggestions-btn {
+            background: linear-gradient(135deg, #007aff, #0056cc) !important;
+            color: white !important;
+            border: none !important;
+            padding: 6px 12px !important;
+            border-radius: 6px !important;
+            font-size: 12px !important;
+            cursor: pointer !important;
+            margin-left: 8px !important;
+            transition: all 0.2s ease !important;
+            font-weight: 500 !important;
+            white-space: nowrap !important;
+            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3) !important;
+        }
+
+        .suggestions-btn:hover {
+            background: linear-gradient(135deg, #0056cc, #004499) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4) !important;
+        }
+
+        .suggestions-btn:active {
+            transform: translateY(0) !important;
+        }
+
+        /* Responsive para botones de sugerencias */
+        @media (max-width: 768px) {
+            .suggestions-btn {
+                padding: 8px 12px !important;
+                font-size: 12px !important;
+                min-height: 44px !important;
+            }
+        }
+
         .cell-observations {
             font-size: 14px;
             color: #515154;
@@ -1423,8 +1458,6 @@
                     font-size: 12px;
                 }
             }
-                gap: 6px;
-            }
         }
 
         @media (max-width: 480px) {
@@ -1449,7 +1482,7 @@
     <div class="container">
         <div class="header">
             <h1>🧠 Transacciones Inteligentes</h1>
-            <p>Sistema con IA para sugerencias automáticas de conciliación + WhatsApp</p>
+            <p>Sistema con IA para sugerencias por demanda de conciliación + WhatsApp</p>
         </div>
 
         <!-- Dashboard de Estadísticas -->
@@ -1492,7 +1525,7 @@
                     </div>
                 </div>
                 <div class="stats-highlight" id="aiSuggestionsInfo" style="display: none;">
-                    🧠 <span id="suggestionsCount">0</span> sugerencias IA generadas automáticamente
+                    🧠 <span id="suggestionsCount">0</span> sugerencias IA generadas por demanda
                 </div>
             </div>
 
@@ -3551,6 +3584,70 @@ _Sistema Inteligente de Transacciones_`;
                 this.showSuggestionPanel(referencia);
             }
 
+            // ===== FUNCIÓN PARA GENERAR SUGERENCIAS POR DEMANDA =====
+            async generateSuggestionsForTransaction(transactionRef) {
+                try {
+                    // Buscar la transacción específica
+                    const transaction = this.allTransactions.find(t => t.Referencia === transactionRef);
+                    if (!transaction) {
+                        console.error('❌ Transacción no encontrada:', transactionRef);
+                        this.showSavingIndicator('❌ Transacción no encontrada', 'error');
+                        return;
+                    }
+
+                    // Verificar si ya hay sugerencias para esta transacción
+                    if (this.aiSuggestions.has(transactionRef)) {
+                        console.log('✅ Ya existen sugerencias para esta transacción');
+                        this.showSavingIndicator('✅ Ya existen sugerencias para esta transacción', 'success');
+                        return;
+                    }
+
+                    // Verificar que la transacción no tenga observaciones
+                    if (transaction.Observaciones && transaction.Observaciones.trim() !== '') {
+                        console.log('⚠️ La transacción ya tiene observaciones');
+                        this.showSavingIndicator('⚠️ La transacción ya tiene observaciones', 'warning');
+                        return;
+                    }
+
+                    // Mostrar indicador de carga
+                    this.showSavingIndicator('🧠 Generando sugerencias de IA...', 'loading');
+
+                    // Clasificar transacciones si no se ha hecho
+                    if (this.conciliatedTransactions.length === 0) {
+                        await this.classifyTransactions();
+                    }
+
+                    // Generar sugerencias para esta transacción específica
+                    const suggestions = this.findSimilarTransactions(transaction);
+                    
+                    if (suggestions.length > 0) {
+                        const confidence = this.calculateConfidence(suggestions[0]);
+                        
+                        this.aiSuggestions.set(transactionRef, {
+                            transaction: transaction,
+                            suggestions: suggestions,
+                            confidence: confidence
+                        });
+
+                        // Actualizar dashboard
+                        this.updateAISuggestionsDashboard();
+                        
+                        // Refrescar la vista para mostrar la nueva sugerencia
+                        this.refreshCurrentView();
+                        
+                        this.showSavingIndicator('✅ Sugerencias generadas exitosamente', 'success');
+                        
+                        console.log(`💡 Sugerencias generadas para ${transactionRef}:`, suggestions[0].suggestedObservation);
+                    } else {
+                        this.showSavingIndicator('⚠️ No se encontraron sugerencias para esta transacción', 'warning');
+                    }
+
+                } catch (error) {
+                    console.error('❌ Error generando sugerencias:', error);
+                    this.showSavingIndicator('❌ Error generando sugerencias', 'error');
+                }
+            }
+
             showSuggestionPanel(referencia) {
                 const suggestion = this.aiSuggestions.get(referencia);
                 if (!suggestion) {
@@ -3716,7 +3813,11 @@ _Sistema Inteligente de Transacciones_`;
                                 banco: 'BAC',
                                 montoNumerico: this.parseAmount(t.Créditos || '0')
                             })) : [];
-                            console.log(`✅ Cargadas ${this.bacTransactions.length} transacciones de BAC`);
+                            
+                            // Ordenar transacciones de BAC por fecha y monto
+                            this.sortTransactionsByDateAndAmount(this.bacTransactions);
+                            
+                            console.log(`✅ Cargadas y ordenadas ${this.bacTransactions.length} transacciones de BAC`);
                         }
                     } catch (error) {
                         console.warn('Error cargando hoja por defecto:', error);
@@ -3742,7 +3843,11 @@ _Sistema Inteligente de Transacciones_`;
                                     banco: sheet.name,
                                     montoNumerico: this.parseAmount(t.Créditos || '0')
                                 })) : [];
-                                console.log(`✅ Cargadas ${this[sheet.target].length} transacciones de ${sheet.name}`);
+                                
+                                // Ordenar transacciones de cada banco por fecha y monto
+                                this.sortTransactionsByDateAndAmount(this[sheet.target]);
+                                
+                                console.log(`✅ Cargadas y ordenadas ${this[sheet.target].length} transacciones de ${sheet.name}`);
                             } else {
                                 this[sheet.target] = [];
                             }
@@ -3765,7 +3870,10 @@ _Sistema Inteligente de Transacciones_`;
                         throw new Error('No se pudieron cargar transacciones de ninguna hoja');
                     }
                    
-                    console.log(`📊 Total de transacciones cargadas: ${this.allTransactions.length}`);
+                    // Ordenar transacciones por fecha y monto
+                    this.sortTransactionsByDateAndAmount(this.allTransactions);
+                   
+                    console.log(`📊 Total de transacciones cargadas y ordenadas: ${this.allTransactions.length}`);
                    
                     // Agregar campo Observaciones si no existe
                     if (this.allTransactions.length > 0) {
@@ -3808,10 +3916,11 @@ _Sistema Inteligente de Transacciones_`;
                         console.log('📝 Vista inicial configurada: mostrando transacciones sin observaciones');
                     }, 200); // Reducido de 500ms a 200ms
 
-                    // === INICIAR ANÁLISIS DE IA ===
-                    setTimeout(() => {
-                        this.startAIAnalysis();
-                    }, 500); // Reducido de 1000ms a 500ms
+                    // === ANÁLISIS DE IA DESHABILITADO PARA CARGA MÁS RÁPIDA ===
+                    // El análisis ahora se ejecuta por demanda cuando el usuario lo solicita
+                    // setTimeout(() => {
+                    //     this.startAIAnalysis();
+                    // }, 500);
                    
                 } catch (error) {
                     console.error('Error cargando transacciones:', error);
@@ -3896,6 +4005,9 @@ _Sistema Inteligente de Transacciones_`;
                
                 const filteredByObservations = this.applyObservationsFilter(transactionsToFilter);
                 const finalResults = this.applyCurrentFilter(filteredByObservations);
+               
+                // Ordenar resultados por fecha y monto
+                this.sortTransactionsByDateAndAmount(finalResults);
                
                 console.log(`📊 Resultados filtrados por observaciones: ${finalResults.length}`);
                
@@ -4024,6 +4136,9 @@ _Sistema Inteligente de Transacciones_`;
                
                 const finalResults = this.applyCurrentFilter(filteredByDate);
                
+                // Ordenar resultados por fecha y monto
+                this.sortTransactionsByDateAndAmount(finalResults);
+               
                 console.log(`📊 Resultados filtrados por fecha y observaciones: ${finalResults.length}`);
                
                 if (finalResults.length === 0) {
@@ -4111,6 +4226,26 @@ _Sistema Inteligente de Transacciones_`;
                 } else {
                     return parseFloat(cleanStr) || 0;
                 }
+            }
+
+            // Función auxiliar para ordenar transacciones por fecha y monto
+            sortTransactionsByDateAndAmount(transactions) {
+                return transactions.sort((a, b) => {
+                    // Primero ordenar por fecha (más reciente primero)
+                    const dateA = this.parseTransactionDate(a.Fecha);
+                    const dateB = this.parseTransactionDate(b.Fecha);
+                    
+                    if (dateA && dateB) {
+                        if (dateA.getTime() !== dateB.getTime()) {
+                            return dateB.getTime() - dateA.getTime(); // Más reciente primero
+                        }
+                    }
+                    
+                    // Si las fechas son iguales o no válidas, ordenar por monto (mayor a menor)
+                    const amountA = this.parseAmount(a.Créditos || '0');
+                    const amountB = this.parseAmount(b.Créditos || '0');
+                    return amountB - amountA; // Mayor monto primero
+                });
             }
 
             formatAmount(amount) {
@@ -4962,6 +5097,9 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                    
                     results = this.applyCurrentFilter(results);
                    
+                    // Ordenar resultados por fecha y monto
+                    this.sortTransactionsByDateAndAmount(results);
+                   
                     this.displayResults(results, query);
                    
                 } catch (error) {
@@ -5118,13 +5256,23 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
             }
 
             addSuggestionListeners(transactions) {
-                // Listeners para botones de sugerencias
+                // Listeners para botones de sugerencias existentes
                 document.querySelectorAll('.suggestion-indicator').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         const ref = btn.getAttribute('data-suggestion-ref');
                         this.toggleSuggestionTooltip(ref);
+                    });
+                });
+
+                // Listeners para botones de sugerencias por demanda
+                document.querySelectorAll('.suggestions-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const transactionRef = btn.getAttribute('data-transaction-ref');
+                        this.generateSuggestionsForTransaction(transactionRef);
                     });
                 });
             }
@@ -5179,6 +5327,17 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                 const hasSuggestion = this.aiSuggestions.has(transaction.Referencia);
                 const suggestionClass = hasSuggestion ? 'has-suggestion' : '';
                 const suggestionIndicator = hasSuggestion ? this.createSuggestionIndicator(transaction, index) : '';
+                
+                // Botón de sugerencias por demanda (solo para transacciones sin observaciones)
+                const suggestionsButton = !observaciones ? `
+                    <button class="suggestions-btn"
+                            data-suggestions-index="${index}"
+                            data-transaction-ref="${transaction.Referencia}"
+                            title="💡 Generar sugerencias de IA para esta transacción"
+                            style="background: linear-gradient(135deg, #007aff, #0056cc); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; margin-left: 8px; transition: all 0.2s;">
+                        💡 Sugerencias
+                    </button>
+                ` : '';
                
                 return `
                     <div class="transaction-row">
@@ -5208,7 +5367,10 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                                      title="Haga clic para editar observaciones">
                                     ${observationsDisplay}
                                 </div>
-                                ${suggestionIndicator}
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    ${suggestionIndicator}
+                                    ${suggestionsButton}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -5308,7 +5470,18 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                                      style="margin-top: 4px;">
                                     ${observationsDisplay}
                                 </div>
-                                ${suggestionIndicator}
+                                <div style="display: flex; align-items: center; gap: 4px; margin-top: 8px;">
+                                    ${suggestionIndicator}
+                                    ${!observaciones ? `
+                                        <button class="suggestions-btn"
+                                                data-suggestions-index="${index}"
+                                                data-transaction-ref="${transaction.Referencia}"
+                                                title="💡 Generar sugerencias de IA para esta transacción"
+                                                style="background: linear-gradient(135deg, #007aff, #0056cc); color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                                            💡 Sugerencias
+                                        </button>
+                                    ` : ''}
+                                </div>
                             </div>
                         </div>
                     </div>
