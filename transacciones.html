@@ -1737,7 +1737,6 @@
                 this.conciliatedTransactions = [];
                 this.unconciledTransactions = [];
                 this.cutoffDate = new Date('2025-07-10');
-                this.isGeneratingSuggestion = false; // Control para evitar reordenamiento durante generación de sugerencias
                
                 // Fleet license plates system
                 this.placasFlota = [];
@@ -3588,15 +3587,11 @@ _Sistema Inteligente de Transacciones_`;
             // ===== FUNCIÓN PARA GENERAR SUGERENCIAS POR DEMANDA =====
             async generateSuggestionsForTransaction(transactionRef) {
                 try {
-                    // Marcar que se está generando una sugerencia para evitar reordenamiento
-                    this.isGeneratingSuggestion = true;
-                    
                     // Buscar la transacción específica
                     const transaction = this.allTransactions.find(t => t.Referencia === transactionRef);
                     if (!transaction) {
                         console.error('❌ Transacción no encontrada:', transactionRef);
                         this.showSavingIndicator('❌ Transacción no encontrada', 'error');
-                        this.isGeneratingSuggestion = false;
                         return;
                     }
 
@@ -3604,7 +3599,6 @@ _Sistema Inteligente de Transacciones_`;
                     if (this.aiSuggestions.has(transactionRef)) {
                         console.log('✅ Ya existen sugerencias para esta transacción');
                         this.showSavingIndicator('✅ Ya existen sugerencias para esta transacción', 'success');
-                        this.isGeneratingSuggestion = false;
                         return;
                     }
 
@@ -3612,7 +3606,6 @@ _Sistema Inteligente de Transacciones_`;
                     if (transaction.Observaciones && transaction.Observaciones.trim() !== '') {
                         console.log('⚠️ La transacción ya tiene observaciones');
                         this.showSavingIndicator('⚠️ La transacción ya tiene observaciones', 'warning');
-                        this.isGeneratingSuggestion = false;
                         return;
                     }
 
@@ -3652,12 +3645,6 @@ _Sistema Inteligente de Transacciones_`;
                 } catch (error) {
                     console.error('❌ Error generando sugerencias:', error);
                     this.showSavingIndicator('❌ Error generando sugerencias', 'error');
-                } finally {
-                    // Restaurar el ordenamiento por sugerencias después de un breve delay
-                    setTimeout(() => {
-                        this.isGeneratingSuggestion = false;
-                        console.log('🔄 Ordenamiento por sugerencias restaurado');
-                    }, 2000); // 2 segundos de delay para que el usuario vea la sugerencia en su posición
                 }
             }
 
@@ -4019,10 +4006,8 @@ _Sistema Inteligente de Transacciones_`;
                 const filteredByObservations = this.applyObservationsFilter(transactionsToFilter);
                 const finalResults = this.applyCurrentFilter(filteredByObservations);
                
-                // Ordenar resultados por fecha y monto solo si no se está generando una sugerencia
-                if (!this.isGeneratingSuggestion) {
-                    this.sortTransactionsByDateAndAmount(finalResults);
-                }
+                // Ordenar resultados por fecha y monto
+                this.sortTransactionsByDateAndAmount(finalResults);
                
                 console.log(`📊 Resultados filtrados por observaciones: ${finalResults.length}`);
                
@@ -4151,10 +4136,8 @@ _Sistema Inteligente de Transacciones_`;
                
                 const finalResults = this.applyCurrentFilter(filteredByDate);
                
-                // Ordenar resultados por fecha y monto solo si no se está generando una sugerencia
-                if (!this.isGeneratingSuggestion) {
-                    this.sortTransactionsByDateAndAmount(finalResults);
-                }
+                // Ordenar resultados por fecha y monto
+                this.sortTransactionsByDateAndAmount(finalResults);
                
                 console.log(`📊 Resultados filtrados por fecha y observaciones: ${finalResults.length}`);
                
@@ -4733,13 +4716,8 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
 
             sortTransactions(transactions) {
                 if (!this.currentSort.column || !this.currentSort.direction) {
-                    // Sin ordenamiento: mantener orden de sugerencias IA solo si no se está generando una nueva
-                    if (!this.isGeneratingSuggestion) {
-                        return this.sortResultsBySuggestionConfidence(transactions);
-                    } else {
-                        // Si se está generando una sugerencia, mantener el orden original
-                        return transactions;
-                    }
+                    // Sin ordenamiento: mantener orden original (no ordenar por sugerencias)
+                    return this.sortResultsBySuggestionConfidence(transactions);
                 }
 
                 console.log(`🔄 Aplicando ordenamiento: ${this.currentSort.column} ${this.currentSort.direction}`);
@@ -5178,10 +5156,8 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                    
                     results = this.applyCurrentFilter(results);
                    
-                    // Ordenar resultados por fecha y monto solo si no se está generando una sugerencia
-                    if (!this.isGeneratingSuggestion) {
-                        this.sortTransactionsByDateAndAmount(results);
-                    }
+                    // Ordenar resultados por fecha y monto
+                    this.sortTransactionsByDateAndAmount(results);
                    
                     this.displayResults(results, query);
                    
@@ -5250,16 +5226,8 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                     return;
                 }
 
-                // APLICAR ORDENAMIENTO solo si no se está generando una sugerencia
-                let sortedResults;
-                if (this.isGeneratingSuggestion) {
-                    // Si se está generando una sugerencia, mantener el orden original
-                    sortedResults = results;
-                    console.log('🔄 Manteniendo orden original durante generación de sugerencia');
-                } else {
-                    // Aplicar ordenamiento normal
-                    sortedResults = this.sortTransactions(results);
-                }
+                // APLICAR ORDENAMIENTO
+                const sortedResults = this.sortTransactions(results);
 
                 // Guardar referencia a los resultados mostrados para las funciones de copia
                 this.lastDisplayedResults = sortedResults;
@@ -5273,34 +5241,10 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
             }
 
             sortResultsBySuggestionConfidence(transactions) {
-                // Separar transacciones con y sin sugerencias
-                const withSuggestions = [];
-                const withoutSuggestions = [];
-
-                transactions.forEach(tx => {
-                    const suggestion = this.aiSuggestions.get(tx.Referencia);
-                    if (suggestion) {
-                        withSuggestions.push({
-                            transaction: tx,
-                            confidence: suggestion.confidence
-                        });
-                    } else {
-                        withoutSuggestions.push(tx);
-                    }
-                });
-
-                // Ordenar las que tienen sugerencias por confianza (mayor a menor)
-                withSuggestions.sort((a, b) => b.confidence - a.confidence);
-
-                // Combinar: primero las que tienen sugerencias (ordenadas por confianza), luego las que no
-                const sortedTransactions = [
-                    ...withSuggestions.map(item => item.transaction),
-                    ...withoutSuggestions
-                ];
-
-                console.log(`📊 Ordenamiento por sugerencias: ${withSuggestions.length} con sugerencias, ${withoutSuggestions.length} sin sugerencias`);
-               
-                return sortedTransactions;
+                // NO ordenar por sugerencias - mantener el orden original
+                // Esto evita que las transacciones se muevan cuando se generan sugerencias
+                console.log(`📊 Manteniendo orden original: ${transactions.length} transacciones`);
+                return transactions;
             }
 
             renderTransactionRows(results, query) {

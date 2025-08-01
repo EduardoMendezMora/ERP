@@ -1949,19 +1949,29 @@
         };
 
         function openGroupSearchModal() {
-            const modal = document.getElementById('groupSearchModal');
-            modal.classList.add('show');
+            // Primero verificar si hay valor en el campo placa
+            const placaValue = document.getElementById('Placa').value.trim();
             
-            // Limpiar campos anteriores
-            document.getElementById('groupNameInput').value = '';
-            document.getElementById('searchResults').style.display = 'none';
-            document.getElementById('searchLoading').style.display = 'none';
-            document.getElementById('groupsList').innerHTML = '';
-            
-            // Enfocar el campo de entrada
-            setTimeout(() => {
-                document.getElementById('groupNameInput').focus();
-            }, 100);
+            if (placaValue) {
+                // Si hay placa, usar automáticamente para buscar grupos
+                document.getElementById('groupNameInput').value = placaValue;
+                searchWhatsAppGroups();
+            } else {
+                // Si no hay placa, mostrar el modal para que el usuario digite
+                const modal = document.getElementById('groupSearchModal');
+                modal.classList.add('show');
+                
+                // Limpiar campos anteriores
+                document.getElementById('groupNameInput').value = '';
+                document.getElementById('searchResults').style.display = 'none';
+                document.getElementById('searchLoading').style.display = 'none';
+                document.getElementById('groupsList').innerHTML = '';
+                
+                // Enfocar el campo de entrada
+                setTimeout(() => {
+                    document.getElementById('groupNameInput').focus();
+                }, 100);
+            }
         }
 
         function closeGroupSearchModal() {
@@ -1975,6 +1985,12 @@
             if (!groupName) {
                 showToast('Por favor ingresa el nombre del grupo a buscar', 'warning');
                 return;
+            }
+
+            // Asegurar que el modal esté visible para mostrar resultados
+            const modal = document.getElementById('groupSearchModal');
+            if (!modal.classList.contains('show')) {
+                modal.classList.add('show');
             }
 
             const searchLoading = document.getElementById('searchLoading');
