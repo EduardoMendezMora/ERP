@@ -34,6 +34,7 @@
                 width: 100%;
                 padding: 12px;
                 font-size: 16px;
+                min-height: 44px;
             }
             
             #groupSearchModal #groupsList {
@@ -43,6 +44,10 @@
             #groupSearchModal .group-item {
                 padding: 16px !important;
                 margin-bottom: 12px !important;
+                min-height: 60px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
             }
             
             #groupSearchModal .group-item div:first-child {
@@ -52,6 +57,17 @@
             
             #groupSearchModal .group-item div:last-child {
                 font-size: 14px !important;
+            }
+            
+            /* Mejorar botón de búsqueda en móvil */
+            .form-group .btn {
+                min-height: 44px;
+                font-size: 14px;
+            }
+            
+            /* Asegurar que el input tenga altura mínima táctil */
+            .form-input {
+                min-height: 44px;
             }
         }
 
@@ -602,7 +618,7 @@
                             <label class="form-label">ID Grupo WhatsApp</label>
                             <div style="display: flex; gap: 8px; align-items: flex-end;">
                                 <input type="text" class="form-input" id="idGrupoWhatsapp" placeholder="120363295526322228@g.us" style="flex: 1;">
-                                <button type="button" class="btn btn-secondary" onclick="openGroupSearchModal()" style="white-space: nowrap; padding: 12px 16px;">
+                                <button type="button" class="btn btn-secondary" onclick="openGroupSearchModal()" style="white-space: nowrap; padding: 12px 16px; min-height: 44px;">
                                     🔍 Buscar Grupo
                                 </button>
                             </div>
