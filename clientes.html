@@ -12,6 +12,49 @@
             box-sizing: border-box;
         }
 
+        /* Estilos específicos para el modal de búsqueda de grupos en móvil */
+        @media (max-width: 768px) {
+            #groupSearchModal .modal-content {
+                width: 95% !important;
+                max-width: none !important;
+                margin: 20px 10px;
+                max-height: 90vh;
+            }
+            
+            #groupSearchModal .modal-body {
+                padding: 0 16px 16px 16px;
+            }
+            
+            #groupSearchModal .form-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            #groupSearchModal .form-actions .btn {
+                width: 100%;
+                padding: 12px;
+                font-size: 16px;
+            }
+            
+            #groupSearchModal #groupsList {
+                max-height: 150px;
+            }
+            
+            #groupSearchModal .group-item {
+                padding: 16px !important;
+                margin-bottom: 12px !important;
+            }
+            
+            #groupSearchModal .group-item div:first-child {
+                font-size: 16px !important;
+                margin-bottom: 6px !important;
+            }
+            
+            #groupSearchModal .group-item div:last-child {
+                font-size: 14px !important;
+            }
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background: #f5f5f7;
@@ -557,7 +600,12 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">ID Grupo WhatsApp</label>
-                            <input type="text" class="form-input" id="idGrupoWhatsapp" placeholder="120363295526322228@g.us">
+                            <div style="display: flex; gap: 8px; align-items: flex-end;">
+                                <input type="text" class="form-input" id="idGrupoWhatsapp" placeholder="120363295526322228@g.us" style="flex: 1;">
+                                <button type="button" class="btn btn-secondary" onclick="openGroupSearchModal()" style="white-space: nowrap; padding: 12px 16px;">
+                                    🔍 Buscar Grupo
+                                </button>
+                            </div>
                             <small class="field-help">Formato: números@g.us (ej: 120363295526322228@g.us)</small>
                         </div>
                         <div class="form-group">
@@ -1875,7 +1923,159 @@
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
+
+        // ===== FUNCIONES PARA BÚSQUEDA DE GRUPOS DE WHATSAPP =====
+        
+        // Configuración de la API de UltraMsg
+        const ULTRA_MSG_CONFIG = {
+            instanceId: "instance112077",
+            token: "wp98xs1qrfhqg9ya"
+        };
+
+        function openGroupSearchModal() {
+            const modal = document.getElementById('groupSearchModal');
+            modal.classList.add('show');
+            
+            // Limpiar campos anteriores
+            document.getElementById('groupNameInput').value = '';
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('searchLoading').style.display = 'none';
+            document.getElementById('groupsList').innerHTML = '';
+            
+            // Enfocar el campo de entrada
+            setTimeout(() => {
+                document.getElementById('groupNameInput').focus();
+            }, 100);
+        }
+
+        function closeGroupSearchModal() {
+            const modal = document.getElementById('groupSearchModal');
+            modal.classList.remove('show');
+        }
+
+        async function searchWhatsAppGroups() {
+            const groupName = document.getElementById('groupNameInput').value.trim();
+            
+            if (!groupName) {
+                showToast('Por favor ingresa el nombre del grupo a buscar', 'warning');
+                return;
+            }
+
+            const searchLoading = document.getElementById('searchLoading');
+            const searchResults = document.getElementById('searchResults');
+            const groupsList = document.getElementById('groupsList');
+
+            try {
+                // Mostrar loading
+                searchLoading.style.display = 'block';
+                searchResults.style.display = 'none';
+                groupsList.innerHTML = '';
+
+                // Llamar a la API de UltraMsg
+                const url = `https://api.ultramsg.com/${ULTRA_MSG_CONFIG.instanceId}/chats?token=${ULTRA_MSG_CONFIG.token}`;
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Filtrar solo grupos que contengan el nombre buscado
+                const grupos = data.filter(g => 
+                    g.isGroup && 
+                    g.name && 
+                    g.name.toLowerCase().includes(groupName.toLowerCase())
+                );
+
+                // Ocultar loading
+                searchLoading.style.display = 'none';
+
+                if (grupos.length === 0) {
+                    groupsList.innerHTML = '<p style="color: #86868b; text-align: center; padding: 20px;">No se encontraron grupos con ese nombre.</p>';
+                    searchResults.style.display = 'block';
+                    return;
+                }
+
+                // Mostrar resultados
+                let html = '';
+                grupos.forEach(grupo => {
+                    html += `
+                        <div class="group-item" style="padding: 12px; border: 1px solid #e0e0e0; border-radius: 6px; margin-bottom: 8px; cursor: pointer; transition: background-color 0.2s;" 
+                             onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                             onmouseout="this.style.backgroundColor='white'"
+                             onclick="selectGroup('${grupo.id}', '${grupo.name.replace(/'/g, "\\'")}')">
+                            <div style="font-weight: 600; color: #1d1d1f; margin-bottom: 4px;">${grupo.name}</div>
+                            <div style="font-size: 0.85rem; color: #86868b;">ID: ${grupo.id}</div>
+                        </div>
+                    `;
+                });
+
+                groupsList.innerHTML = html;
+                searchResults.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error al buscar grupos:', error);
+                searchLoading.style.display = 'none';
+                showToast('Error al buscar grupos: ' + error.message, 'error');
+            }
+        }
+
+        function selectGroup(groupId, groupName) {
+            // Rellenar el campo ID del grupo
+            document.getElementById('idGrupoWhatsapp').value = groupId;
+            
+            // Cerrar el modal
+            closeGroupSearchModal();
+            
+            // Mostrar notificación de éxito
+            showToast(`Grupo seleccionado: ${groupName}`, 'success');
+        }
+
+        // Permitir búsqueda con Enter
+        document.addEventListener('DOMContentLoaded', function() {
+            const groupNameInput = document.getElementById('groupNameInput');
+            if (groupNameInput) {
+                groupNameInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        searchWhatsAppGroups();
+                    }
+                });
+            }
+        });
     </script>
+
+    <!-- Modal para buscar grupos de WhatsApp -->
+    <div class="modal-overlay" id="groupSearchModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔍 Buscar Grupo de WhatsApp</h3>
+                <button class="modal-close" onclick="closeGroupSearchModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Nombre del Grupo</label>
+                    <input type="text" class="form-input" id="groupNameInput" placeholder="Ingresa el nombre del grupo a buscar...">
+                    <small class="field-help">Escribe parte del nombre del grupo para buscarlo</small>
+                </div>
+                
+                <div id="searchResults" style="display: none;">
+                    <h4 style="margin: 16px 0 8px 0; color: #1d1d1f;">Resultados de búsqueda:</h4>
+                    <div id="groupsList" style="max-height: 200px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px;"></div>
+                </div>
+                
+                <div id="searchLoading" style="display: none; text-align: center; padding: 20px;">
+                    <div class="spinner" style="width: 30px; height: 30px; margin: 0 auto 10px;"></div>
+                    <p>Buscando grupos...</p>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeGroupSearchModal()">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="searchWhatsAppGroups()">🔍 Buscar Grupos</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Botón Volver al Inicio -->
     <a href="index.html" class="home-button" title="Volver al Inicio">
