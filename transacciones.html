@@ -5066,6 +5066,8 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                 });
             }
 
+
+
             createDesktopTransactionRow(transaction, query, index) {
                 const highlightText = (text, query) => {
                     if (!text || !query) return text || '';
@@ -5109,11 +5111,11 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                                 title="Copiar en una línea">
                             📋
                         </button>
-                        <button class="share-btn"
-                                data-share-index="${index}"
-                                title="Compartir por WhatsApp">
-                            📱
-                        </button>
+                                                    <button class="share-btn"
+                                    data-share-index="${index}"
+                                    title="Compartir por WhatsApp">
+                                📱
+                            </button>
                         <div class="cell cell-date">${transaction.Fecha || 'N/A'}</div>
                         <div class="cell cell-reference">
                             <div style="display: flex; align-items: center; gap: 8px;">
@@ -5177,17 +5179,18 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                
                 return `
                     <div class="transaction-row" style="position: relative;">
-                        <button class="copy-btn"
-                                data-copy-index="${index}"
-                                title="Copiar en una línea"
-                                style="right: 88px;">
-                            📋
-                        </button>
-                        <button class="share-btn"
-                                data-share-index="${index}"
-                                title="Compartir por WhatsApp">
-                            📱
-                        </button>
+                                                    <button class="copy-btn"
+                                    data-copy-index="${index}"
+                                    title="Copiar en una línea"
+                                    style="right: 88px;">
+                                📋
+                            </button>
+                                                    <button class="share-btn"
+                                    data-share-index="${index}"
+                                    title="Compartir por WhatsApp"
+                                    style="right: 60px;">
+                                📱
+                            </button>
                         <div class="mobile-row">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span>${bankIcon}</span>
@@ -5436,6 +5439,8 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                 this.tableContainer.style.display = 'none';
                 this.resultsInfo.style.display = 'none';
             }
+
+
         }
 
         // Responsive handling
@@ -5500,7 +5505,11 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
         
         // Ejecutar verificación al cargar - DESHABILITADO TEMPORALMENTE
         // checkAuthentication();
+
+
     </script>
+
+    
 
     <!-- Botón Volver al Inicio -->
     <a href="index.html" class="home-button" title="Volver al Inicio">

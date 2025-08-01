@@ -793,6 +793,9 @@ function renderUnassignedPaymentsSection() {
                 ${matchInfo}
                
                 <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+                    <button class="btn btn-print" onclick="generateUnassignedPaymentReceipt('${reference}', '${payment.BankSource}')" title="Imprimir Recibo de Depósito">
+                        🧾 Imprimir Recibo
+                    </button>
                     <button class="btn btn-primary" onclick="openAssignPaymentModal('${reference}', '${payment.BankSource}')" title="Asignar a Factura" ${availableAmount <= 0 ? 'disabled' : ''}>
                         📄 Asignar a Factura
                     </button>
@@ -947,6 +950,140 @@ function showMultipleUnassignConfirmation(paymentReference, bankSource) {
     }
 }
 
+// ===== FUNCIÓN PARA GENERAR RECIBOS DE PAGOS NO ASIGNADOS =====
+function generateUnassignedPaymentReceipt(paymentReference, bankSource) {
+    const payment = unassignedPayments.find(p =>
+        p.Referencia === paymentReference && p.BankSource === bankSource
+    );
+
+    if (!payment) {
+        showToast('Pago no encontrado', 'error');
+        return;
+    }
+
+    // Almacenar datos del recibo actual para WhatsApp y descarga
+    currentReceiptData = {
+        payment: payment,
+        client: currentClient,
+        paymentReference: paymentReference,
+        bankSource: bankSource,
+        isUnassigned: true
+    };
+
+    const amount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+    const amountInWords = numberToWords(amount);
+
+    const receiptHTML = `
+        <div class="receipt-header">
+            <img src="${logoUrl}"
+                 alt="EasyCars Logo"
+                 class="company-logo"
+                 crossorigin="anonymous"
+                 onload="this.style.opacity='1'"
+                 onerror="console.warn('Logo no cargó, usando texto'); this.style.display='none'; this.nextElementSibling.style.fontWeight='bold';">
+            <div class="company-name">EasyCars</div>
+            <div class="company-details">
+                Sistema de Arrendamiento de Vehículos | Costa Rica<br>
+                Tel: (506) 8511-0601 | Email: info@easycars.cr
+            </div>
+            <div class="receipt-title">Recibo de Depósito de Reserva</div>
+        </div>
+
+        <div class="receipt-info">
+            <div class="info-section">
+                <h4>Información del Cliente</h4>
+                <div class="info-line">
+                    <span class="info-label">Nombre:</span>
+                    <span class="info-value">${currentClient.Nombre || 'N/A'}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">ID Cliente:</span>
+                    <span class="info-value">${currentClient.ID || 'N/A'}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Teléfono:</span>
+                    <span class="info-value">${currentClient.numeroTelefono || 'N/A'}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Placa:</span>
+                    <span class="info-value">${currentClient.Placa || 'N/A'}</span>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h4>Información del Depósito</h4>
+                <div class="info-line">
+                    <span class="info-label">Referencia:</span>
+                    <span class="info-value">${payment.Referencia || 'N/A'}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Banco:</span>
+                    <span class="info-value">${getBankDisplayName(payment.BankSource)}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Fecha Depósito:</span>
+                    <span class="info-value">${formatDateForDisplay(payment.Fecha)}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Estado:</span>
+                    <span class="info-value">Pendiente de Aplicación</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="receipt-amount">
+            <div class="amount-label">Monto del Depósito</div>
+            <div class="amount-value">₡${amount.toLocaleString('es-CR')}</div>
+            <div class="amount-words">${amountInWords} colones exactos</div>
+        </div>
+
+        ${payment.Descripción && payment.Descripción !== 'Sin descripción' ? `
+            <div class="description-compact">
+                <h4>📝 Descripción del Depósito</h4>
+                <p style="margin: 0; font-size: 0.9rem;">${payment.Descripción}</p>
+            </div>
+        ` : ''}
+
+        ${payment.Observaciones ? `
+            <div class="observations-compact">
+                <h4>📋 Observaciones</h4>
+                <p style="margin: 0; font-size: 0.9rem;">${payment.Observaciones}</p>
+            </div>
+        ` : ''}
+
+        <div class="invoice-info-compact">
+            <h4>📄 Concepto del Depósito</h4>
+            <div class="info-grid">
+                <div><strong>Tipo:</strong> Depósito de Reserva</div>
+                <div><strong>Propósito:</strong> Reserva de Vehículo</div>
+                <div><strong>Estado:</strong> Pendiente de Aplicación</div>
+                <div><strong>Fecha Emisión:</strong> ${formatDateForDisplay(new Date())}</div>
+            </div>
+        </div>
+
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Firma del Cliente</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Firma del Responsable</div>
+            </div>
+        </div>
+
+        <div class="receipt-footer">
+            <p><strong>EasyCars</strong> - Sistema de Arrendamiento de Vehículos</p>
+            <p>Este documento certifica la recepción del depósito de reserva indicado</p>
+            <p>El depósito será aplicado a la factura correspondiente una vez se proceda con la entrega del vehículo</p>
+        </div>
+    `;
+
+    // Mostrar el modal con el recibo
+    document.getElementById('receiptContent').innerHTML = receiptHTML;
+    document.getElementById('receiptModal').classList.add('show');
+}
+
 // ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
 window.generateReceipt = generateReceipt;
 window.closeReceiptModal = closeReceiptModal;
@@ -959,5 +1096,6 @@ window.downloadReceiptFromInstructions = downloadReceiptFromInstructions;
 window.renderUnassignedPaymentsSection = renderUnassignedPaymentsSection;
 window.renderAssignedPaymentsSection = renderAssignedPaymentsSection;
 window.showMultipleUnassignConfirmation = showMultipleUnassignConfirmation;
+window.generateUnassignedPaymentReceipt = generateUnassignedPaymentReceipt;
 
 console.log('✅ receipt-whatsapp.js cargado - Sistema de recibos y WhatsApp con distribución múltiple');
