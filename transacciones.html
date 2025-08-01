@@ -3632,8 +3632,8 @@ _Sistema Inteligente de Transacciones_`;
                         // Actualizar dashboard
                         this.updateAISuggestionsDashboard();
                         
-                        // Refrescar la vista para mostrar la nueva sugerencia
-                        this.refreshCurrentView();
+                        // Actualizar solo la fila específica sin reordenar
+                        this.updateTransactionRowWithSuggestion(transactionRef);
                         
                         this.showSavingIndicator('✅ Sugerencias generadas exitosamente', 'success');
                         
@@ -4246,6 +4246,65 @@ _Sistema Inteligente de Transacciones_`;
                     const amountB = this.parseAmount(b.Créditos || '0');
                     return amountB - amountA; // Mayor monto primero
                 });
+            }
+
+            // Función para actualizar solo una fila específica sin reordenar
+            updateTransactionRowWithSuggestion(transactionRef) {
+                console.log('🔄 Actualizando fila específica para sugerencia:', transactionRef);
+                
+                // Buscar la transacción
+                const transaction = this.allTransactions.find(t => t.Referencia === transactionRef);
+                if (!transaction) {
+                    console.error('❌ Transacción no encontrada para actualizar fila:', transactionRef);
+                    return;
+                }
+
+                // Buscar el índice de la transacción en los resultados actuales
+                const currentResults = this.getLastDisplayedResults();
+                if (!currentResults) {
+                    console.warn('⚠️ No hay resultados actuales para actualizar');
+                    return;
+                }
+
+                const transactionIndex = currentResults.findIndex(t => t.Referencia === transactionRef);
+                if (transactionIndex === -1) {
+                    console.warn('⚠️ Transacción no encontrada en resultados actuales:', transactionRef);
+                    return;
+                }
+
+                // Obtener el contenedor de resultados
+                const resultsContainer = this.resultsContainer;
+                if (!resultsContainer) {
+                    console.error('❌ Contenedor de resultados no encontrado');
+                    return;
+                }
+
+                // Determinar si estamos en vista móvil o desktop
+                const isMobile = window.innerWidth <= 768;
+                
+                // Obtener la consulta actual para el resaltado
+                const currentQuery = this.searchInput.value.trim();
+                
+                if (isMobile) {
+                    // Actualizar fila móvil
+                    const mobileRows = resultsContainer.querySelectorAll('.mobile-transaction-row');
+                    if (mobileRows[transactionIndex]) {
+                        const newRowHTML = this.createMobileTransactionRow(currentResults[transactionIndex], currentQuery, transactionIndex);
+                        mobileRows[transactionIndex].outerHTML = newRowHTML;
+                    }
+                } else {
+                    // Actualizar fila desktop
+                    const desktopRows = resultsContainer.querySelectorAll('.transaction-row');
+                    if (desktopRows[transactionIndex]) {
+                        const newRowHTML = this.createDesktopTransactionRow(currentResults[transactionIndex], currentQuery, transactionIndex);
+                        desktopRows[transactionIndex].outerHTML = newRowHTML;
+                    }
+                }
+
+                // Re-aplicar listeners a la fila actualizada
+                this.addSuggestionListeners(currentResults);
+                
+                console.log('✅ Fila actualizada sin reordenamiento:', transactionRef);
             }
 
             formatAmount(amount) {
