@@ -1737,6 +1737,7 @@
                 this.conciliatedTransactions = [];
                 this.unconciledTransactions = [];
                 this.cutoffDate = new Date('2025-07-10');
+                this.isGeneratingSuggestion = false; // Control para evitar reordenamiento durante generación de sugerencias
                
                 // Fleet license plates system
                 this.placasFlota = [];
@@ -3587,11 +3588,15 @@ _Sistema Inteligente de Transacciones_`;
             // ===== FUNCIÓN PARA GENERAR SUGERENCIAS POR DEMANDA =====
             async generateSuggestionsForTransaction(transactionRef) {
                 try {
+                    // Marcar que se está generando una sugerencia para evitar reordenamiento
+                    this.isGeneratingSuggestion = true;
+                    
                     // Buscar la transacción específica
                     const transaction = this.allTransactions.find(t => t.Referencia === transactionRef);
                     if (!transaction) {
                         console.error('❌ Transacción no encontrada:', transactionRef);
                         this.showSavingIndicator('❌ Transacción no encontrada', 'error');
+                        this.isGeneratingSuggestion = false;
                         return;
                     }
 
@@ -3599,6 +3604,7 @@ _Sistema Inteligente de Transacciones_`;
                     if (this.aiSuggestions.has(transactionRef)) {
                         console.log('✅ Ya existen sugerencias para esta transacción');
                         this.showSavingIndicator('✅ Ya existen sugerencias para esta transacción', 'success');
+                        this.isGeneratingSuggestion = false;
                         return;
                     }
 
@@ -3606,6 +3612,7 @@ _Sistema Inteligente de Transacciones_`;
                     if (transaction.Observaciones && transaction.Observaciones.trim() !== '') {
                         console.log('⚠️ La transacción ya tiene observaciones');
                         this.showSavingIndicator('⚠️ La transacción ya tiene observaciones', 'warning');
+                        this.isGeneratingSuggestion = false;
                         return;
                     }
 
@@ -3645,6 +3652,12 @@ _Sistema Inteligente de Transacciones_`;
                 } catch (error) {
                     console.error('❌ Error generando sugerencias:', error);
                     this.showSavingIndicator('❌ Error generando sugerencias', 'error');
+                } finally {
+                    // Restaurar el ordenamiento por sugerencias después de un breve delay
+                    setTimeout(() => {
+                        this.isGeneratingSuggestion = false;
+                        console.log('🔄 Ordenamiento por sugerencias restaurado');
+                    }, 2000); // 2 segundos de delay para que el usuario vea la sugerencia en su posición
                 }
             }
 
@@ -4716,8 +4729,13 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
 
             sortTransactions(transactions) {
                 if (!this.currentSort.column || !this.currentSort.direction) {
-                    // Sin ordenamiento: mantener orden de sugerencias IA
-                    return this.sortResultsBySuggestionConfidence(transactions);
+                    // Sin ordenamiento: mantener orden de sugerencias IA solo si no se está generando una nueva
+                    if (!this.isGeneratingSuggestion) {
+                        return this.sortResultsBySuggestionConfidence(transactions);
+                    } else {
+                        // Si se está generando una sugerencia, mantener el orden original
+                        return transactions;
+                    }
                 }
 
                 console.log(`🔄 Aplicando ordenamiento: ${this.currentSort.column} ${this.currentSort.direction}`);
