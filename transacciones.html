@@ -1250,18 +1250,53 @@
             }
 
             .mobile-row {
+                margin-bottom: 12px;
+            }
+
+            .mobile-header {
                 display: flex;
                 justify-content: space-between;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .mobile-bank-date {
+                display: flex;
                 align-items: center;
-                margin-bottom: 12px;
+                gap: 8px;
+                flex-shrink: 0;
+            }
+
+            .mobile-bank-icon {
+                font-size: 16px;
+            }
+
+            .mobile-amount-container {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                min-width: 0;
+                flex: 1;
+            }
+
+            .mobile-amount-label {
+                font-size: 10px;
+                color: #86868b;
+                text-transform: uppercase;
+                font-weight: 600;
+                letter-spacing: 0.5px;
+                margin-bottom: 2px;
             }
 
             .mobile-amount {
                 font-family: 'SF Mono', Monaco, monospace;
-                font-size: 17px;
+                font-size: 18px;
                 font-weight: 700;
                 color: #30d158;
-                white-space: nowrap;
+                text-align: right;
+                line-height: 1.2;
+                word-break: break-word;
+                hyphens: auto;
             }
 
             .mobile-details {
@@ -1347,6 +1382,47 @@
 
             .saving-indicator-buttons {
                 flex-direction: column;
+            }
+
+            /* Mejoras adicionales para pantallas muy pequeñas */
+            @media (max-width: 480px) {
+                .mobile-header {
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 8px;
+                }
+
+                .mobile-bank-date {
+                    justify-content: center;
+                }
+
+                .mobile-amount-container {
+                    align-items: center;
+                    text-align: center;
+                }
+
+                .mobile-amount {
+                    font-size: 20px;
+                }
+
+                .mobile-amount-label {
+                    font-size: 11px;
+                }
+            }
+
+            @media (max-width: 360px) {
+                .mobile-amount {
+                    font-size: 16px;
+                }
+
+                .mobile-bank-icon {
+                    font-size: 14px;
+                }
+
+                .cell-date {
+                    font-size: 12px;
+                }
+            }
                 gap: 6px;
             }
         }
@@ -5192,11 +5268,16 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                                 📱
                             </button>
                         <div class="mobile-row">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span>${bankIcon}</span>
-                                <div class="cell-date">${transaction.Fecha || 'N/A'}</div>
+                            <div class="mobile-header">
+                                <div class="mobile-bank-date">
+                                    <span class="mobile-bank-icon">${bankIcon}</span>
+                                    <div class="cell-date">${transaction.Fecha || 'N/A'}</div>
+                                </div>
+                                <div class="mobile-amount-container">
+                                    <div class="mobile-amount-label">Monto</div>
+                                    <div class="mobile-amount">${this.formatAmount(transaction.Créditos)}</div>
+                                </div>
                             </div>
-                            <div class="mobile-amount">${this.formatAmount(transaction.Créditos)}</div>
                         </div>
                        
                         <div class="mobile-details">
