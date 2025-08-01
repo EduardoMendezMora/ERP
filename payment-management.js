@@ -124,6 +124,20 @@ async function applySinglePayment(payment, invoice, availableAmount) {
         const previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
         const totalAccumulatedAssignments = previouslyAssignedAmount + totalAssigned;
         
+        // DEBUGGING ESPECÍFICO PARA EL PAGO PROBLEMÁTICO
+        if (payment.Referencia === '970430862') {
+            console.log(`🔍 [DEBUG] Pago 970430862 - Verificando asignación completa:`);
+            console.log(`   - FacturasAsignadas actual: "${payment.FacturasAsignadas}"`);
+            console.log(`   - previousAssignments:`, previousAssignments);
+            console.log(`   - previouslyAssignedAmount: ₡${previouslyAssignedAmount.toLocaleString('es-CR')}`);
+            console.log(`   - newAssignments:`, newAssignments);
+            console.log(`   - totalAssigned: ₡${totalAssigned.toLocaleString('es-CR')}`);
+            console.log(`   - totalAccumulatedAssignments: ₡${totalAccumulatedAssignments.toLocaleString('es-CR')}`);
+            console.log(`   - totalPayment: ₡${totalPayment.toLocaleString('es-CR')}`);
+            console.log(`   - Diferencia: ₡${(totalAccumulatedAssignments - totalPayment).toLocaleString('es-CR')}`);
+            console.log(`   - ¿Es completamente asignado?: ${Math.abs(totalAccumulatedAssignments - totalPayment) < 0.01}`);
+        }
+        
         console.log(`🔍 Verificando si pago está completamente asignado:`);
         console.log(`   - Asignaciones previas: ₡${previouslyAssignedAmount.toLocaleString('es-CR')}`);
         console.log(`   - Nuevas asignaciones: ₡${totalAssigned.toLocaleString('es-CR')}`);
@@ -452,6 +466,20 @@ async function confirmPaymentDistribution() {
         const previousAssignments = parseAssignedInvoices(currentPaymentForDistribution.FacturasAsignadas || '');
         const previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
         const totalAccumulatedAssignments = previouslyAssignedAmount + totalAssigned;
+        
+        // DEBUGGING ESPECÍFICO PARA EL PAGO PROBLEMÁTICO
+        if (currentPaymentForDistribution.Referencia === '970430862') {
+            console.log(`🔍 [DEBUG] Pago 970430862 - Verificando distribución completa:`);
+            console.log(`   - FacturasAsignadas actual: "${currentPaymentForDistribution.FacturasAsignadas}"`);
+            console.log(`   - previousAssignments:`, previousAssignments);
+            console.log(`   - previouslyAssignedAmount: ₡${previouslyAssignedAmount.toLocaleString('es-CR')}`);
+            console.log(`   - newAssignments:`, newAssignments);
+            console.log(`   - totalAssigned: ₡${totalAssigned.toLocaleString('es-CR')}`);
+            console.log(`   - totalAccumulatedAssignments: ₡${totalAccumulatedAssignments.toLocaleString('es-CR')}`);
+            console.log(`   - totalPayment: ₡${totalPayment.toLocaleString('es-CR')}`);
+            console.log(`   - Diferencia: ₡${(totalAccumulatedAssignments - totalPayment).toLocaleString('es-CR')}`);
+            console.log(`   - ¿Es completamente asignado?: ${Math.abs(totalAccumulatedAssignments - totalPayment) < 0.01}`);
+        }
         
         console.log(`🔍 Verificando si pago distribuido está completamente asignado:`);
         console.log(`   - Asignaciones previas: ₡${previouslyAssignedAmount.toLocaleString('es-CR')}`);
@@ -844,9 +872,24 @@ async function loadUnassignedPayments(clientId) {
                         const paymentAmount = parsePaymentAmount(payment.Créditos, sheet);
                         const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
                         const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+                        const availableAmount = paymentAmount - assignedAmount;
+
+                        // DEBUGGING ESPECÍFICO PARA EL PAGO PROBLEMÁTICO
+                        if (payment.Referencia === '970430862') {
+                            console.log(`🔍 [DEBUG] Pago 970430862 en ${sheet}:`);
+                            console.log(`   - Créditos: "${payment.Créditos}"`);
+                            console.log(`   - FacturasAsignadas: "${payment.FacturasAsignadas}"`);
+                            console.log(`   - paymentAmount: ₡${paymentAmount.toLocaleString('es-CR')}`);
+                            console.log(`   - assignedAmount: ₡${assignedAmount.toLocaleString('es-CR')}`);
+                            console.log(`   - availableAmount: ₡${availableAmount.toLocaleString('es-CR')}`);
+                            console.log(`   - assignments.length: ${assignments.length}`);
+                            console.log(`   - Condición 1 (no asignaciones): ${assignments.length === 0}`);
+                            console.log(`   - Condición 2 (monto disponible): ${availableAmount > 0.01}`);
+                            console.log(`   - Resultado final: ${assignments.length === 0 || availableAmount > 0.01}`);
+                        }
 
                         // Si no tiene asignaciones O tiene monto disponible
-                        return assignments.length === 0 || (paymentAmount - assignedAmount) > 0.01;
+                        return assignments.length === 0 || availableAmount > 0.01;
                     });
 
                     // Agregar información de la fuente (banco)
