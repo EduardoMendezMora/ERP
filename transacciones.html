@@ -4019,8 +4019,10 @@ _Sistema Inteligente de Transacciones_`;
                 const filteredByObservations = this.applyObservationsFilter(transactionsToFilter);
                 const finalResults = this.applyCurrentFilter(filteredByObservations);
                
-                // Ordenar resultados por fecha y monto
-                this.sortTransactionsByDateAndAmount(finalResults);
+                // Ordenar resultados por fecha y monto solo si no se está generando una sugerencia
+                if (!this.isGeneratingSuggestion) {
+                    this.sortTransactionsByDateAndAmount(finalResults);
+                }
                
                 console.log(`📊 Resultados filtrados por observaciones: ${finalResults.length}`);
                
@@ -4149,8 +4151,10 @@ _Sistema Inteligente de Transacciones_`;
                
                 const finalResults = this.applyCurrentFilter(filteredByDate);
                
-                // Ordenar resultados por fecha y monto
-                this.sortTransactionsByDateAndAmount(finalResults);
+                // Ordenar resultados por fecha y monto solo si no se está generando una sugerencia
+                if (!this.isGeneratingSuggestion) {
+                    this.sortTransactionsByDateAndAmount(finalResults);
+                }
                
                 console.log(`📊 Resultados filtrados por fecha y observaciones: ${finalResults.length}`);
                
@@ -5174,8 +5178,10 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                    
                     results = this.applyCurrentFilter(results);
                    
-                    // Ordenar resultados por fecha y monto
-                    this.sortTransactionsByDateAndAmount(results);
+                    // Ordenar resultados por fecha y monto solo si no se está generando una sugerencia
+                    if (!this.isGeneratingSuggestion) {
+                        this.sortTransactionsByDateAndAmount(results);
+                    }
                    
                     this.displayResults(results, query);
                    
@@ -5244,8 +5250,16 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                     return;
                 }
 
-                // APLICAR ORDENAMIENTO
-                const sortedResults = this.sortTransactions(results);
+                // APLICAR ORDENAMIENTO solo si no se está generando una sugerencia
+                let sortedResults;
+                if (this.isGeneratingSuggestion) {
+                    // Si se está generando una sugerencia, mantener el orden original
+                    sortedResults = results;
+                    console.log('🔄 Manteniendo orden original durante generación de sugerencia');
+                } else {
+                    // Aplicar ordenamiento normal
+                    sortedResults = this.sortTransactions(results);
+                }
 
                 // Guardar referencia a los resultados mostrados para las funciones de copia
                 this.lastDisplayedResults = sortedResults;
