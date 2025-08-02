@@ -94,15 +94,7 @@
             <button class="btn btn-warning btn-large" style="margin-left: 12px;" onclick="sendAccountStatement()">
                 📝 Estado de Cuenta - Arrendamiento
             </button>
-            <button class="btn btn-secondary" style="margin-left: 12px;" onclick="debugPageState()">
-                🐛 Debug Estado
-            </button>
-            <button class="btn btn-warning" style="margin-left: 12px;" onclick="forceDataLoad()">
-                🔄 Forzar Carga
-            </button>
-            <button class="btn btn-info" style="margin-left: 12px;" onclick="testBasicFunctionality()">
-                🧪 Prueba Básica
-            </button>
+
         </div>
 
         <!-- Tab Navigation System -->
@@ -687,9 +679,6 @@
         
         // Renderizar facturas no vencidas
         renderNoVencidasInvoices(noVencidasInvoices);
-        
-        // Actualizar contador de pestaña
-        document.getElementById('noVencidasCount').textContent = noVencidasInvoices.length;
     }
     
     // Función para renderizar facturas no vencidas
@@ -780,7 +769,7 @@
         console.log(`✅ Facturas no vencidas renderizadas: ${invoices.length} facturas`);
     }
     
-    // Inicializar sistema de pestañas después de que la aplicación principal se haya cargado
+    // Inicializar sistema de pestañas
     function initializeTabSystem() {
         console.log('🎯 Inicializando sistema de pestañas...');
         
@@ -789,26 +778,9 @@
         switchSubTab('vencidas');
         
         // Actualizar contadores iniciales
-        setTimeout(updateTabCounters, 1000);
+        updateTabCounters();
         
-        // Verificar que los datos se hayan cargado y renderizar contenido
-        setTimeout(() => {
-            console.log('🔍 Verificando datos cargados...');
-            console.log('📊 clientInvoices:', clientInvoices?.length || 0);
-            console.log('💰 unassignedPayments:', unassignedPayments?.length || 0);
-            console.log('✅ assignedPayments:', assignedPayments?.length || 0);
-            
-            // Forzar actualización de contadores
-            updateTabCounters();
-            
-            // Verificar que el contenido se esté mostrando
-            const vencidasPane = document.getElementById('vencidas-pane');
-            const overdueInvoices = document.getElementById('overdueInvoices');
-            if (vencidasPane && overdueInvoices) {
-                console.log('📋 Contenido de vencidas-pane:', vencidasPane.innerHTML.substring(0, 200));
-                console.log('📋 Contenido de overdueInvoices:', overdueInvoices.innerHTML.substring(0, 200));
-            }
-        }, 2000);
+        console.log('✅ Sistema de pestañas inicializado');
     }
     
     // Exponer funciones al scope global
@@ -820,105 +792,42 @@
     window.loadNoVencidasInvoices = loadNoVencidasInvoices;
     window.renderNoVencidasInvoices = renderNoVencidasInvoices;
     
-    // Función de debug para verificar el estado de la página
-    function debugPageState() {
-        console.log('🐛 === DEBUG DETALLADO DEL ESTADO DE LA PÁGINA ===');
-        
-        // Verificar variables globales
-        console.log('📊 Variables globales:');
-        console.log('  clientInvoices:', window.clientInvoices?.length || 0);
-        console.log('  unassignedPayments:', window.unassignedPayments?.length || 0);
-        console.log('  assignedPayments:', window.assignedPayments?.length || 0);
-        console.log('  currentClient:', window.currentClient);
-        
-        // Verificar elementos del DOM
-        console.log('🖥️ Elementos del DOM:');
-        const mainContent = document.getElementById('mainContent');
-        const vencidasPane = document.getElementById('vencidas-pane');
-        const noVencidasPane = document.getElementById('no-vencidas-pane');
-        const pagadasPane = document.getElementById('pagadas-pane');
-        const noAsignadosPane = document.getElementById('no-asignados-pane');
-        const aplicadosPane = document.getElementById('aplicados-pane');
-        
-        console.log('  mainContent visible:', mainContent?.style.display !== 'none');
-        console.log('  mainContent display:', mainContent?.style.display);
-        console.log('  vencidas-pane visible:', vencidasPane?.classList.contains('active'));
-        console.log('  no-vencidas-pane visible:', noVencidasPane?.classList.contains('active'));
-        console.log('  pagadas-pane visible:', pagadasPane?.classList.contains('active'));
-        console.log('  no-asignados-pane visible:', noAsignadosPane?.classList.contains('active'));
-        console.log('  aplicados-pane visible:', aplicadosPane?.classList.contains('active'));
-        
-        // Verificar contenido de los contenedores
-        console.log('📋 Contenido de contenedores:');
-        console.log('  vencidas-pane contenido:', vencidasPane?.innerHTML?.substring(0, 200));
-        console.log('  no-vencidas-pane contenido:', noVencidasPane?.innerHTML?.substring(0, 200));
-        console.log('  pagadas-pane contenido:', pagadasPane?.innerHTML?.substring(0, 200));
-        console.log('  no-asignados-pane contenido:', noAsignadosPane?.innerHTML?.substring(0, 200));
-        console.log('  aplicados-pane contenido:', aplicadosPane?.innerHTML?.substring(0, 200));
-        
-        // Verificar contadores
-        console.log('📈 Contadores:');
-        console.log('  vencidasCount:', document.getElementById('vencidasCount')?.textContent);
-        console.log('  noVencidasCount:', document.getElementById('noVencidasCount')?.textContent);
-        console.log('  pagadasCount:', document.getElementById('pagadasCount')?.textContent);
-        console.log('  noAsignadosCount:', document.getElementById('noAsignadosCount')?.textContent);
-        console.log('  aplicadosCount:', document.getElementById('aplicadosCount')?.textContent);
-        
-        // Verificar estado del sistema de pestañas
-        console.log('🎯 Estado del sistema de pestañas:');
-        console.log('  currentMainTab:', window.currentMainTab);
-        console.log('  currentSubTab:', window.currentSubTab);
-        
-        // Verificar si las funciones están disponibles
-        console.log('🔧 Funciones disponibles:');
-        console.log('  initializeTabSystem:', typeof window.initializeTabSystem);
-        console.log('  renderInvoicesSection:', typeof window.renderInvoicesSection);
-        console.log('  renderUnassignedPaymentsSection:', typeof window.renderUnassignedPaymentsSection);
-        console.log('  renderAssignedPaymentsSection:', typeof window.renderAssignedPaymentsSection);
-        
-        // Forzar actualización de contadores
-        console.log('🔄 Forzando actualización de contadores...');
-        if (typeof window.updateTabCounters === 'function') {
-            window.updateTabCounters();
-        }
-        
-        // Intentar forzar re-renderizado
-        console.log('🔄 Intentando forzar re-renderizado...');
-        if (window.clientInvoices && window.clientInvoices.length > 0) {
-            const overdueInvoices = window.clientInvoices.filter(inv => inv.Estado === 'Vencido');
-            const paidInvoices = window.clientInvoices.filter(inv => inv.Estado === 'Pagado');
-            
-            if (typeof window.renderInvoicesSection === 'function') {
-                console.log('  Renderizando facturas vencidas:', overdueInvoices.length);
-                window.renderInvoicesSection('overdue', overdueInvoices);
-                console.log('  Renderizando facturas pagadas:', paidInvoices.length);
-                window.renderInvoicesSection('paid', paidInvoices);
-            }
-        }
-        
-        if (typeof window.renderUnassignedPaymentsSection === 'function') {
-            console.log('  Renderizando pagos no asignados');
-            window.renderUnassignedPaymentsSection();
-        }
-        
-        if (typeof window.renderAssignedPaymentsSection === 'function') {
-            console.log('  Renderizando pagos aplicados');
-            window.renderAssignedPaymentsSection();
-        }
-        
-        console.log('🐛 === FIN DEBUG DETALLADO ===');
-    }
-    
-    window.debugPageState = debugPageState;
-    
-    // Esperar a que la aplicación principal se inicialice antes de configurar las pestañas
+    // Inicializar cuando el DOM esté listo
     document.addEventListener('DOMContentLoaded', function() {
         console.log('🎯 DOM cargado en facturas.html');
-        // Esperar un poco para que main.js se inicialice primero
-        setTimeout(() => {
-            console.log('🎯 Inicializando sistema de pestañas después de delay...');
-            initializeTabSystem();
-        }, 500);
+        
+        // Para testing: mostrar contenido principal si no hay parámetros de autenticación
+        const urlParams = new URLSearchParams(window.location.search);
+        const isAdmin = urlParams.get('admin') === 'true';
+        const isVendor = urlParams.get('vendor') === 'true';
+        const clientId = urlParams.get('clientId') || urlParams.get('id') || urlParams.get('cliente');
+        
+        if (!isAdmin && !isVendor) {
+            console.log('🧪 Modo testing: mostrando contenido sin autenticación');
+            
+            // Si no hay clientId, usar uno de prueba para cargar datos reales
+            if (!clientId) {
+                console.log('🧪 No hay clientId, usando ID de prueba: 115760847');
+                // Agregar clientId a la URL para que la aplicación funcione
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('clientId', '115760847');
+                window.history.replaceState({}, '', newUrl);
+                
+                // Inicializar la aplicación con el ID de prueba
+                setTimeout(() => {
+                    if (typeof initializeApp === 'function') {
+                        initializeApp();
+                    }
+                }, 500);
+            } else {
+                // Si hay clientId, inicializar normalmente
+                setTimeout(() => {
+                    if (typeof initializeApp === 'function') {
+                        initializeApp();
+                    }
+                }, 500);
+            }
+        }
     });
     
     // Verificar autenticación al cargar
@@ -1000,116 +909,7 @@
         }
     }
     
-    // Función para forzar la carga de datos
-    function forceDataLoad() {
-        console.log('🔄 === FORZANDO CARGA DE DATOS ===');
-        
-        // Verificar si las funciones están disponibles
-        if (typeof window.initializeApp === 'function') {
-            console.log('✅ initializeApp disponible, ejecutando...');
-            window.initializeApp();
-        } else {
-            console.log('❌ initializeApp no disponible');
-        }
-        
-        // Verificar si hay datos ya cargados
-        if (window.clientInvoices && window.clientInvoices.length > 0) {
-            console.log('📊 Datos ya cargados, forzando renderizado...');
-            
-            const overdueInvoices = window.clientInvoices.filter(inv => inv.Estado === 'Vencido');
-            const paidInvoices = window.clientInvoices.filter(inv => inv.Estado === 'Pagado');
-            
-            console.log('  Facturas vencidas:', overdueInvoices.length);
-            console.log('  Facturas pagadas:', paidInvoices.length);
-            console.log('  Pagos no asignados:', window.unassignedPayments?.length || 0);
-            console.log('  Pagos aplicados:', window.assignedPayments?.length || 0);
-            
-            // Forzar renderizado
-            if (typeof window.renderInvoicesSection === 'function') {
-                window.renderInvoicesSection('overdue', overdueInvoices);
-                window.renderInvoicesSection('paid', paidInvoices);
-            }
-            
-            if (typeof window.renderUnassignedPaymentsSection === 'function') {
-                window.renderUnassignedPaymentsSection();
-            }
-            
-            if (typeof window.renderAssignedPaymentsSection === 'function') {
-                window.renderAssignedPaymentsSection();
-            }
-            
-            // Forzar actualización de contadores
-            if (typeof window.updateTabCounters === 'function') {
-                window.updateTabCounters();
-            }
-            
-            // Mostrar contenido principal
-            const mainContent = document.getElementById('mainContent');
-            if (mainContent) {
-                mainContent.style.display = 'block';
-            }
-            
-            console.log('✅ Renderizado forzado completado');
-        } else {
-            console.log('❌ No hay datos cargados');
-        }
-        
-        console.log('🔄 === FIN FORZADO DE CARGA ===');
-    }
-    
-    window.forceDataLoad = forceDataLoad;
 
-    // Función para probar la funcionalidad básica
-    function testBasicFunctionality() {
-        console.log('🧪 Prueba Básica de Funcionalidad');
-        console.log('  - Elementos del DOM:');
-        console.log('    mainContent:', document.getElementById('mainContent') ? 'Presente' : 'Ausente');
-        console.log('    vencidasPane:', document.getElementById('vencidas-pane') ? 'Presente' : 'Ausente');
-        console.log('    noVencidasPane:', document.getElementById('no-vencidas-pane') ? 'Presente' : 'Ausente');
-        console.log('    pagadasPane:', document.getElementById('pagadas-pane') ? 'Presente' : 'Ausente');
-        console.log('    noAsignadosPane:', document.getElementById('no-asignados-pane') ? 'Presente' : 'Ausente');
-        console.log('    aplicadosPane:', document.getElementById('aplicados-pane') ? 'Presente' : 'Ausente');
-        console.log('    loading:', document.getElementById('loading') ? 'Presente' : 'Ausente');
-        console.log('    errorState:', document.getElementById('errorState') ? 'Presente' : 'Ausente');
-        console.log('    clientNameDetail:', document.getElementById('clientNameDetail') ? 'Presente' : 'Ausente');
-        console.log('    clientIdDetail:', document.getElementById('clientIdDetail') ? 'Presente' : 'Ausente');
-        console.log('    clientDetails:', document.getElementById('clientDetails') ? 'Presente' : 'Ausente');
-        console.log('    statsSummary:', document.querySelector('.stats-summary') ? 'Presente' : 'Ausente');
-        console.log('    actionsSection:', document.querySelector('.actions-section') ? 'Presente' : 'Ausente');
-        console.log('    tabSystem:', document.querySelector('.tab-system') ? 'Presente' : 'Ausente');
-        console.log('    tabContent:', document.querySelector('.tab-content') ? 'Presente' : 'Ausente');
-        console.log('    vencidasPaneContent:', document.getElementById('vencidas-pane') ? 'Presente' : 'Ausente');
-        console.log('    noVencidasPaneContent:', document.getElementById('no-vencidas-pane') ? 'Presente' : 'Ausente');
-        console.log('    pagadasPaneContent:', document.getElementById('pagadas-pane') ? 'Presente' : 'Ausente');
-        console.log('    noAsignadosPaneContent:', document.getElementById('no-asignados-pane') ? 'Presente' : 'Ausente');
-        console.log('    aplicadosPaneContent:', document.getElementById('aplicados-pane') ? 'Presente' : 'Ausente');
-        console.log('    loadingOverlay:', document.getElementById('loadingOverlay') ? 'Presente' : 'Ausente');
-        console.log('    receiptModal:', document.getElementById('receiptModal') ? 'Presente' : 'Ausente');
-        console.log('    editInvoiceModal:', document.getElementById('editInvoiceModal') ? 'Presente' : 'Ausente');
-        console.log('    deleteInvoiceModal:', document.getElementById('deleteInvoiceModal') ? 'Presente' : 'Ausente');
-        console.log('    manualInvoiceModal:', document.getElementById('manualInvoiceModal') ? 'Presente' : 'Ausente');
-        console.log('    paymentDistributionModal:', document.getElementById('paymentDistributionModal') ? 'Presente' : 'Ausente');
-        console.log('  - Funciones disponibles:');
-        console.log('    initializeApp:', typeof window.initializeApp);
-        console.log('    renderInvoicesSection:', typeof window.renderInvoicesSection);
-        console.log('    renderUnassignedPaymentsSection:', typeof window.renderUnassignedPaymentsSection);
-        console.log('    renderAssignedPaymentsSection:', typeof window.renderAssignedPaymentsSection);
-        console.log('    openManualInvoiceModal:', typeof window.openManualInvoiceModal);
-        console.log('    sendAccountStatement:', typeof window.sendAccountStatement);
-        console.log('    assignPaymentToInvoice:', typeof window.assignPaymentToInvoice);
-        console.log('    updateTabCounters:', typeof window.updateTabCounters);
-        console.log('    loadNoVencidasInvoices:', typeof window.loadNoVencidasInvoices);
-        console.log('    renderNoVencidasInvoices:', typeof window.renderNoVencidasInvoices);
-        console.log('    switchMainTab:', typeof window.switchMainTab);
-        console.log('    switchSubTab:', typeof window.switchSubTab);
-        console.log('    debugPageState:', typeof window.debugPageState);
-        console.log('    checkAuthentication:', typeof window.checkAuthentication);
-        console.log('    forceDataLoad:', typeof window.forceDataLoad);
-        console.log('    testBasicFunctionality:', typeof window.testBasicFunctionality);
-        console.log('🧪 Prueba Básica de Funcionalidad Completada');
-    }
-
-    window.testBasicFunctionality = testBasicFunctionality;
 </script>
 
 <!-- Botón Volver al Inicio -->
