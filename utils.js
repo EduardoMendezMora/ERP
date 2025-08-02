@@ -1009,17 +1009,14 @@ function setupControlEventListeners() {
         const controlItem = document.getElementById(`control-${section}`);
         
         if (controlItem) {
-            // Remover onclick existente
-            controlItem.removeAttribute('onclick');
-            
-            // Agregar event listener
+            // Agregar event listener que tomará precedencia sobre onclick
             controlItem.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 
                 console.log(`🖱️ CLIC en control-${section} (event listener)`);
                 toggleSection(section);
-            });
+            }, true); // Usar capture phase para tomar precedencia
             
             console.log(`✅ Event listener configurado para control-${section}`);
         } else {
@@ -1126,6 +1123,7 @@ function performSearch(sectionKey, searchTerm) {
     updateSearchUI(sectionKey, searchTerm.length > 0);
     
     console.log(`✅ Búsqueda completada: ${results.length} resultados encontrados`);
+    return results; // Retornar los resultados filtrados
 }
 
 // Función para buscar en los datos
@@ -1465,6 +1463,182 @@ function ensureVariableSync() {
 // Ejecutar sincronización automática cada 2 segundos
 setInterval(ensureVariableSync, 2000);
 
+// ===== FUNCIONES DE FILTRADO VISUAL =====
+
+// Función wrapper para filtrar elementos de sección
+function filterSectionItems(sectionKey, searchTerm) {
+    console.log(`🔍 filterSectionItems llamado: ${sectionKey}, "${searchTerm}"`);
+    
+    if (!searchTerm || searchTerm.trim() === '') {
+        // Si no hay término de búsqueda, limpiar filtros y mostrar todo
+        clearAllVisualFilters(sectionKey);
+        return [];
+    }
+    
+    // Realizar búsqueda usando la función existente
+    const results = performSearch(sectionKey, searchTerm);
+    
+    // Aplicar filtros visuales
+    applyVisualFilters(sectionKey, results, searchTerm);
+    
+    return results;
+}
+
+// Aplicar filtros visuales a los elementos
+function applyVisualFilters(sectionKey, results, searchTerm) {
+    console.log(`🎨 Aplicando filtros visuales para ${sectionKey}`);
+    
+    const sectionElement = document.getElementById(`${sectionKey}Section`);
+    if (!sectionElement) {
+        console.error(`❌ Sección no encontrada: ${sectionKey}Section`);
+        return;
+    }
+    
+    // Obtener todos los elementos de la sección
+    const items = sectionElement.querySelectorAll('.invoice-card, .payment-card');
+    
+    items.forEach(item => {
+        const itemText = item.textContent.toLowerCase();
+        const searchLower = searchTerm.toLowerCase();
+        
+        if (itemText.includes(searchLower)) {
+            // Elemento coincide con la búsqueda
+            item.classList.add('highlight');
+            item.classList.remove('filtered');
+            
+            // Resaltar texto
+            highlightSearchTerms(item, searchTerm);
+        } else {
+            // Elemento no coincide
+            item.classList.add('filtered');
+            item.classList.remove('highlight');
+        }
+    });
+}
+
+// Limpiar todos los filtros visuales
+function clearAllVisualFilters(sectionKey) {
+    console.log(`🧹 Limpiando filtros visuales para ${sectionKey}`);
+    
+    const sectionElement = document.getElementById(`${sectionKey}Section`);
+    if (!sectionElement) {
+        console.error(`❌ Sección no encontrada: ${sectionKey}Section`);
+        return;
+    }
+    
+    // Obtener todos los elementos de la sección
+    const items = sectionElement.querySelectorAll('.invoice-card, .payment-card');
+    
+    items.forEach(item => {
+        item.classList.remove('filtered', 'highlight');
+        restoreOriginalText(item);
+    });
+}
+
+// Configurar búsqueda en tiempo real
+function setupRealTimeSearch(sectionKey) {
+    console.log(`⚡ Configurando búsqueda en tiempo real para ${sectionKey}`);
+    
+    const config = SEARCH_CONFIG[sectionKey];
+    if (!config) {
+        console.error(`❌ Configuración no encontrada para sección: ${sectionKey}`);
+        return;
+    }
+    
+    const input = document.getElementById(config.inputId);
+    if (!input) {
+        console.error(`❌ Input no encontrado: ${config.inputId}`);
+        return;
+    }
+    
+    // Configurar debounce para búsqueda en tiempo real
+    let debounceTimer;
+    input.addEventListener('input', (e) => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            const searchTerm = e.target.value.trim();
+            filterSectionItems(sectionKey, searchTerm);
+        }, 300);
+    });
+}
+
+// Resaltar términos de búsqueda en el texto
+function highlightSearchTerms(element, searchTerm) {
+    if (!searchTerm || searchTerm.trim() === '') return;
+    
+    const searchLower = searchTerm.toLowerCase();
+    const walker = document.createTreeWalker(
+        element,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+    );
+    
+    const textNodes = [];
+    let node;
+    while (node = walker.nextNode()) {
+        textNodes.push(node);
+    }
+    
+    textNodes.forEach(textNode => {
+        const text = textNode.textContent;
+        const textLower = text.toLowerCase();
+        
+        if (textLower.includes(searchLower)) {
+            const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            const highlightedText = text.replace(regex, '<mark class="search-highlight">$1</mark>');
+            
+            if (highlightedText !== text) {
+                const span = document.createElement('span');
+                span.innerHTML = highlightedText;
+                textNode.parentNode.replaceChild(span, textNode);
+            }
+        }
+    });
+}
+
+// Restaurar texto original
+function restoreOriginalText(element) {
+    const marks = element.querySelectorAll('mark.search-highlight');
+    marks.forEach(mark => {
+        const textNode = document.createTextNode(mark.textContent);
+        mark.parentNode.replaceChild(textNode, mark);
+    });
+}
+
+// ===== FUNCIÓN DE PRUEBA PARA VERIFICAR CONTROLES =====
+function testSectionControls() {
+    console.log('🧪 Iniciando prueba de controles de sección...');
+    
+    // Verificar que las funciones existen
+    console.log('✅ toggleSection existe:', typeof toggleSection === 'function');
+    console.log('✅ updateSectionVisibility existe:', typeof updateSectionVisibility === 'function');
+    console.log('✅ updateControlUI existe:', typeof updateControlUI === 'function');
+    
+    // Verificar que los elementos existen
+    const sections = ['unassigned', 'overdue', 'upcoming', 'assigned', 'paid'];
+    sections.forEach(section => {
+        const control = document.getElementById(`control-${section}`);
+        const sectionElement = document.getElementById(`${section}Section`);
+        console.log(`🎛️ ${section}: control ${control ? '✅' : '❌'}, section ${sectionElement ? '✅' : '❌'}`);
+    });
+    
+    // Probar toggle de una sección
+    console.log('🔄 Probando toggle de sección "upcoming"...');
+    const initialState = sectionVisibility.upcoming;
+    toggleSection('upcoming');
+    const finalState = sectionVisibility.upcoming;
+    console.log(`📊 Estado cambiado: ${initialState} → ${finalState}`);
+    
+    // Verificar que el cambio se aplicó visualmente
+    const upcomingSection = document.getElementById('upcomingSection');
+    const upcomingControl = document.getElementById('control-upcoming');
+    console.log(`👁️ Sección visible: ${upcomingSection.style.display !== 'none'}`);
+    console.log(`🎛️ Control activo: ${upcomingControl.classList.contains('active')}`);
+    
+    console.log('✅ Prueba de controles completada');
+}
+
 // ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
 window.API_CONFIG = API_CONFIG;
 window.ULTRAMSG_CONFIG = ULTRAMSG_CONFIG;
@@ -1555,6 +1729,32 @@ window.clearSearch = clearSearch;
 window.debugSearch = debugSearch;
 window.testSearchSystem = testSearchSystem;
 window.showSearchStats = showSearchStats;
+window.testSectionControls = testSectionControls;
+window.manualTestControls = manualTestControls;
+
+// Función para probar controles manualmente
+function manualTestControls() {
+    console.log('🧪 === PRUEBA MANUAL DE CONTROLES ===');
+    
+    // Probar cada sección
+    const sections = ['unassigned', 'overdue', 'upcoming', 'assigned', 'paid'];
+    
+    sections.forEach((section, index) => {
+        setTimeout(() => {
+            console.log(`🔄 Probando sección: ${section}`);
+            toggleSection(section);
+            
+            // Verificar estado después de 500ms
+            setTimeout(() => {
+                const isVisible = sectionVisibility[section];
+                const sectionElement = document.getElementById(`${section}Section`);
+                const controlElement = document.getElementById(`control-${section}`);
+                
+                console.log(`📊 ${section}: visible=${isVisible}, display=${sectionElement.style.display}, controlActive=${controlElement.classList.contains('active')}`);
+            }, 100);
+        }, index * 200);
+    });
+}
 
 // Funciones de búsqueda por sección
 window.filterSectionItems = filterSectionItems;
@@ -1579,4 +1779,8 @@ setTimeout(() => {
     
     // Configurar event listeners de búsqueda
     setupSearchEventListeners();
+    
+    // Verificar que todo está funcionando
+    console.log('🔍 Verificando estado de controles...');
+    testSectionControls();
 }, 1000);
