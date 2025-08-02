@@ -551,8 +551,6 @@ function renderInvoicesSection(status, invoices) {
         console.error(`❌ No se encontró contenedor para la sección: ${status}`);
         return;
     }
-
-    countElement.textContent = invoices.length;
     
     // Actualizar contadores de pestañas si existen
     if (status === 'overdue') {

@@ -147,7 +147,6 @@
                 <div class="section-header">
                     <h3 class="section-title">
                         🔴 Facturas Vencidas ó con Pago Parcial
-                        <span class="section-count" id="overdueCount">0</span>
                     </h3>
                     <small style="color: #86868b; font-size: 0.8rem;">Completamente vencidas y vencidas con pagos parciales - Ordenadas de más vieja a más nueva</small>
                 </div>
@@ -163,7 +162,6 @@
                 <div class="section-header">
                     <h3 class="section-title">
                         🟡 Facturas No Vencidas
-                        <span class="section-count" id="noVencidasSectionCount">0</span>
                     </h3>
                     <small style="color: #86868b; font-size: 0.8rem;">Facturas por vencer en el futuro - Ordenadas de más próxima a más lejana a vencer</small>
                 </div>
@@ -179,7 +177,6 @@
                 <div class="section-header">
                     <h3 class="section-title">
                         🟢 Facturas Pagadas
-                        <span class="section-count" id="paidCount">0</span>
                     </h3>
                     <small style="color: #86868b; font-size: 0.8rem;">Facturas completamente pagadas - Ordenadas de última pagada a más vieja pagada</small>
                 </div>
@@ -195,7 +192,6 @@
                 <div class="section-header">
                     <h3 class="section-title">
                         💰 Pagos Relacionados No Asignados
-                        <span class="section-count" id="unassignedPaymentsCount">0</span>
                     </h3>
                     <small style="color: #86868b; font-size: 0.8rem;">Pagos encontrados por ID_Cliente directo O ID en Observaciones - Ordenados del más viejo al más nuevo</small>
                 </div>
@@ -211,7 +207,6 @@
                 <div class="section-header">
                     <h3 class="section-title">
                         ✅ Pagos Aplicados
-                        <span class="section-count section-paid" id="assignedPaymentsCount">0</span>
                     </h3>
                     <small style="color: #86868b; font-size: 0.8rem;">Pagos ya asignados a facturas - Ordenados del más reciente aplicado al más viejo</small>
                 </div>
@@ -561,16 +556,38 @@
     function updateTabCounters() {
         console.log('🔄 Actualizando contadores de pestañas...');
         
-        // Contadores de facturas
-        const vencidasCount = document.getElementById('overdueCount')?.textContent || '0';
-        const noVencidasCount = document.getElementById('noVencidasSectionCount')?.textContent || '0';
-        const pagadasCount = document.getElementById('paidCount')?.textContent || '0';
+        // Calcular contadores directamente desde los datos globales
+        let vencidasCount = 0;
+        let noVencidasCount = 0;
+        let pagadasCount = 0;
         
-        // Contadores de pagos
-        const noAsignadosCount = document.getElementById('unassignedPaymentsCount')?.textContent || '0';
-        const aplicadosCount = document.getElementById('assignedPaymentsCount')?.textContent || '0';
+        if (window.clientInvoices && window.clientInvoices.length > 0) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(0, 0, 0, 0);
+            
+            window.clientInvoices.forEach(invoice => {
+                const dueDate = new Date(invoice.FechaVencimiento);
+                dueDate.setHours(0, 0, 0, 0);
+                
+                if (invoice.Estado === 'Pagado') {
+                    pagadasCount++;
+                } else if (dueDate < today) {
+                    vencidasCount++;
+                } else if (dueDate >= tomorrow) {
+                    noVencidasCount++;
+                }
+            });
+        }
         
-        console.log('📊 Contadores encontrados:', {
+        // Contadores de pagos desde datos globales
+        const noAsignadosCount = window.unassignedPayments ? window.unassignedPayments.length : 0;
+        const aplicadosCount = window.assignedPayments ? window.assignedPayments.length : 0;
+        
+        console.log('📊 Contadores calculados:', {
             vencidas: vencidasCount,
             noVencidas: noVencidasCount,
             pagadas: pagadasCount,
@@ -660,8 +677,7 @@
         // Renderizar facturas no vencidas
         renderNoVencidasInvoices(noVencidasInvoices);
         
-        // Actualizar contador
-        document.getElementById('noVencidasSectionCount').textContent = noVencidasInvoices.length;
+        // Actualizar contador de pestaña
         document.getElementById('noVencidasCount').textContent = noVencidasInvoices.length;
     }
     
