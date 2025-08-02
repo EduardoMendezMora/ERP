@@ -560,7 +560,14 @@ function showLoadingOverlay(show) {
 
 // ===== FUNCIONES DE CONTROL DE SECCIONES =====
 function toggleSection(sectionKey) {
+    console.log(`🔄 toggleSection llamado con: ${sectionKey}`);
+    console.log(`📊 Estado anterior:`, sectionVisibility[sectionKey]);
+    
     sectionVisibility[sectionKey] = !sectionVisibility[sectionKey];
+    
+    console.log(`📊 Estado nuevo:`, sectionVisibility[sectionKey]);
+    console.log(`🎛️ sectionVisibility completo:`, sectionVisibility);
+    
     updateSectionVisibility();
     updateControlUI();
     saveSectionPreferences();
@@ -602,6 +609,8 @@ function showOnlyActive() {
 }
 
 function updateSectionVisibility() {
+    console.log('🔄 updateSectionVisibility ejecutándose...');
+    
     const sectionMap = {
         'unassigned': 'unassignedPaymentsSection',
         'overdue': 'overdueSection',
@@ -612,18 +621,28 @@ function updateSectionVisibility() {
 
     Object.entries(sectionVisibility).forEach(([key, visible]) => {
         const sectionElement = document.getElementById(sectionMap[key]);
+        console.log(`  📋 ${key}: buscando elemento ${sectionMap[key]} - ${sectionElement ? '✅ Encontrado' : '❌ No encontrado'}`);
+        
         if (sectionElement) {
+            const oldDisplay = sectionElement.style.display;
             sectionElement.style.display = visible ? 'block' : 'none';
+            console.log(`    Display: ${oldDisplay} → ${sectionElement.style.display}`);
         }
     });
 }
 
 function updateControlUI() {
+    console.log('🔄 updateControlUI ejecutándose...');
+    
     Object.entries(sectionVisibility).forEach(([key, visible]) => {
         const controlItem = document.getElementById(`control-${key}`);
         const controlToggle = document.getElementById(`toggle-${key}`);
 
+        console.log(`  🎛️ ${key}: control-${key} ${controlItem ? '✅' : '❌'}, toggle-${key} ${controlToggle ? '✅' : '❌'}`);
+
         if (controlItem && controlToggle) {
+            const wasActive = controlItem.classList.contains('active');
+            
             if (visible) {
                 controlItem.classList.add('active');
                 controlToggle.classList.add('active');
@@ -631,6 +650,9 @@ function updateControlUI() {
                 controlItem.classList.remove('active');
                 controlToggle.classList.remove('active');
             }
+            
+            const isActive = controlItem.classList.contains('active');
+            console.log(`    Active: ${wasActive} → ${isActive}`);
         }
     });
 }
@@ -717,6 +739,108 @@ function findAssociatedPayment(invoiceNumber) {
         };
     }
     return null;
+}
+
+// ===== FUNCIÓN DE DEBUG PARA VERIFICAR FACTURAS =====
+function debugInvoices() {
+    console.log('🔍 === DEBUG DE FACTURAS ===');
+    
+    if (!Array.isArray(clientInvoices)) {
+        console.log('❌ clientInvoices no es un array');
+        return;
+    }
+    
+    console.log(`📋 Total de facturas: ${clientInvoices.length}`);
+    
+    // Agrupar por estado
+    const byStatus = {
+        'Pendiente': [],
+        'Vencido': [],
+        'Pagado': []
+    };
+    
+    clientInvoices.forEach(inv => {
+        const status = inv.Estado || 'Sin Estado';
+        if (byStatus[status]) {
+            byStatus[status].push(inv);
+        }
+    });
+    
+    console.log('📊 Facturas por estado:');
+    Object.entries(byStatus).forEach(([status, invoices]) => {
+        console.log(`  ${status}: ${invoices.length} facturas`);
+        
+        if (status === 'Pendiente') {
+            console.log('    Detalles de facturas pendientes:');
+            invoices.forEach(inv => {
+                const dueDate = parseDate(inv.FechaVencimiento);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                const isFuture = dueDate && dueDate > today;
+                const isToday = dueDate && dueDate.getTime() === today.getTime();
+                const isPast = dueDate && dueDate < today;
+                
+                console.log(`      - ${inv.NumeroFactura}: ${inv.FechaVencimiento} (${isFuture ? 'FUTURA' : isToday ? 'HOY' : isPast ? 'PASADA' : 'SIN FECHA'})`);
+            });
+        }
+    });
+    
+    // Probar función getUpcomingInvoices
+    const upcoming = getUpcomingInvoices(clientInvoices, 2);
+    console.log(`📅 Próximas facturas (getUpcomingInvoices): ${upcoming.length}`);
+    upcoming.forEach(inv => {
+        console.log(`  - ${inv.NumeroFactura}: ${inv.FechaVencimiento}`);
+    });
+    
+    console.log('================================');
+}
+
+// ===== FUNCIÓN DE DEBUG PARA VERIFICAR CONTROLES DE SECCIÓN =====
+function debugSectionControls() {
+    console.log('🔍 === DEBUG DE CONTROLES DE SECCIÓN ===');
+    
+    // Verificar elementos del DOM
+    const sections = ['unassigned', 'overdue', 'upcoming', 'assigned', 'paid'];
+    
+    sections.forEach(section => {
+        const controlItem = document.getElementById(`control-${section}`);
+        const controlToggle = document.getElementById(`toggle-${section}`);
+        const sectionElement = document.getElementById(`${section}Section`);
+        const countElement = document.getElementById(`control-count-${section}`);
+        
+        console.log(`📋 Sección: ${section}`);
+        console.log(`  control-${section}:`, controlItem ? '✅ Encontrado' : '❌ No encontrado');
+        console.log(`  toggle-${section}:`, controlToggle ? '✅ Encontrado' : '❌ No encontrado');
+        console.log(`  ${section}Section:`, sectionElement ? '✅ Encontrado' : '❌ No encontrado');
+        console.log(`  control-count-${section}:`, countElement ? '✅ Encontrado' : '❌ No encontrado');
+        
+        if (controlItem) {
+            console.log(`  Clase active:`, controlItem.classList.contains('active') ? '✅ Sí' : '❌ No');
+            console.log(`  onclick:`, controlItem.getAttribute('onclick'));
+        }
+        
+        if (controlToggle) {
+            console.log(`  Toggle active:`, controlToggle.classList.contains('active') ? '✅ Sí' : '❌ No');
+        }
+        
+        if (sectionElement) {
+            console.log(`  Display:`, sectionElement.style.display);
+        }
+    });
+    
+    // Verificar estado de sectionVisibility
+    console.log('🎛️ Estado de sectionVisibility:', sectionVisibility);
+    
+    // Verificar funciones globales
+    console.log('🔧 Funciones globales:');
+    console.log('  toggleSection:', typeof window.toggleSection);
+    console.log('  toggleAllSections:', typeof window.toggleAllSections);
+    console.log('  showOnlyActive:', typeof window.showOnlyActive);
+    console.log('  updateSectionVisibility:', typeof window.updateSectionVisibility);
+    console.log('  updateControlUI:', typeof window.updateControlUI);
+    
+    console.log('================================');
 }
 
 // ===== SINCRONIZACIÓN AUTOMÁTICA DE VARIABLES =====
@@ -828,6 +952,8 @@ window.numberToWords = numberToWords;
 window.blobToBase64 = blobToBase64;
 window.generateInvoiceNumber = generateInvoiceNumber;
 window.findAssociatedPayment = findAssociatedPayment;
+window.debugInvoices = debugInvoices;
+window.debugSectionControls = debugSectionControls;
 
 console.log('✅ utils.js cargado - Funciones utilitarias disponibles');
 
