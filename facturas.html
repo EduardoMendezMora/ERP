@@ -69,6 +69,17 @@
                 <div class="control-toggle active" id="toggle-overdue"></div>
             </div>
 
+            <div class="control-item active" id="control-upcoming" onclick="toggleSection('upcoming')">
+                <div class="control-info">
+                    <div class="control-icon">📅</div>
+                    <div class="control-text">
+                        <div class="control-label">Facturas No Vencidas</div>
+                        <div class="control-count" id="control-count-upcoming">0 próximas facturas</div>
+                    </div>
+                </div>
+                <div class="control-toggle active" id="toggle-upcoming"></div>
+            </div>
+
             <div class="control-item active" id="control-assigned" onclick="toggleSection('assigned')">
                 <div class="control-info">
                     <div class="control-icon">✅</div>
@@ -190,6 +201,22 @@
             <div class="empty-section" id="emptyOverdue" style="display: none;">
                 <h4>✅ No hay facturas vencidas</h4>
                 <p>No hay facturas que venzan hoy o ya vencidas</p>
+            </div>
+        </div>
+
+        <!-- Upcoming Invoices Section -->
+        <div class="invoices-section section-upcoming" id="upcomingSection">
+            <div class="section-header">
+                <h3 class="section-title">
+                    📅 Facturas No Vencidas
+                    <span class="section-count" id="upcomingCount">0</span>
+                </h3>
+                <small style="color: #86868b; font-size: 0.8rem;">Próximas 2 facturas por vencerse en el futuro</small>
+            </div>
+            <div class="invoices-grid" id="upcomingInvoices"></div>
+            <div class="empty-section" id="emptyUpcoming" style="display: none;">
+                <h4>📋 No hay facturas próximas</h4>
+                <p>No hay facturas pendientes por vencerse</p>
             </div>
         </div>
 

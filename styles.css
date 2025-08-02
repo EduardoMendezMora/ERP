@@ -309,6 +309,7 @@ body {
 .section-overdue .section-count { background: #ff3b30; }
 .section-pending .section-count { background: #ff9500; }
 .section-paid .section-count { background: #34c759; }
+.section-upcoming .section-count { background: #007aff; }
 
 .invoices-grid {
     display: grid;
@@ -344,6 +345,11 @@ body {
 .invoice-card.pending {
     border-left: 4px solid #ff9500;
     background: linear-gradient(135deg, #fff 0%, #fffaf5 100%);
+}
+
+.invoice-card.upcoming {
+    border-left: 4px solid #007aff;
+    background: linear-gradient(135deg, #fff 0%, #f0f8ff 100%);
 }
 
 .invoice-card.paid {
@@ -393,6 +399,11 @@ body {
 
 .status-overdue {
     background: #ff3b30;
+    color: white;
+}
+
+.status-upcoming {
+    background: #007aff;
     color: white;
 }
 
