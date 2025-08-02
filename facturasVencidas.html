@@ -246,12 +246,10 @@
 <script src="account-statement.js"></script>
 <script src="fix-overdue-invoices.js"></script>
 
-<script>
-// ===== VARIABLES GLOBALES ESPECÍFICAS PARA FACTURAS VENCIDAS =====
-let currentClientId = null;
-let currentClient = null;
-let clientInvoices = [];
-let assignedPayments = [];
+            <script>
+            // ===== VARIABLES GLOBALES ESPECÍFICAS PARA FACTURAS VENCIDAS =====
+            // Las variables globales ya están declaradas en utils.js y expuestas al scope global
+            // currentClientId, currentClient, clientInvoices, assignedPayments
 
 // ===== INICIALIZACIÓN DE LA APLICACIÓN =====
 async function initializeApp() {
