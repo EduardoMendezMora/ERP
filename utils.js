@@ -662,21 +662,29 @@ function updateControlUI() {
             if (visible) {
                 controlItem.classList.add('active');
                 controlToggle.classList.add('active');
-                // Agregar efecto visual
-                controlItem.style.transform = 'scale(1.02)';
+                // Agregar efecto visual más dramático
+                controlItem.style.transform = 'scale(1.05)';
+                controlItem.style.boxShadow = '0 4px 12px rgba(0, 122, 255, 0.3)';
+                controlItem.style.backgroundColor = '#e6f3ff';
+                controlItem.style.borderColor = '#007aff';
                 setTimeout(() => {
-                    controlItem.style.transition = 'transform 0.2s ease';
+                    controlItem.style.transition = 'transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, border-color 0.3s ease';
                     controlItem.style.transform = 'scale(1)';
-                }, 200);
+                    controlItem.style.boxShadow = '0 2px 8px rgba(0, 122, 255, 0.15)';
+                }, 300);
             } else {
                 controlItem.classList.remove('active');
                 controlToggle.classList.remove('active');
-                // Agregar efecto visual
-                controlItem.style.transform = 'scale(0.98)';
+                // Agregar efecto visual más dramático
+                controlItem.style.transform = 'scale(0.95)';
+                controlItem.style.boxShadow = '0 1px 4px rgba(0, 0, 0, 0.1)';
+                controlItem.style.backgroundColor = '#f9f9f9';
+                controlItem.style.borderColor = '#e5e5e7';
                 setTimeout(() => {
-                    controlItem.style.transition = 'transform 0.2s ease';
+                    controlItem.style.transition = 'transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, border-color 0.3s ease';
                     controlItem.style.transform = 'scale(1)';
-                }, 200);
+                    controlItem.style.boxShadow = 'none';
+                }, 300);
             }
             
             const isActive = controlItem.classList.contains('active');
@@ -871,6 +879,38 @@ function debugSectionControls() {
     console.log('================================');
 }
 
+// ===== FUNCIÓN DE DEBUG PARA VERIFICAR ESTADO VISUAL DE CONTROLES =====
+function debugControlVisualState() {
+    console.log('🔍 === DEBUG ESTADO VISUAL DE CONTROLES ===');
+    
+    const sections = ['unassigned', 'overdue', 'upcoming', 'assigned', 'paid'];
+    
+    sections.forEach(section => {
+        const controlItem = document.getElementById(`control-${section}`);
+        const controlToggle = document.getElementById(`toggle-${section}`);
+        
+        if (controlItem && controlToggle) {
+            const computedStyle = window.getComputedStyle(controlItem);
+            const toggleComputedStyle = window.getComputedStyle(controlToggle);
+            
+            console.log(`📋 Control: ${section}`);
+            console.log(`  Clase active: ${controlItem.classList.contains('active')}`);
+            console.log(`  Background: ${computedStyle.backgroundColor}`);
+            console.log(`  Border: ${computedStyle.borderColor}`);
+            console.log(`  Transform: ${computedStyle.transform}`);
+            console.log(`  Box-shadow: ${computedStyle.boxShadow}`);
+            console.log(`  Toggle background: ${toggleComputedStyle.backgroundColor}`);
+            console.log(`  Toggle transform: ${toggleComputedStyle.transform}`);
+            console.log('  ---');
+        }
+    });
+    
+    console.log('================================');
+}
+
+// Hacer la función disponible globalmente
+window.debugControlVisualState = debugControlVisualState;
+
 // ===== SINCRONIZACIÓN AUTOMÁTICA DE VARIABLES =====
 function ensureVariableSync() {
     // Sincronizar variables críticas automáticamente
@@ -982,6 +1022,7 @@ window.generateInvoiceNumber = generateInvoiceNumber;
 window.findAssociatedPayment = findAssociatedPayment;
 window.debugInvoices = debugInvoices;
 window.debugSectionControls = debugSectionControls;
+window.debugControlVisualState = debugControlVisualState;
 
 console.log('✅ utils.js cargado - Funciones utilitarias disponibles');
 
