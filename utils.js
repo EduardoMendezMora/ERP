@@ -37,9 +37,9 @@ let selectedPaymentForInvoice = null;
 let sectionVisibility = {
     unassigned: true,
     overdue: true,
-    upcoming: true,
+    upcoming: false,  // Inicialmente oculta
     assigned: true,
-    paid: true
+    paid: false       // Inicialmente oculta
 };
 
 // ===== FUNCIONES DE DEBUGGING =====
@@ -911,6 +911,54 @@ function debugControlVisualState() {
 // Hacer la función disponible globalmente
 window.debugControlVisualState = debugControlVisualState;
 
+// ===== FUNCIÓN PARA MOSTRAR SOLO SECCIONES ACTIVAS POR DEFECTO =====
+function showDefaultActiveSections() {
+    console.log('🎛️ Configurando secciones activas por defecto...');
+    
+    // Ocultar todas las secciones primero
+    Object.keys(sectionVisibility).forEach(key => {
+        sectionVisibility[key] = false;
+    });
+    
+    // Mostrar solo secciones con contenido
+    if (unassignedPayments && unassignedPayments.length > 0) {
+        sectionVisibility.unassigned = true;
+        console.log('✅ Mostrando sección unassigned (tiene contenido)');
+    }
+    
+    if (clientInvoices && clientInvoices.length > 0) {
+        const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
+        if (overdueInvoices.length > 0) {
+            sectionVisibility.overdue = true;
+            console.log('✅ Mostrando sección overdue (tiene contenido)');
+        }
+        
+        const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
+        if (upcomingInvoices.length > 0) {
+            sectionVisibility.upcoming = true;
+            console.log('✅ Mostrando sección upcoming (tiene contenido)');
+        }
+        
+        const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
+        if (paidInvoices.length > 0) {
+            sectionVisibility.paid = true;
+            console.log('✅ Mostrando sección paid (tiene contenido)');
+        }
+    }
+    
+    if (assignedPayments && assignedPayments.length > 0) {
+        sectionVisibility.assigned = true;
+        console.log('✅ Mostrando sección assigned (tiene contenido)');
+    }
+    
+    // Aplicar cambios visuales
+    updateSectionVisibility();
+    updateControlUI();
+    updateSectionCounts();
+    
+    console.log('🎛️ Estado final de secciones:', sectionVisibility);
+}
+
 // ===== SINCRONIZACIÓN AUTOMÁTICA DE VARIABLES =====
 function ensureVariableSync() {
     // Sincronizar variables críticas automáticamente
@@ -1023,6 +1071,7 @@ window.findAssociatedPayment = findAssociatedPayment;
 window.debugInvoices = debugInvoices;
 window.debugSectionControls = debugSectionControls;
 window.debugControlVisualState = debugControlVisualState;
+window.showDefaultActiveSections = showDefaultActiveSections;
 
 console.log('✅ utils.js cargado - Funciones utilitarias disponibles');
 
@@ -1030,4 +1079,7 @@ console.log('✅ utils.js cargado - Funciones utilitarias disponibles');
 setTimeout(() => {
     ensureVariableSync();
     console.log('🔄 Sincronización inicial ejecutada');
+    
+    // Configurar secciones activas por defecto
+    showDefaultActiveSections();
 }, 1000);
