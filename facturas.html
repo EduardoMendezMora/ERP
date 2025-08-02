@@ -181,6 +181,13 @@
                 </h3>
                 <small style="color: #86868b; font-size: 0.8rem;">Pagos encontrados por ID_Cliente directo O ID en Observaciones</small>
             </div>
+            <div class="search-container">
+                <div class="search-box">
+                    <input type="text" id="searchUnassigned" placeholder="🔍 Buscar pagos por referencia, banco, monto..." class="search-input">
+                    <div class="search-clear" id="clearSearchUnassigned" style="display: none;">✕</div>
+                </div>
+                <div class="search-results" id="searchResultsUnassigned"></div>
+            </div>
             <div class="invoices-grid" id="unassignedPayments"></div>
             <div class="empty-section" id="emptyUnassignedPayments" style="display: none;">
                 <h4>📋 No hay pagos sin asignar</h4>
@@ -196,6 +203,13 @@
                     <span class="section-count" id="overdueCount">0</span>
                 </h3>
                 <small style="color: #86868b; font-size: 0.8rem;">Incluye facturas que vencen HOY (sin multa) y las ya vencidas (con multa)</small>
+            </div>
+            <div class="search-container">
+                <div class="search-box">
+                    <input type="text" id="searchOverdue" placeholder="🔍 Buscar facturas por número, concepto, fecha..." class="search-input">
+                    <div class="search-clear" id="clearSearchOverdue" style="display: none;">✕</div>
+                </div>
+                <div class="search-results" id="searchResultsOverdue"></div>
             </div>
             <div class="invoices-grid" id="overdueInvoices"></div>
             <div class="empty-section" id="emptyOverdue" style="display: none;">
@@ -213,6 +227,13 @@
                 </h3>
                 <small style="color: #86868b; font-size: 0.8rem;">Próximas 2 facturas por vencerse en el futuro</small>
             </div>
+            <div class="search-container">
+                <div class="search-box">
+                    <input type="text" id="searchUpcoming" placeholder="🔍 Buscar facturas por número, concepto, fecha..." class="search-input">
+                    <div class="search-clear" id="clearSearchUpcoming" style="display: none;">✕</div>
+                </div>
+                <div class="search-results" id="searchResultsUpcoming"></div>
+            </div>
             <div class="invoices-grid" id="upcomingInvoices"></div>
             <div class="empty-section" id="emptyUpcoming" style="display: none;">
                 <h4>📋 No hay facturas próximas</h4>
@@ -229,6 +250,13 @@
                 </h3>
                 <small style="color: #86868b; font-size: 0.8rem;">Pagos ya asignados a facturas - Ordenados por fecha del comprobante bancario</small>
             </div>
+            <div class="search-container">
+                <div class="search-box">
+                    <input type="text" id="searchAssigned" placeholder="🔍 Buscar pagos por referencia, banco, factura..." class="search-input">
+                    <div class="search-clear" id="clearSearchAssigned" style="display: none;">✕</div>
+                </div>
+                <div class="search-results" id="searchResultsAssigned"></div>
+            </div>
             <div class="invoices-grid" id="assignedPayments"></div>
             <div class="empty-section" id="emptyAssignedPayments" style="display: none;">
                 <h4>📄 No hay pagos aplicados</h4>
@@ -244,6 +272,13 @@
                     <span class="section-count" id="paidCount">0</span>
                 </h3>
                 <small style="color: #86868b; font-size: 0.8rem;">Ordenadas por fecha de pago (más recientes primero)</small>
+            </div>
+            <div class="search-container">
+                <div class="search-box">
+                    <input type="text" id="searchPaid" placeholder="🔍 Buscar facturas por número, concepto, fecha..." class="search-input">
+                    <div class="search-clear" id="clearSearchPaid" style="display: none;">✕</div>
+                </div>
+                <div class="search-results" id="searchResultsPaid"></div>
             </div>
             <div class="invoices-grid" id="paidInvoices"></div>
             <div class="empty-section" id="emptyPaid" style="display: none;">

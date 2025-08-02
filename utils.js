@@ -1030,6 +1030,409 @@ function setupControlEventListeners() {
     console.log('🎛️ Todos los event listeners configurados');
 }
 
+// ===== FUNCIONES DE BÚSQUEDA POR SECCIÓN =====
+
+// Configuración de búsqueda por sección
+const SEARCH_CONFIG = {
+    unassigned: {
+        inputId: 'searchUnassigned',
+        clearId: 'clearSearchUnassigned',
+        resultsId: 'searchResultsUnassigned',
+        dataSource: 'unassignedPayments',
+        searchFields: ['Referencia', 'BankSource', 'Monto', 'Observaciones'],
+        placeholder: 'Buscar pagos por referencia, banco, monto...'
+    },
+    overdue: {
+        inputId: 'searchOverdue',
+        clearId: 'clearSearchOverdue',
+        resultsId: 'searchResultsOverdue',
+        dataSource: 'clientInvoices',
+        searchFields: ['NumeroFactura', 'Concepto', 'FechaVencimiento', 'Monto'],
+        filterFunction: (item) => item.Estado === 'Vencido',
+        placeholder: 'Buscar facturas por número, concepto, fecha...'
+    },
+    upcoming: {
+        inputId: 'searchUpcoming',
+        clearId: 'clearSearchUpcoming',
+        resultsId: 'searchResultsUpcoming',
+        dataSource: 'clientInvoices',
+        searchFields: ['NumeroFactura', 'Concepto', 'FechaVencimiento', 'Monto'],
+        filterFunction: (item) => {
+            if (item.Estado !== 'Pendiente') return false;
+            const dueDate = parseDate(item.FechaVencimiento);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return dueDate && dueDate > today;
+        },
+        placeholder: 'Buscar facturas por número, concepto, fecha...'
+    },
+    assigned: {
+        inputId: 'searchAssigned',
+        clearId: 'clearSearchAssigned',
+        resultsId: 'searchResultsAssigned',
+        dataSource: 'assignedPayments',
+        searchFields: ['Referencia', 'BankSource', 'Monto', 'RelatedInvoice.NumeroFactura'],
+        placeholder: 'Buscar pagos por referencia, banco, factura...'
+    },
+    paid: {
+        inputId: 'searchPaid',
+        clearId: 'clearSearchPaid',
+        resultsId: 'searchResultsPaid',
+        dataSource: 'clientInvoices',
+        searchFields: ['NumeroFactura', 'Concepto', 'FechaVencimiento', 'Monto'],
+        filterFunction: (item) => item.Estado === 'Pagado',
+        placeholder: 'Buscar facturas por número, concepto, fecha...'
+    }
+};
+
+// Función principal de búsqueda
+function performSearch(sectionKey, searchTerm) {
+    console.log(`🔍 Búsqueda en sección ${sectionKey}: "${searchTerm}"`);
+    
+    const config = SEARCH_CONFIG[sectionKey];
+    if (!config) {
+        console.error(`❌ Configuración no encontrada para sección: ${sectionKey}`);
+        return;
+    }
+    
+    // Obtener datos de la fuente correspondiente
+    let dataSource;
+    switch (config.dataSource) {
+        case 'unassignedPayments':
+            dataSource = unassignedPayments;
+            break;
+        case 'assignedPayments':
+            dataSource = assignedPayments;
+            break;
+        case 'clientInvoices':
+            dataSource = clientInvoices;
+            break;
+        default:
+            console.error(`❌ Fuente de datos no válida: ${config.dataSource}`);
+            return;
+    }
+    
+    // Aplicar filtro inicial si existe
+    let filteredData = dataSource;
+    if (config.filterFunction) {
+        filteredData = dataSource.filter(config.filterFunction);
+    }
+    
+    // Realizar búsqueda
+    const results = searchInData(filteredData, searchTerm, config.searchFields);
+    
+    // Actualizar UI
+    updateSearchResults(sectionKey, results, searchTerm);
+    updateSearchUI(sectionKey, searchTerm.length > 0);
+    
+    console.log(`✅ Búsqueda completada: ${results.length} resultados encontrados`);
+}
+
+// Función para buscar en los datos
+function searchInData(data, searchTerm, searchFields) {
+    if (!searchTerm || searchTerm.trim() === '') {
+        return data;
+    }
+    
+    const term = searchTerm.toLowerCase().trim();
+    
+    return data.filter(item => {
+        return searchFields.some(field => {
+            const value = getNestedValue(item, field);
+            if (value === null || value === undefined) return false;
+            
+            const stringValue = value.toString().toLowerCase();
+            return stringValue.includes(term);
+        });
+    });
+}
+
+// Función para obtener valores anidados (ej: 'RelatedInvoice.NumeroFactura')
+function getNestedValue(obj, path) {
+    return path.split('.').reduce((current, key) => {
+        return current && current[key] !== undefined ? current[key] : null;
+    }, obj);
+}
+
+// Función para actualizar resultados de búsqueda
+function updateSearchResults(sectionKey, results, searchTerm) {
+    const config = SEARCH_CONFIG[sectionKey];
+    const resultsElement = document.getElementById(config.resultsId);
+    
+    if (!resultsElement) return;
+    
+    if (searchTerm.trim() === '') {
+        resultsElement.classList.remove('show');
+        resultsElement.textContent = '';
+        return;
+    }
+    
+    // Mostrar resultados
+    resultsElement.classList.add('show');
+    
+    if (results.length === 0) {
+        resultsElement.innerHTML = `
+            <span style="color: #ff3b30;">❌ No se encontraron resultados para "${searchTerm}"</span>
+        `;
+    } else {
+        const totalItems = getTotalItemsForSection(sectionKey);
+        resultsElement.innerHTML = `
+            <span style="color: #007aff;">🔍 ${results.length} de ${totalItems} elementos encontrados para "${searchTerm}"</span>
+        `;
+    }
+}
+
+// Función para obtener el total de elementos en una sección
+function getTotalItemsForSection(sectionKey) {
+    const config = SEARCH_CONFIG[sectionKey];
+    let dataSource;
+    
+    switch (config.dataSource) {
+        case 'unassignedPayments':
+            dataSource = unassignedPayments;
+            break;
+        case 'assignedPayments':
+            dataSource = assignedPayments;
+            break;
+        case 'clientInvoices':
+            dataSource = clientInvoices;
+            break;
+        default:
+            return 0;
+    }
+    
+    if (config.filterFunction) {
+        return dataSource.filter(config.filterFunction).length;
+    }
+    
+    return dataSource.length;
+}
+
+// Función para actualizar UI de búsqueda
+function updateSearchUI(sectionKey, isSearching) {
+    const config = SEARCH_CONFIG[sectionKey];
+    const clearButton = document.getElementById(config.clearId);
+    const sectionElement = document.getElementById(`${sectionKey}Section`);
+    
+    // Mostrar/ocultar botón de limpiar
+    if (clearButton) {
+        clearButton.style.display = isSearching ? 'block' : 'none';
+    }
+    
+    // Agregar/quitar clase de búsqueda activa
+    if (sectionElement) {
+        if (isSearching) {
+            sectionElement.classList.add('search-active');
+        } else {
+            sectionElement.classList.remove('search-active');
+        }
+    }
+}
+
+// Función para limpiar búsqueda
+function clearSearch(sectionKey) {
+    const config = SEARCH_CONFIG[sectionKey];
+    const inputElement = document.getElementById(config.inputId);
+    
+    if (inputElement) {
+        inputElement.value = '';
+        inputElement.focus();
+        filterSectionItems(sectionKey, '');
+    }
+}
+
+// Función para configurar event listeners de búsqueda
+function setupSearchEventListeners() {
+    console.log('🔧 Configurando event listeners de búsqueda...');
+    
+    Object.keys(SEARCH_CONFIG).forEach(sectionKey => {
+        const config = SEARCH_CONFIG[sectionKey];
+        
+        // Input de búsqueda
+        const inputElement = document.getElementById(config.inputId);
+        if (inputElement) {
+            // Búsqueda en tiempo real con debounce
+            let searchTimeout;
+            let lastSearchTerm = '';
+            
+            inputElement.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.trim();
+                
+                // Evitar búsquedas innecesarias
+                if (searchTerm === lastSearchTerm) return;
+                
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    lastSearchTerm = searchTerm;
+                    filterSectionItems(sectionKey, searchTerm);
+                }, 300); // 300ms de delay
+            });
+            
+            // Búsqueda al presionar Enter
+            inputElement.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    filterSectionItems(sectionKey, e.target.value);
+                }
+            });
+            
+            // Limpiar búsqueda al presionar Escape
+            inputElement.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    clearSearch(sectionKey);
+                }
+            });
+            
+            console.log(`✅ Event listener configurado para búsqueda en ${sectionKey}`);
+        }
+        
+        // Botón de limpiar
+        const clearButton = document.getElementById(config.clearId);
+        if (clearButton) {
+            clearButton.addEventListener('click', () => {
+                clearSearch(sectionKey);
+            });
+        }
+    });
+    
+    console.log('🎛️ Todos los event listeners de búsqueda configurados');
+}
+
+// Función para resaltar texto en resultados
+function highlightText(text, searchTerm) {
+    if (!searchTerm || searchTerm.trim() === '') {
+        return text;
+    }
+    
+    const regex = new RegExp(`(${searchTerm})`, 'gi');
+    return text.replace(regex, '<mark style="background: #ffeb3b; padding: 1px 2px; border-radius: 2px;">$1</mark>');
+}
+
+// Función para debug de búsqueda
+function debugSearch(sectionKey) {
+    console.log(`🔍 === DEBUG DE BÚSQUEDA - ${sectionKey} ===`);
+    
+    const config = SEARCH_CONFIG[sectionKey];
+    if (!config) {
+        console.log('❌ Configuración no encontrada');
+        return;
+    }
+    
+    console.log('📋 Configuración:', config);
+    
+    // Verificar elementos del DOM
+    const inputElement = document.getElementById(config.inputId);
+    const clearButton = document.getElementById(config.clearId);
+    const resultsElement = document.getElementById(config.resultsId);
+    
+    console.log('🖥️ Elementos del DOM:');
+    console.log(`  Input: ${inputElement ? '✅' : '❌'}`);
+    console.log(`  Clear: ${clearButton ? '✅' : '❌'}`);
+    console.log(`  Results: ${resultsElement ? '✅' : '❌'}`);
+    
+    // Verificar datos
+    let dataSource;
+    switch (config.dataSource) {
+        case 'unassignedPayments':
+            dataSource = unassignedPayments;
+            break;
+        case 'assignedPayments':
+            dataSource = assignedPayments;
+            break;
+        case 'clientInvoices':
+            dataSource = clientInvoices;
+            break;
+    }
+    
+    console.log('📊 Datos disponibles:');
+    console.log(`  Fuente: ${config.dataSource}`);
+    console.log(`  Total: ${dataSource?.length || 0} elementos`);
+    console.log(`  Campos de búsqueda: ${config.searchFields.join(', ')}`);
+    
+    if (config.filterFunction) {
+        const filtered = dataSource?.filter(config.filterFunction) || [];
+        console.log(`  Filtrados: ${filtered.length} elementos`);
+    }
+    
+    console.log('================================');
+}
+
+// ===== FUNCIÓN DE PRUEBA PARA EL SISTEMA DE BÚSQUEDA =====
+function testSearchSystem() {
+    console.log('🧪 === PRUEBA DEL SISTEMA DE BÚSQUEDA ===');
+    
+    const sections = ['unassigned', 'overdue', 'upcoming', 'assigned', 'paid'];
+    
+    sections.forEach((sectionKey, index) => {
+        setTimeout(() => {
+            console.log(`\n🔍 Probando búsqueda en sección: ${sectionKey}`);
+            
+            // Verificar configuración
+            const config = SEARCH_CONFIG[sectionKey];
+            if (!config) {
+                console.log(`❌ Configuración no encontrada para ${sectionKey}`);
+                return;
+            }
+            
+            // Verificar elementos del DOM
+            const inputElement = document.getElementById(config.inputId);
+            const clearButton = document.getElementById(config.clearId);
+            const resultsElement = document.getElementById(config.resultsId);
+            
+            console.log(`  Input: ${inputElement ? '✅' : '❌'}`);
+            console.log(`  Clear: ${clearButton ? '✅' : '❌'}`);
+            console.log(`  Results: ${resultsElement ? '✅' : '❌'}`);
+            
+            // Simular búsqueda de prueba
+            if (inputElement) {
+                const testTerm = 'test';
+                console.log(`  Simulando búsqueda: "${testTerm}"`);
+                
+                // Simular input
+                inputElement.value = testTerm;
+                inputElement.dispatchEvent(new Event('input'));
+                
+                // Verificar resultados después de un delay
+                setTimeout(() => {
+                    const results = filterSectionItems(sectionKey, testTerm);
+                    console.log(`  Resultados encontrados: ${results?.length || 0}`);
+                    
+                    // Limpiar búsqueda
+                    setTimeout(() => {
+                        clearSearch(sectionKey);
+                        console.log(`  ✅ Búsqueda en ${sectionKey} probada y limpiada`);
+                    }, 1000);
+                }, 500);
+            }
+        }, index * 2000); // Probar cada sección cada 2 segundos
+    });
+    
+    console.log('\n💡 Observa los cambios visuales en la página');
+    console.log('💡 Las barras de búsqueda deberían mostrar resultados y filtros');
+}
+
+// Función para mostrar estadísticas de búsqueda
+function showSearchStats() {
+    console.log('📊 === ESTADÍSTICAS DE BÚSQUEDA ===');
+    
+    Object.keys(SEARCH_CONFIG).forEach(sectionKey => {
+        const config = SEARCH_CONFIG[sectionKey];
+        const totalItems = getTotalItemsForSection(sectionKey);
+        
+        console.log(`📋 ${sectionKey.toUpperCase()}:`);
+        console.log(`  Total elementos: ${totalItems}`);
+        console.log(`  Campos de búsqueda: ${config.searchFields.join(', ')}`);
+        console.log(`  Fuente de datos: ${config.dataSource}`);
+        
+        if (config.filterFunction) {
+            console.log(`  Filtro aplicado: Sí`);
+        } else {
+            console.log(`  Filtro aplicado: No`);
+        }
+    });
+    
+    console.log('================================');
+}
+
 // ===== SINCRONIZACIÓN AUTOMÁTICA DE VARIABLES =====
 function ensureVariableSync() {
     // Sincronizar variables críticas automáticamente
@@ -1146,6 +1549,20 @@ window.showDefaultActiveSections = showDefaultActiveSections;
 window.testControls = testControls;
 window.debugClickEvents = debugClickEvents;
 window.setupControlEventListeners = setupControlEventListeners;
+window.setupSearchEventListeners = setupSearchEventListeners;
+window.performSearch = performSearch;
+window.clearSearch = clearSearch;
+window.debugSearch = debugSearch;
+window.testSearchSystem = testSearchSystem;
+window.showSearchStats = showSearchStats;
+
+// Funciones de búsqueda por sección
+window.filterSectionItems = filterSectionItems;
+window.applyVisualFilters = applyVisualFilters;
+window.clearAllVisualFilters = clearAllVisualFilters;
+window.setupRealTimeSearch = setupRealTimeSearch;
+window.highlightSearchTerms = highlightSearchTerms;
+window.restoreOriginalText = restoreOriginalText;
 
 console.log('✅ utils.js cargado - Funciones utilitarias disponibles');
 
@@ -1159,4 +1576,7 @@ setTimeout(() => {
     
     // Configurar event listeners para controles
     setupControlEventListeners();
+    
+    // Configurar event listeners de búsqueda
+    setupSearchEventListeners();
 }, 1000);
