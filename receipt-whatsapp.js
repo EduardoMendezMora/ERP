@@ -655,30 +655,23 @@ async function downloadReceiptPDF() {
 
 // ===== FUNCIONES DE RENDERIZADO DE PAGOS =====
 function renderUnassignedPaymentsSection() {
-    const container = document.getElementById('unassignedPayments');
-    const emptyElement = document.getElementById('emptyUnassignedPayments');
-    const countElement = document.getElementById('unassignedPaymentsCount');
-
-    if (!container || !emptyElement || !countElement) {
-        console.error('No se encontraron elementos para la sección de pagos no asignados');
+    const container = document.getElementById('no-asignados-pane');
+    
+    if (!container) {
+        console.error('❌ No se encontró contenedor para pagos no asignados');
         return;
     }
-
-    countElement.textContent = unassignedPayments.length;
     
-    // Actualizar contador de pestaña si existe
+    // Actualizar contador de pestaña
     const tabCountElement = document.getElementById('noAsignadosCount');
     if (tabCountElement) {
         tabCountElement.textContent = unassignedPayments.length;
     }
 
     if (unassignedPayments.length === 0) {
-        container.innerHTML = '';
-        emptyElement.style.display = 'block';
+        container.innerHTML = '<div class="empty-state">No hay pagos no asignados</div>';
         return;
     }
-
-    emptyElement.style.display = 'none';
 
     container.innerHTML = unassignedPayments.map(payment => {
         const totalAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
@@ -814,30 +807,23 @@ function renderUnassignedPaymentsSection() {
 }
 
 function renderAssignedPaymentsSection() {
-    const container = document.getElementById('assignedPayments');
-    const emptyElement = document.getElementById('emptyAssignedPayments');
-    const countElement = document.getElementById('assignedPaymentsCount');
-
-    if (!container || !emptyElement || !countElement) {
-        console.error('No se encontraron elementos para la sección de pagos aplicados');
+    const container = document.getElementById('aplicados-pane');
+    
+    if (!container) {
+        console.error('❌ No se encontró contenedor para pagos aplicados');
         return;
     }
-
-    countElement.textContent = assignedPayments.length;
     
-    // Actualizar contador de pestaña si existe
+    // Actualizar contador de pestaña
     const tabCountElement = document.getElementById('aplicadosCount');
     if (tabCountElement) {
         tabCountElement.textContent = assignedPayments.length;
     }
 
     if (assignedPayments.length === 0) {
-        container.innerHTML = '';
-        emptyElement.style.display = 'block';
+        container.innerHTML = '<div class="empty-state">No hay pagos aplicados</div>';
         return;
     }
-
-    emptyElement.style.display = 'none';
 
     container.innerHTML = assignedPayments.map(payment => {
         const amount = parsePaymentAmount(payment.Créditos, payment.BankSource);

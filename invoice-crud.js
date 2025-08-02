@@ -534,36 +534,21 @@ function updateStatsWithoutPending(overdueInvoices, paidInvoices) {
 function renderInvoicesSection(status, invoices) {
     console.log(`🎨 Renderizando sección de facturas: ${status} con ${invoices.length} facturas`);
     
+    // Mapeo para el nuevo sistema de pestañas
     const containerMap = {
-        'overdue': 'overdueInvoices',
-        'pending': 'pendingInvoices',
-        'paid': 'paidInvoices'
-    };
-
-    const emptyMap = {
-        'overdue': 'emptyOverdue',
-        'pending': 'emptyPending',
-        'paid': 'emptyPaid'
-    };
-
-    const countMap = {
-        'overdue': 'overdueCount',
-        'pending': 'pendingCount',
-        'paid': 'paidCount'
+        'overdue': 'vencidas-pane',
+        'pending': 'no-vencidas-pane', 
+        'paid': 'pagadas-pane'
     };
 
     const container = document.getElementById(containerMap[status]);
-    const emptyElement = document.getElementById(emptyMap[status]);
-    const countElement = document.getElementById(countMap[status]);
-
-    console.log(`🔍 Elementos encontrados para ${status}:`, {
-        container: container ? '✅' : '❌',
-        emptyElement: emptyElement ? '✅' : '❌',
-        countElement: countElement ? '✅' : '❌'
+    
+    console.log(`🔍 Elemento encontrado para ${status}:`, {
+        container: container ? '✅' : '❌'
     });
 
-    if (!container || !emptyElement || !countElement) {
-        console.error(`❌ No se encontraron elementos para la sección: ${status}`);
+    if (!container) {
+        console.error(`❌ No se encontró contenedor para la sección: ${status}`);
         return;
     }
 
@@ -583,12 +568,9 @@ function renderInvoicesSection(status, invoices) {
     }
 
     if (invoices.length === 0) {
-        container.innerHTML = '';
-        emptyElement.style.display = 'block';
+        container.innerHTML = '<div class="empty-state">No hay facturas en esta categoría</div>';
         return;
     }
-
-    emptyElement.style.display = 'none';
 
     // Ordenar las facturas de esta sección cronológicamente
     const sortedInvoices = [...invoices].sort((a, b) => {
@@ -789,6 +771,19 @@ function renderInvoicesSection(status, invoices) {
     
     console.log(`✅ Contenido renderizado para ${status}: ${sortedInvoices.length} facturas en contenedor ${containerMap[status]}`);
     console.log(`📋 Primeros 200 caracteres del HTML:`, container.innerHTML.substring(0, 200));
+    
+    // Actualizar contadores de pestañas
+    if (status === 'overdue') {
+        const vencidasCountElement = document.getElementById('vencidasCount');
+        if (vencidasCountElement) {
+            vencidasCountElement.textContent = sortedInvoices.length;
+        }
+    } else if (status === 'paid') {
+        const pagadasCountElement = document.getElementById('pagadasCount');
+        if (pagadasCountElement) {
+            pagadasCountElement.textContent = sortedInvoices.length;
+        }
+    }
 }
 
 // ===== EVENT LISTENERS =====

@@ -667,47 +667,81 @@
     
     // Función para renderizar facturas no vencidas
     function renderNoVencidasInvoices(invoices) {
-        const container = document.getElementById('noVencidasInvoices');
-        const emptySection = document.getElementById('emptyNoVencidas');
+        console.log(`🎨 Renderizando facturas no vencidas: ${invoices.length} facturas`);
         
-        if (!invoices || invoices.length === 0) {
-            container.innerHTML = '';
-            emptySection.style.display = 'block';
+        const container = document.getElementById('no-vencidas-pane');
+        
+        if (!container) {
+            console.error('❌ No se encontró contenedor para facturas no vencidas');
             return;
         }
         
-        emptySection.style.display = 'none';
+        // Actualizar contador de pestaña
+        const tabCountElement = document.getElementById('noVencidasCount');
+        if (tabCountElement) {
+            tabCountElement.textContent = invoices.length;
+        }
+        
+        if (!invoices || invoices.length === 0) {
+            container.innerHTML = '<div class="empty-state">No hay facturas no vencidas</div>';
+            return;
+        }
         
         let html = '';
         invoices.forEach(invoice => {
             const dueDate = new Date(invoice.FechaVencimiento);
             const daysUntilDue = Math.ceil((dueDate - new Date()) / (1000 * 60 * 60 * 24));
             
+            let statusLabel = 'Pendiente';
+            let statusClass = 'pending';
+            
+            if (daysUntilDue === 1) {
+                statusLabel = 'Vence MAÑANA';
+                statusClass = 'due-tomorrow';
+            } else if (daysUntilDue <= 7) {
+                statusLabel = `Vence en ${daysUntilDue} días`;
+                statusClass = 'due-soon';
+            }
+            
             html += `
-                <div class="invoice-card pending">
+                <div class="invoice-card ${statusClass}" id="invoice-${invoice.NumeroFactura}">
                     <div class="invoice-header">
-                        <div class="invoice-number">${invoice.NumeroFactura}</div>
-                        <div class="invoice-week">Semana ${invoice.Semana}</div>
-                        <div class="status-badge status-pending">Pendiente</div>
+                        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                            <div>
+                                <div class="invoice-number">${invoice.NumeroFactura}</div>
+                                <div class="invoice-week">${invoice.SemanaDescripcion || 'Semana ' + invoice.Semana}</div>
+                            </div>
+                            <span class="status-badge status-${statusClass}">${statusLabel}</span>
+                        </div>
                     </div>
                     
                     <div class="invoice-details">
                         <div class="invoice-detail">
-                            <span class="invoice-detail-label">Vence:</span>
-                            <span class="invoice-detail-value">${formatDateForDisplay(invoice.FechaVencimiento)}</span>
+                            <div class="invoice-detail-label">Fecha Venc.</div>
+                            <div class="invoice-detail-value">${formatDateForDisplay(invoice.FechaVencimiento)}</div>
                         </div>
                         <div class="invoice-detail">
-                            <span class="invoice-detail-label">Días restantes:</span>
-                            <span class="invoice-detail-value">${daysUntilDue} días</span>
+                            <div class="invoice-detail-label">Monto Base</div>
+                            <div class="invoice-detail-value">₡${parseFloat(invoice.MontoBase || 0).toLocaleString('es-CR')}</div>
                         </div>
                         <div class="invoice-detail">
-                            <span class="invoice-detail-label">Monto:</span>
-                            <span class="invoice-detail-value amount-highlight">₡${parseFloat(invoice.MontoBase || 0).toLocaleString('es-CR')}</span>
+                            <div class="invoice-detail-label">Multas</div>
+                            <div class="invoice-detail-value">₡${parseFloat(invoice.MontoMultas || 0).toLocaleString('es-CR')}</div>
                         </div>
+                        <div class="invoice-detail">
+                            <div class="invoice-detail-label">Total</div>
+                            <div class="invoice-detail-value amount-highlight">₡${parseFloat(invoice.MontoTotal || invoice.MontoBase || 0).toLocaleString('es-CR')}</div>
+                        </div>
+                        ${daysUntilDue > 0 ? `
+                            <div class="invoice-detail">
+                                <div class="invoice-detail-label">Días Restantes</div>
+                                <div class="invoice-detail-value">${daysUntilDue}</div>
+                            </div>
+                        ` : ''}
                     </div>
                     
                     <div class="invoice-actions">
-                        <button class="btn btn-assign" onclick="assignPaymentToInvoice('${invoice.NumeroFactura}')">
+                        <button class="btn btn-primary btn-assign" onclick="assignPaymentToInvoice('', '', '${invoice.NumeroFactura}')">
                             💰 Asignar Pago
                         </button>
                     </div>
@@ -716,6 +750,7 @@
         });
         
         container.innerHTML = html;
+        console.log(`✅ Facturas no vencidas renderizadas: ${invoices.length} facturas`);
     }
     
     // Inicializar sistema de pestañas después de que la aplicación principal se haya cargado
@@ -893,4 +928,5 @@
 </a>
 
 </body>
+</html> 
 </html> 
