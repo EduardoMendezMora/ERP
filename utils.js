@@ -956,6 +956,80 @@ function testControls() {
     console.log('💡 Los controles deberían cambiar de color y las secciones aparecer/desaparecer');
 }
 
+// ===== FUNCIÓN DE DEBUG PARA VERIFICAR EVENTOS DE CLIC =====
+function debugClickEvents() {
+    console.log('🔍 === DEBUG DE EVENTOS DE CLIC ===');
+    
+    const sections = ['unassigned', 'overdue', 'upcoming', 'assigned', 'paid'];
+    
+    sections.forEach(section => {
+        const controlItem = document.getElementById(`control-${section}`);
+        
+        if (controlItem) {
+            console.log(`📋 Control ${section}:`);
+            console.log(`  Elemento encontrado: ✅`);
+            console.log(`  onclick atributo: "${controlItem.getAttribute('onclick')}"`);
+            console.log(`  Clase active: ${controlItem.classList.contains('active')}`);
+            
+            // Verificar si la función está disponible
+            console.log(`  toggleSection disponible: ${typeof window.toggleSection}`);
+            
+            // Agregar event listener adicional para debug
+            controlItem.addEventListener('click', (e) => {
+                console.log(`🖱️ CLIC DETECTADO en control-${section}`);
+                console.log(`  Evento original:`, e);
+                console.log(`  Función toggleSection disponible: ${typeof window.toggleSection}`);
+                
+                // Intentar llamar la función manualmente
+                if (typeof window.toggleSection === 'function') {
+                    console.log(`  Llamando toggleSection('${section}')...`);
+                    window.toggleSection(section);
+                } else {
+                    console.log(`  ❌ toggleSection no está disponible`);
+                }
+            });
+            
+            console.log(`  ✅ Event listener de debug agregado`);
+        } else {
+            console.log(`❌ Control ${section}: Elemento no encontrado`);
+        }
+        console.log('  ---');
+    });
+    
+    console.log('💡 Ahora haz clic en los controles y observa los logs');
+}
+
+// ===== FUNCIÓN PARA CONFIGURAR EVENT LISTENERS =====
+function setupControlEventListeners() {
+    console.log('🔧 Configurando event listeners para controles...');
+    
+    const sections = ['unassigned', 'overdue', 'upcoming', 'assigned', 'paid'];
+    
+    sections.forEach(section => {
+        const controlItem = document.getElementById(`control-${section}`);
+        
+        if (controlItem) {
+            // Remover onclick existente
+            controlItem.removeAttribute('onclick');
+            
+            // Agregar event listener
+            controlItem.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log(`🖱️ CLIC en control-${section} (event listener)`);
+                toggleSection(section);
+            });
+            
+            console.log(`✅ Event listener configurado para control-${section}`);
+        } else {
+            console.log(`❌ No se pudo configurar event listener para control-${section}`);
+        }
+    });
+    
+    console.log('🎛️ Todos los event listeners configurados');
+}
+
 // ===== SINCRONIZACIÓN AUTOMÁTICA DE VARIABLES =====
 function ensureVariableSync() {
     // Sincronizar variables críticas automáticamente
@@ -1070,6 +1144,8 @@ window.debugSectionControls = debugSectionControls;
 window.debugControlVisualState = debugControlVisualState;
 window.showDefaultActiveSections = showDefaultActiveSections;
 window.testControls = testControls;
+window.debugClickEvents = debugClickEvents;
+window.setupControlEventListeners = setupControlEventListeners;
 
 console.log('✅ utils.js cargado - Funciones utilitarias disponibles');
 
@@ -1080,4 +1156,7 @@ setTimeout(() => {
     
     // Configurar secciones activas por defecto
     showDefaultActiveSections();
+    
+    // Configurar event listeners para controles
+    setupControlEventListeners();
 }, 1000);
