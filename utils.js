@@ -698,31 +698,6 @@ function goBackToClients() {
     window.location.href = 'https://arrendautos.app/clientes.html';
 }
 
-function goToOverdueInvoices() {
-    // Obtener el ID del cliente actual
-    const clientId = window.currentClientId || currentClientId;
-    
-    if (!clientId) {
-        showToast('No se encontró el ID del cliente', 'error');
-        return;
-    }
-    
-    // Construir la URL con los mismos parámetros de la página actual
-    const currentUrl = new URL(window.location);
-    const newUrl = new URL('facturasVencidas.html', window.location.origin);
-    
-    // Copiar todos los parámetros de la URL actual
-    currentUrl.searchParams.forEach((value, key) => {
-        newUrl.searchParams.set(key, value);
-    });
-    
-    // Asegurar que el clientId esté presente
-    newUrl.searchParams.set('clientId', clientId);
-    
-    console.log('🔴 Navegando a facturas vencidas:', newUrl.toString());
-    window.location.href = newUrl.toString();
-}
-
 // ===== FUNCIONES DE HELPER PARA ASIGNACIONES =====
 function findAssociatedPayment(invoiceNumber) {
     const payment = assignedPayments.find(p => p.RelatedInvoice?.NumeroFactura === invoiceNumber);
@@ -838,7 +813,6 @@ window.loadSectionPreferences = loadSectionPreferences;
 
 // Funciones de navegación
 window.goBackToClients = goBackToClients;
-window.goToOverdueInvoices = goToOverdueInvoices;
 
 // Funciones de helpers
 window.numberToWords = numberToWords;
