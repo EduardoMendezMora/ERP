@@ -626,6 +626,22 @@ function updateSectionVisibility() {
         if (sectionElement) {
             const oldDisplay = sectionElement.style.display;
             sectionElement.style.display = visible ? 'block' : 'none';
+            
+            // Agregar efecto visual para hacer el cambio más evidente
+            if (visible) {
+                sectionElement.style.opacity = '0';
+                sectionElement.style.transform = 'translateY(-10px)';
+                setTimeout(() => {
+                    sectionElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                    sectionElement.style.opacity = '1';
+                    sectionElement.style.transform = 'translateY(0)';
+                }, 10);
+            } else {
+                sectionElement.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                sectionElement.style.opacity = '0';
+                sectionElement.style.transform = 'translateY(-10px)';
+            }
+            
             console.log(`    Display: ${oldDisplay} → ${sectionElement.style.display}`);
         }
     });
@@ -646,9 +662,21 @@ function updateControlUI() {
             if (visible) {
                 controlItem.classList.add('active');
                 controlToggle.classList.add('active');
+                // Agregar efecto visual
+                controlItem.style.transform = 'scale(1.02)';
+                setTimeout(() => {
+                    controlItem.style.transition = 'transform 0.2s ease';
+                    controlItem.style.transform = 'scale(1)';
+                }, 200);
             } else {
                 controlItem.classList.remove('active');
                 controlToggle.classList.remove('active');
+                // Agregar efecto visual
+                controlItem.style.transform = 'scale(0.98)';
+                setTimeout(() => {
+                    controlItem.style.transition = 'transform 0.2s ease';
+                    controlItem.style.transform = 'scale(1)';
+                }, 200);
             }
             
             const isActive = controlItem.classList.contains('active');
