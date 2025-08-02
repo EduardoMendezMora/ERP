@@ -655,10 +655,10 @@ async function downloadReceiptPDF() {
 
 // ===== FUNCIONES DE RENDERIZADO DE PAGOS =====
 function renderUnassignedPaymentsSection() {
-    const container = document.getElementById('no-asignados-pane');
+    const container = document.getElementById('unassignedPayments');
     
     if (!container) {
-        console.error('❌ No se encontró contenedor para pagos no asignados');
+        console.error('❌ No se encontró contenedor para pagos no asignados (ID: unassignedPayments)');
         return;
     }
     
@@ -807,10 +807,10 @@ function renderUnassignedPaymentsSection() {
 }
 
 function renderAssignedPaymentsSection() {
-    const container = document.getElementById('aplicados-pane');
+    const container = document.getElementById('assignedPayments');
     
     if (!container) {
-        console.error('❌ No se encontró contenedor para pagos aplicados');
+        console.error('❌ No se encontró contenedor para pagos aplicados (ID: assignedPayments)');
         return;
     }
     

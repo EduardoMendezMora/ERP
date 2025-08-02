@@ -534,21 +534,22 @@ function updateStatsWithoutPending(overdueInvoices, paidInvoices) {
 function renderInvoicesSection(status, invoices) {
     console.log(`🎨 Renderizando sección de facturas: ${status} con ${invoices.length} facturas`);
     
-    // Mapeo para el nuevo sistema de pestañas
+    // Mapeo para el nuevo sistema de pestañas - buscar los contenedores específicos dentro de los panes
     const containerMap = {
-        'overdue': 'vencidas-pane',
-        'pending': 'no-vencidas-pane', 
-        'paid': 'pagadas-pane'
+        'overdue': 'overdueInvoices',
+        'pending': 'noVencidasInvoices', 
+        'paid': 'paidInvoices'
     };
 
     const container = document.getElementById(containerMap[status]);
     
     console.log(`🔍 Elemento encontrado para ${status}:`, {
-        container: container ? '✅' : '❌'
+        container: container ? '✅' : '❌',
+        containerId: containerMap[status]
     });
 
     if (!container) {
-        console.error(`❌ No se encontró contenedor para la sección: ${status}`);
+        console.error(`❌ No se encontró contenedor para la sección: ${status} (ID: ${containerMap[status]})`);
         return;
     }
     

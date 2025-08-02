@@ -691,10 +691,10 @@
     function renderNoVencidasInvoices(invoices) {
         console.log(`🎨 Renderizando facturas no vencidas: ${invoices.length} facturas`);
         
-        const container = document.getElementById('no-vencidas-pane');
+        const container = document.getElementById('noVencidasInvoices');
         
         if (!container) {
-            console.error('❌ No se encontró contenedor para facturas no vencidas');
+            console.error('❌ No se encontró contenedor para facturas no vencidas (ID: noVencidasInvoices)');
             return;
         }
         
