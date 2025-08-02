@@ -400,7 +400,7 @@ async function loadClientAndInvoices(clientId) {
             }
         });
 
-        // Filtrar: NO mostrar facturas pendientes (fecha futura), SÍ mostrar vencidas y pagadas
+        // Filtrar: mostrar facturas pagadas, vencidas y pendientes (incluyendo futuras)
         clientInvoices = clientAllInvoices.filter(inv => {
             // Si está pagada, mostrarla siempre
             if (inv.Estado === 'Pagado') return true;
@@ -408,7 +408,9 @@ async function loadClientAndInvoices(clientId) {
             // Si está vencida (incluye las que vencen hoy), mostrarla
             if (inv.Estado === 'Vencido') return true;
 
-            // NO mostrar pendientes (fecha futura)
+            // Mostrar pendientes (incluyendo fecha futura) para la sección "Facturas No Vencidas"
+            if (inv.Estado === 'Pendiente') return true;
+
             return false;
         });
 
@@ -435,7 +437,7 @@ async function loadClientAndInvoices(clientId) {
             return weekA - weekB;
         });
 
-        console.log(`📋 Facturas cargadas: ${clientInvoices.length} (sin pendientes futuras)`);
+        console.log(`📋 Facturas cargadas: ${clientInvoices.length} (incluyendo pendientes futuras)`);
 
     } catch (error) {
         console.error('❌ Error en loadClientAndInvoices:', error);
