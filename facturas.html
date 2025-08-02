@@ -567,7 +567,12 @@
         let noVencidasCount = 0;
         let pagadasCount = 0;
         
-        if (window.clientInvoices && window.clientInvoices.length > 0) {
+        // Usar las variables globales directamente
+        const invoices = window.clientInvoices || clientInvoices || [];
+        const unassigned = window.unassignedPayments || unassignedPayments || [];
+        const assigned = window.assignedPayments || assignedPayments || [];
+        
+        if (invoices.length > 0) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             
@@ -575,13 +580,13 @@
             tomorrow.setDate(tomorrow.getDate() + 1);
             tomorrow.setHours(0, 0, 0, 0);
             
-            window.clientInvoices.forEach(invoice => {
+            invoices.forEach(invoice => {
                 const dueDate = new Date(invoice.FechaVencimiento);
                 dueDate.setHours(0, 0, 0, 0);
                 
                 if (invoice.Estado === 'Pagado') {
                     pagadasCount++;
-                } else if (dueDate < today) {
+                } else if (invoice.Estado === 'Vencido' || dueDate < today) {
                     vencidasCount++;
                 } else if (dueDate >= tomorrow) {
                     noVencidasCount++;
@@ -590,8 +595,8 @@
         }
         
         // Contadores de pagos desde datos globales
-        const noAsignadosCount = window.unassignedPayments ? window.unassignedPayments.length : 0;
-        const aplicadosCount = window.assignedPayments ? window.assignedPayments.length : 0;
+        const noAsignadosCount = unassigned.length;
+        const aplicadosCount = assigned.length;
         
         console.log('📊 Contadores calculados:', {
             vencidas: vencidasCount,
