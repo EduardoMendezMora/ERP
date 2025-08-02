@@ -160,6 +160,25 @@ async function applySinglePayment(payment, invoice, availableAmount) {
         // Re-cargar y renderizar
         await reloadDataAndRender();
 
+        // === NUEVA FUNCIONALIDAD: ENVIAR A WHATSAPP ===
+        console.log('📱 Iniciando envío de notificación de WhatsApp...');
+        
+        // Preparar datos para WhatsApp
+        const assignmentsForWhatsApp = [{ invoiceNumber: invoice.NumeroFactura, amount: amountToApply }];
+        
+        // Enviar notificación de WhatsApp en segundo plano
+        sendPaymentAssignmentWhatsAppNotification(payment, assignmentsForWhatsApp, currentClient)
+            .then(success => {
+                if (success) {
+                    console.log('✅ Notificación de WhatsApp enviada correctamente');
+                } else {
+                    console.warn('⚠️ No se pudo enviar la notificación de WhatsApp');
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error enviando notificación de WhatsApp:', error);
+            });
+
         // Mostrar mensaje
         if (newStatus === 'Pagado') {
             showToast(`✅ Factura ${invoice.NumeroFactura} PAGADA completamente con ${payment.Referencia}`, 'success');
@@ -504,6 +523,31 @@ async function confirmPaymentDistribution() {
         // Cerrar modal y recargar datos
         closePaymentDistributionModal();
         await reloadDataAndRender();
+
+        // === NUEVA FUNCIONALIDAD: ENVIAR A WHATSAPP ===
+        // Solo enviar si hay asignaciones válidas
+        if (validAssignments.length > 0) {
+            console.log('📱 Iniciando envío de notificación de WhatsApp...');
+            
+            // Preparar datos para WhatsApp
+            const assignmentsForWhatsApp = validAssignments.map(item => ({
+                invoiceNumber: item.invoice.NumeroFactura,
+                amount: item.assignedAmount
+            }));
+            
+            // Enviar notificación de WhatsApp en segundo plano
+            sendPaymentAssignmentWhatsAppNotification(currentPaymentForDistribution, assignmentsForWhatsApp, currentClient)
+                .then(success => {
+                    if (success) {
+                        console.log('✅ Notificación de WhatsApp enviada correctamente');
+                    } else {
+                        console.warn('⚠️ No se pudo enviar la notificación de WhatsApp');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error enviando notificación de WhatsApp:', error);
+                });
+        }
 
         // Mensaje de éxito
         const paidCount = validAssignments.filter(item => item.assignedAmount >= item.totalOwed).length;
@@ -1239,6 +1283,120 @@ function safeFormatDate(date) {
     return formatDateForStorage(new Date(date));
 }
 
+// ===== FUNCIÓN PARA ENVIAR NOTIFICACIÓN DE WHATSAPP AL ASIGNAR PAGOS =====
+async function sendPaymentAssignmentWhatsAppNotification(payment, assignments, client) {
+    try {
+        console.log('📱 Enviando notificación de WhatsApp para asignación de pago:', payment.Referencia);
+        
+        // Obtener información del usuario (puedes personalizar esto)
+        const userName = getCurrentUserName();
+        
+        // Formatear información del banco
+        let bankInfo = '';
+        switch (payment.BankSource) {
+            case 'BAC':
+                bankInfo = '🔵 BAC San José';
+                break;
+            case 'BN':
+                bankInfo = '🟢 Banco Nacional';
+                break;
+            case 'HuberBN':
+                bankInfo = '🟡 Huber BN';
+                break;
+            case 'AutosubastasBAC':
+                bankInfo = '🟠 Autosubastas BAC';
+                break;
+            case 'AutosubastasBN':
+                bankInfo = '🟣 Autosubastas BN';
+                break;
+            default:
+                bankInfo = payment.BankSource;
+        }
+        
+        // Formatear asignaciones
+        let assignmentsText = '';
+        if (assignments && assignments.length > 0) {
+            assignmentsText = assignments.map(assignment => 
+                `   • Factura ${assignment.invoiceNumber}: ₡${assignment.amount.toLocaleString('es-CR')}`
+            ).join('\n');
+        }
+        
+        // Calcular total asignado
+        const totalAssigned = assignments.reduce((sum, a) => sum + a.amount, 0);
+        const totalPayment = parsePaymentAmount(payment.Créditos, payment.BankSource);
+        
+        // Crear mensaje de WhatsApp
+        const message = `*💰 PAGO ASIGNADO A FACTURAS*
+
+${bankInfo}
+📅 *Fecha Pago:* ${formatDateForDisplay(payment.Fecha)}
+🔢 *Referencia:* ${payment.Referencia}
+💰 *Monto Total:* ${totalPayment.toLocaleString('es-CR')} colones
+
+👤 *Cliente:* ${client ? client.Nombre : 'N/A'}
+🆔 *ID Cliente:* ${client ? client.ID : 'N/A'}
+
+📋 *Facturas Asignadas:*
+${assignmentsText}
+
+💵 *Total Asignado:* ₡${totalAssigned.toLocaleString('es-CR')}
+${totalAssigned < totalPayment ? `⚠️ *Pendiente:* ₡${(totalPayment - totalAssigned).toLocaleString('es-CR')}` : '✅ *Completamente asignado*'}
+
+👤 *Asignado por:* ${userName}
+⏰ *Hora:* ${new Date().toLocaleString('es-CR')}
+
+---
+_Sistema de Gestión de Facturas_`;
+
+        // Configurar la llamada a la API de UltraMsg
+        const apiUrl = `${ULTRAMSG_CONFIG.BASE_URL}/${ULTRAMSG_CONFIG.INSTANCE_ID}/messages/chat`;
+        
+        const requestBody = {
+            token: ULTRAMSG_CONFIG.TOKEN,
+            to: '120363403929811504@g.us', // Mismo grupo que transacciones
+            body: message,
+            priority: 1
+        };
+
+        console.log('📡 Enviando a UltraMsg API:', apiUrl);
+        console.log('📝 Mensaje:', message.substring(0, 100) + '...');
+
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        const responseData = await response.json();
+        console.log('📱 Respuesta de UltraMsg:', responseData);
+
+        if (response.ok && responseData.sent) {
+            console.log('✅ Mensaje de WhatsApp enviado exitosamente');
+            return true;
+        } else {
+            console.error('❌ Error enviando mensaje de WhatsApp:', responseData);
+            return false;
+        }
+
+    } catch (error) {
+        console.error('❌ Error en sendPaymentAssignmentWhatsAppNotification:', error);
+        return false;
+    }
+}
+
+// ===== FUNCIÓN AUXILIAR: OBTENER NOMBRE DEL USUARIO =====
+function getCurrentUserName() {
+    // Puedes personalizar esto para obtener el nombre del usuario actual
+    // Por ahora retorna un nombre genérico, pero puedes implementar:
+    // - Obtener de localStorage
+    // - Obtener de una cookie
+    // - Obtener de un campo en la interfaz
+    // - Obtener del sistema de autenticación
+    return 'Usuario Sistema';
+}
+
 // ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
 window.assignPaymentToInvoice = assignPaymentToInvoice;
 window.unassignPaymentFromInvoice = unassignPaymentFromInvoice;
@@ -1267,11 +1425,21 @@ window.testSheetDBConnection = testSheetDBConnection;
 window.debugSheetDBInfo = debugSheetDBInfo;
 window.quickTestUpdate = quickTestUpdate;
 
-console.log('✅ payment-management.js COMPLETO - Usando método oficial SheetDB');
+// ✅ FUNCIONES DE WHATSAPP EXPUESTAS
+window.sendPaymentAssignmentWhatsAppNotification = sendPaymentAssignmentWhatsAppNotification;
+window.getCurrentUserName = getCurrentUserName;
+
+console.log('✅ payment-management.js COMPLETO - Usando método oficial SheetDB + WhatsApp');
 console.log('🧪 Funciones de debugging disponibles:');
 console.log('  - debugSheetDBInfo() - Información de debugging');
 console.log('  - testSheetDBConnection(referencia, banco) - Prueba conexión oficial');
 console.log('  - quickTestUpdate(referencia, banco) - Prueba rápida oficial');
+console.log('');
+console.log('📱 NUEVA FUNCIONALIDAD WHATSAPP:');
+console.log('  ✅ Envío automático de notificaciones al asignar pagos');
+console.log('  ✅ Mismo grupo que transacciones: 120363403929811504@g.us');
+console.log('  ✅ Formato detallado con facturas asignadas y montos');
+console.log('  ✅ Envío en segundo plano sin interrumpir la UI');
 console.log('');
 console.log('🔧 CAMBIO PRINCIPAL:');
 console.log('  ✅ Usando método OFICIAL: PATCH /Referencia/X?sheet=Y');
