@@ -596,17 +596,36 @@ function showOnlyActive() {
 }
 
 function updateSectionVisibility() {
-    // Esta función ya no es necesaria con el nuevo sistema de pestañas
-    // El sistema de pestañas maneja la visibilidad automáticamente
-    console.log('🔄 updateSectionVisibility() llamada pero no es necesaria con el sistema de pestañas');
-    return;
+    const sectionMap = {
+        'unassigned': 'unassignedPaymentsSection',
+        'overdue': 'overdueSection',
+        'assigned': 'assignedPaymentsSection',
+        'paid': 'paidSection'
+    };
+
+    Object.entries(sectionVisibility).forEach(([key, visible]) => {
+        const sectionElement = document.getElementById(sectionMap[key]);
+        if (sectionElement) {
+            sectionElement.style.display = visible ? 'block' : 'none';
+        }
+    });
 }
 
 function updateControlUI() {
-    // Esta función ya no es necesaria con el nuevo sistema de pestañas
-    // Los controles de sección fueron reemplazados por el sistema de pestañas
-    console.log('🔄 updateControlUI() llamada pero no es necesaria con el sistema de pestañas');
-    return;
+    Object.entries(sectionVisibility).forEach(([key, visible]) => {
+        const controlItem = document.getElementById(`control-${key}`);
+        const controlToggle = document.getElementById(`toggle-${key}`);
+
+        if (controlItem && controlToggle) {
+            if (visible) {
+                controlItem.classList.add('active');
+                controlToggle.classList.add('active');
+            } else {
+                controlItem.classList.remove('active');
+                controlToggle.classList.remove('active');
+            }
+        }
+    });
 }
 
 function updateSectionCounts() {
@@ -627,44 +646,6 @@ function updateSectionCounts() {
             countElement.textContent = text;
         }
     });
-    
-    // Actualizar contadores de pestañas si existen
-    const tabCounts = {
-        'vencidasCount': overdueInvoices.length,
-        'pagadasCount': paidInvoices.length,
-        'noAsignadosCount': unassignedPayments.length,
-        'aplicadosCount': assignedPayments.length
-    };
-    
-    Object.entries(tabCounts).forEach(([id, count]) => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.textContent = count;
-        }
-    });
-    
-    // Actualizar contador de facturas no vencidas si existe
-    if (clientInvoices && clientInvoices.length > 0) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(0, 0, 0, 0);
-        
-        const noVencidasInvoices = clientInvoices.filter(invoice => {
-            const dueDate = new Date(invoice.FechaVencimiento);
-            dueDate.setHours(0, 0, 0, 0);
-            return dueDate >= tomorrow && invoice.Estado !== 'Pagado';
-        });
-        
-        const noVencidasCountElement = document.getElementById('noVencidasCount');
-        if (noVencidasCountElement) {
-            noVencidasCountElement.textContent = noVencidasInvoices.length;
-        }
-        
-        const noVencidasSectionCountElement = document.getElementById('noVencidasSectionCount');
-        if (noVencidasSectionCountElement) {
-            noVencidasSectionCountElement.textContent = noVencidasInvoices.length;
-        }
-    }
 }
 
 function saveSectionPreferences() {

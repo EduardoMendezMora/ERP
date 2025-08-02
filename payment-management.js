@@ -29,24 +29,24 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
             throw new Error('Este pago ya está completamente asignado a otras facturas');
         }
 
-        // Verificar si hay facturas pendientes o vencidas del mismo cliente que podrían pagarse
-        const eligibleInvoices = clientInvoices.filter(inv =>
-            (inv.Estado === 'Vencido' || inv.Estado === 'Pendiente') &&
+        // Verificar si hay facturas vencidas del mismo cliente que podrían pagarse
+        const overdueInvoices = clientInvoices.filter(inv =>
+            inv.Estado === 'Vencido' &&
             inv.NumeroFactura !== invoiceNumber
         );
 
-        // Si hay múltiples facturas elegibles y el pago puede cubrir más de una, mostrar modal de distribución
-        if (eligibleInvoices.length > 0) {
-            const filteredEligibleInvoices = [invoice, ...eligibleInvoices].filter(inv => {
+        // Si hay múltiples facturas vencidas y el pago puede cubrir más de una, mostrar modal de distribución
+        if (overdueInvoices.length > 0) {
+            const eligibleInvoices = [invoice, ...overdueInvoices].filter(inv => {
                 const baseAmount = parseFloat(inv.MontoBase || 0);
                 const finesUntilPayment = calculateFinesUntilDate(inv, payment.Fecha);
                 const totalOwed = baseAmount + finesUntilPayment;
                 return totalOwed <= availableAmount * 2; // Considerar facturas que se pueden pagar con el doble del disponible
             });
 
-            if (filteredEligibleInvoices.length > 1) {
-                console.log(`📋 Múltiples facturas elegibles (${filteredEligibleInvoices.length}), mostrando modal de distribución`);
-                return await showPaymentDistributionModal(payment, filteredEligibleInvoices, availableAmount);
+            if (eligibleInvoices.length > 1) {
+                console.log(`📋 Múltiples facturas elegibles (${eligibleInvoices.length}), mostrando modal de distribución`);
+                return await showPaymentDistributionModal(payment, eligibleInvoices, availableAmount);
             }
         }
 

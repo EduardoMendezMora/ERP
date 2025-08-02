@@ -532,44 +532,42 @@ function updateStatsWithoutPending(overdueInvoices, paidInvoices) {
 }
 
 function renderInvoicesSection(status, invoices) {
-    console.log(`🎨 Renderizando sección de facturas: ${status} con ${invoices.length} facturas`);
-    
-    // Mapeo para el nuevo sistema de pestañas - buscar los contenedores específicos dentro de los panes
     const containerMap = {
         'overdue': 'overdueInvoices',
-        'pending': 'noVencidasInvoices', 
+        'pending': 'pendingInvoices',
         'paid': 'paidInvoices'
     };
 
-    const container = document.getElementById(containerMap[status]);
-    
-    console.log(`🔍 Elemento encontrado para ${status}:`, {
-        container: container ? '✅' : '❌',
-        containerId: containerMap[status]
-    });
+    const emptyMap = {
+        'overdue': 'emptyOverdue',
+        'pending': 'emptyPending',
+        'paid': 'emptyPaid'
+    };
 
-    if (!container) {
-        console.error(`❌ No se encontró contenedor para la sección: ${status} (ID: ${containerMap[status]})`);
+    const countMap = {
+        'overdue': 'overdueCount',
+        'pending': 'pendingCount',
+        'paid': 'paidCount'
+    };
+
+    const container = document.getElementById(containerMap[status]);
+    const emptyElement = document.getElementById(emptyMap[status]);
+    const countElement = document.getElementById(countMap[status]);
+
+    if (!container || !emptyElement || !countElement) {
+        console.error(`No se encontraron elementos para la sección: ${status}`);
         return;
     }
-    
-    // Actualizar contadores de pestañas si existen
-    if (status === 'overdue') {
-        const vencidasCountElement = document.getElementById('vencidasCount');
-        if (vencidasCountElement) {
-            vencidasCountElement.textContent = invoices.length;
-        }
-    } else if (status === 'paid') {
-        const pagadasCountElement = document.getElementById('pagadasCount');
-        if (pagadasCountElement) {
-            pagadasCountElement.textContent = invoices.length;
-        }
-    }
+
+    countElement.textContent = invoices.length;
 
     if (invoices.length === 0) {
-        container.innerHTML = '<div class="empty-state">No hay facturas en esta categoría</div>';
+        container.innerHTML = '';
+        emptyElement.style.display = 'block';
         return;
     }
+
+    emptyElement.style.display = 'none';
 
     // Ordenar las facturas de esta sección cronológicamente
     const sortedInvoices = [...invoices].sort((a, b) => {
@@ -767,22 +765,6 @@ function renderInvoicesSection(status, invoices) {
             </div>
         `;
     }).join('');
-    
-    console.log(`✅ Contenido renderizado para ${status}: ${sortedInvoices.length} facturas en contenedor ${containerMap[status]}`);
-    console.log(`📋 Primeros 200 caracteres del HTML:`, container.innerHTML.substring(0, 200));
-    
-    // Actualizar contadores de pestañas
-    if (status === 'overdue') {
-        const vencidasCountElement = document.getElementById('vencidasCount');
-        if (vencidasCountElement) {
-            vencidasCountElement.textContent = sortedInvoices.length;
-        }
-    } else if (status === 'paid') {
-        const pagadasCountElement = document.getElementById('pagadasCount');
-        if (pagadasCountElement) {
-            pagadasCountElement.textContent = sortedInvoices.length;
-        }
-    }
 }
 
 // ===== EVENT LISTENERS =====
