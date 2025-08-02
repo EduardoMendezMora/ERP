@@ -37,6 +37,7 @@ let selectedPaymentForInvoice = null;
 let sectionVisibility = {
     unassigned: true,
     overdue: true,
+    upcoming: true,
     assigned: true,
     paid: true
 };
@@ -590,6 +591,11 @@ function showOnlyActive() {
         sectionVisibility.overdue = true;
     }
 
+    const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
+    if (upcomingInvoices.length > 0) {
+        sectionVisibility.upcoming = true;
+    }
+
     updateSectionVisibility();
     updateControlUI();
     saveSectionPreferences();
@@ -599,6 +605,7 @@ function updateSectionVisibility() {
     const sectionMap = {
         'unassigned': 'unassignedPaymentsSection',
         'overdue': 'overdueSection',
+        'upcoming': 'upcomingSection',
         'assigned': 'assignedPaymentsSection',
         'paid': 'paidSection'
     };
@@ -632,10 +639,12 @@ function updateSectionCounts() {
     // Actualizar contadores en los controles
     const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
     const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
+    const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
 
     const counts = {
         'unassigned': `${unassignedPayments.length} pagos pendientes`,
         'overdue': `${overdueInvoices.length} facturas vencidas`,
+        'upcoming': `${upcomingInvoices.length} próximas facturas`,
         'assigned': `${assignedPayments.length} pagos aplicados`,
         'paid': `${paidInvoices.length} facturas pagadas`
     };

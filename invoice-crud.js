@@ -535,18 +535,21 @@ function renderInvoicesSection(status, invoices) {
     const containerMap = {
         'overdue': 'overdueInvoices',
         'pending': 'pendingInvoices',
+        'upcoming': 'upcomingInvoices',
         'paid': 'paidInvoices'
     };
 
     const emptyMap = {
         'overdue': 'emptyOverdue',
         'pending': 'emptyPending',
+        'upcoming': 'emptyUpcoming',
         'paid': 'emptyPaid'
     };
 
     const countMap = {
         'overdue': 'overdueCount',
         'pending': 'pendingCount',
+        'upcoming': 'upcomingCount',
         'paid': 'paidCount'
     };
 
@@ -586,7 +589,7 @@ function renderInvoicesSection(status, invoices) {
             if (!payDateA && payDateB) return 1;
         }
 
-        // Para vencidas y pendientes, ordenar por fecha de vencimiento
+        // Para vencidas, pendientes y próximas, ordenar por fecha de vencimiento
         if (dateA && dateB) {
             return dateA.getTime() - dateB.getTime();
         }
@@ -603,6 +606,7 @@ function renderInvoicesSection(status, invoices) {
     const statusLabels = {
         'overdue': 'Vencida',
         'pending': 'Pendiente',
+        'upcoming': 'Próxima',
         'paid': 'Pagada'
     };
 
@@ -610,6 +614,9 @@ function renderInvoicesSection(status, invoices) {
     const getStatusLabel = (status, isDueToday) => {
         if (status === 'overdue' && isDueToday) {
             return 'Vence HOY';
+        }
+        if (status === 'upcoming') {
+            return 'Próxima';
         }
         return statusLabels[status];
     };
