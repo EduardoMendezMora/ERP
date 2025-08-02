@@ -560,6 +560,19 @@ function renderInvoicesSection(status, invoices) {
     }
 
     countElement.textContent = invoices.length;
+    
+    // Actualizar contadores de pestañas si existen
+    if (status === 'overdue') {
+        const vencidasCountElement = document.getElementById('vencidasCount');
+        if (vencidasCountElement) {
+            vencidasCountElement.textContent = invoices.length;
+        }
+    } else if (status === 'paid') {
+        const pagadasCountElement = document.getElementById('pagadasCount');
+        if (pagadasCountElement) {
+            pagadasCountElement.textContent = invoices.length;
+        }
+    }
 
     if (invoices.length === 0) {
         container.innerHTML = '';

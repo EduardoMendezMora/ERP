@@ -665,6 +665,12 @@ function renderUnassignedPaymentsSection() {
     }
 
     countElement.textContent = unassignedPayments.length;
+    
+    // Actualizar contador de pestaña si existe
+    const tabCountElement = document.getElementById('noAsignadosCount');
+    if (tabCountElement) {
+        tabCountElement.textContent = unassignedPayments.length;
+    }
 
     if (unassignedPayments.length === 0) {
         container.innerHTML = '';
@@ -816,6 +822,12 @@ function renderAssignedPaymentsSection() {
     }
 
     countElement.textContent = assignedPayments.length;
+    
+    // Actualizar contador de pestaña si existe
+    const tabCountElement = document.getElementById('aplicadosCount');
+    if (tabCountElement) {
+        tabCountElement.textContent = assignedPayments.length;
+    }
 
     if (assignedPayments.length === 0) {
         container.innerHTML = '';

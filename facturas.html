@@ -158,70 +158,129 @@
             <button class="btn btn-warning btn-large" style="margin-left: 12px;" onclick="sendAccountStatement()">
                 📝 Estado de Cuenta - Arrendamiento
             </button>
-
         </div>
 
-        <!-- Unassigned Payments Section -->
-        <div class="invoices-section" id="unassignedPaymentsSection">
-            <div class="section-header">
-                <h3 class="section-title">
-                    💰 Pagos Relacionados No Asignados
-                    <span class="section-count" id="unassignedPaymentsCount">0</span>
-                </h3>
-                <small style="color: #86868b; font-size: 0.8rem;">Pagos encontrados por ID_Cliente directo O ID en Observaciones</small>
+        <!-- Tab Navigation System -->
+        <div class="tab-system">
+            <!-- Main Tabs -->
+            <div class="main-tabs">
+                <button class="main-tab active" data-tab="facturas" onclick="switchMainTab('facturas')">
+                    📄 Facturas
+                </button>
+                <button class="main-tab" data-tab="pagos" onclick="switchMainTab('pagos')">
+                    💰 Pagos
+                </button>
             </div>
-            <div class="invoices-grid" id="unassignedPayments"></div>
-            <div class="empty-section" id="emptyUnassignedPayments" style="display: none;">
-                <h4>📋 No hay pagos sin asignar</h4>
-                <p>Todos los pagos están correctamente asignados a facturas</p>
-            </div>
-        </div>
 
-        <!-- Overdue Invoices Section -->
-        <div class="invoices-section section-overdue" id="overdueSection">
-            <div class="section-header">
-                <h3 class="section-title">
-                    🔴 Facturas Vencidas
-                    <span class="section-count" id="overdueCount">0</span>
-                </h3>
-                <small style="color: #86868b; font-size: 0.8rem;">Incluye facturas que vencen HOY (sin multa) y las ya vencidas (con multa)</small>
+            <!-- Facturas Sub-tabs -->
+            <div class="sub-tabs" id="facturas-sub-tabs">
+                <button class="sub-tab active" data-subtab="vencidas" onclick="switchSubTab('vencidas')">
+                    🔴 Vencidas ó con Pago Parcial
+                    <span class="tab-count" id="vencidasCount">0</span>
+                </button>
+                <button class="sub-tab" data-subtab="no-vencidas" onclick="switchSubTab('no-vencidas')">
+                    🟡 No Vencidas
+                    <span class="tab-count" id="noVencidasCount">0</span>
+                </button>
+                <button class="sub-tab" data-subtab="pagadas" onclick="switchSubTab('pagadas')">
+                    🟢 Pagadas
+                    <span class="tab-count" id="pagadasCount">0</span>
+                </button>
             </div>
-            <div class="invoices-grid" id="overdueInvoices"></div>
-            <div class="empty-section" id="emptyOverdue" style="display: none;">
-                <h4>✅ No hay facturas vencidas</h4>
-                <p>No hay facturas que venzan hoy o ya vencidas</p>
-            </div>
-        </div>
 
-        <!-- Assigned Payments Section -->
-        <div class="invoices-section" id="assignedPaymentsSection">
-            <div class="section-header">
-                <h3 class="section-title">
-                    ✅ Pagos Aplicados
-                    <span class="section-count section-paid" id="assignedPaymentsCount">0</span>
-                </h3>
-                <small style="color: #86868b; font-size: 0.8rem;">Pagos ya asignados a facturas - Ordenados por fecha del comprobante bancario</small>
-            </div>
-            <div class="invoices-grid" id="assignedPayments"></div>
-            <div class="empty-section" id="emptyAssignedPayments" style="display: none;">
-                <h4>📄 No hay pagos aplicados</h4>
-                <p>Aún no se han asignado pagos a facturas</p>
+            <!-- Pagos Sub-tabs -->
+            <div class="sub-tabs" id="pagos-sub-tabs" style="display: none;">
+                <button class="sub-tab active" data-subtab="no-asignados" onclick="switchSubTab('no-asignados')">
+                    💰 No Asignados
+                    <span class="tab-count" id="noAsignadosCount">0</span>
+                </button>
+                <button class="sub-tab" data-subtab="aplicados" onclick="switchSubTab('aplicados')">
+                    ✅ Aplicados
+                    <span class="tab-count" id="aplicadosCount">0</span>
+                </button>
             </div>
         </div>
 
-        <!-- Paid Invoices Section -->
-        <div class="invoices-section section-paid" id="paidSection">
-            <div class="section-header">
-                <h3 class="section-title">
-                    🟢 Facturas Pagadas
-                    <span class="section-count" id="paidCount">0</span>
-                </h3>
-                <small style="color: #86868b; font-size: 0.8rem;">Ordenadas por fecha de pago (más recientes primero)</small>
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Facturas Vencidas ó con Pago Parcial -->
+            <div class="tab-pane active" id="vencidas-pane">
+                <div class="section-header">
+                    <h3 class="section-title">
+                        🔴 Facturas Vencidas ó con Pago Parcial
+                        <span class="section-count" id="overdueCount">0</span>
+                    </h3>
+                    <small style="color: #86868b; font-size: 0.8rem;">Completamente vencidas y vencidas con pagos parciales - Ordenadas de más vieja a más nueva</small>
+                </div>
+                <div class="invoices-grid" id="overdueInvoices"></div>
+                <div class="empty-section" id="emptyOverdue" style="display: none;">
+                    <h4>✅ No hay facturas vencidas</h4>
+                    <p>No hay facturas que venzan hoy o ya vencidas</p>
+                </div>
             </div>
-            <div class="invoices-grid" id="paidInvoices"></div>
-            <div class="empty-section" id="emptyPaid" style="display: none;">
-                <h4>📄 No hay facturas pagadas</h4>
-                <p>Aún no se han registrado pagos</p>
+
+            <!-- Facturas No Vencidas -->
+            <div class="tab-pane" id="no-vencidas-pane">
+                <div class="section-header">
+                    <h3 class="section-title">
+                        🟡 Facturas No Vencidas
+                        <span class="section-count" id="noVencidasSectionCount">0</span>
+                    </h3>
+                    <small style="color: #86868b; font-size: 0.8rem;">Facturas por vencer en el futuro - Ordenadas de más próxima a más lejana a vencer</small>
+                </div>
+                <div class="invoices-grid" id="noVencidasInvoices"></div>
+                <div class="empty-section" id="emptyNoVencidas" style="display: none;">
+                    <h4>📄 No hay facturas no vencidas</h4>
+                    <p>Todas las facturas están vencidas o pagadas</p>
+                </div>
+            </div>
+
+            <!-- Facturas Pagadas -->
+            <div class="tab-pane" id="pagadas-pane">
+                <div class="section-header">
+                    <h3 class="section-title">
+                        🟢 Facturas Pagadas
+                        <span class="section-count" id="paidCount">0</span>
+                    </h3>
+                    <small style="color: #86868b; font-size: 0.8rem;">Facturas completamente pagadas - Ordenadas de última pagada a más vieja pagada</small>
+                </div>
+                <div class="invoices-grid" id="paidInvoices"></div>
+                <div class="empty-section" id="emptyPaid" style="display: none;">
+                    <h4>📄 No hay facturas pagadas</h4>
+                    <p>Aún no se han registrado pagos</p>
+                </div>
+            </div>
+
+            <!-- Pagos No Asignados -->
+            <div class="tab-pane" id="no-asignados-pane">
+                <div class="section-header">
+                    <h3 class="section-title">
+                        💰 Pagos Relacionados No Asignados
+                        <span class="section-count" id="unassignedPaymentsCount">0</span>
+                    </h3>
+                    <small style="color: #86868b; font-size: 0.8rem;">Pagos encontrados por ID_Cliente directo O ID en Observaciones - Ordenados del más viejo al más nuevo</small>
+                </div>
+                <div class="invoices-grid" id="unassignedPayments"></div>
+                <div class="empty-section" id="emptyUnassignedPayments" style="display: none;">
+                    <h4>📋 No hay pagos sin asignar</h4>
+                    <p>Todos los pagos están correctamente asignados a facturas</p>
+                </div>
+            </div>
+
+            <!-- Pagos Aplicados -->
+            <div class="tab-pane" id="aplicados-pane">
+                <div class="section-header">
+                    <h3 class="section-title">
+                        ✅ Pagos Aplicados
+                        <span class="section-count section-paid" id="assignedPaymentsCount">0</span>
+                    </h3>
+                    <small style="color: #86868b; font-size: 0.8rem;">Pagos ya asignados a facturas - Ordenados del más reciente aplicado al más viejo</small>
+                </div>
+                <div class="invoices-grid" id="assignedPayments"></div>
+                <div class="empty-section" id="emptyAssignedPayments" style="display: none;">
+                    <h4>📄 No hay pagos aplicados</h4>
+                    <p>Aún no se han asignado pagos a facturas</p>
+                </div>
             </div>
         </div>
     </div>
@@ -477,6 +536,243 @@
 <script src="client-management.js"></script>
 <script src="account-statement.js"></script>
 <script>
+    // ===== TAB SYSTEM FUNCTIONS =====
+    
+    // Variables globales para el sistema de pestañas
+    let currentMainTab = 'facturas';
+    let currentSubTab = 'vencidas';
+    
+    // Función para cambiar pestaña principal
+    function switchMainTab(tabName) {
+        console.log('🔄 Cambiando a pestaña principal:', tabName);
+        
+        // Actualizar variables globales
+        currentMainTab = tabName;
+        
+        // Actualizar pestañas principales
+        document.querySelectorAll('.main-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        
+        // Mostrar/ocultar sub-pestañas correspondientes
+        const facturasSubTabs = document.getElementById('facturas-sub-tabs');
+        const pagosSubTabs = document.getElementById('pagos-sub-tabs');
+        
+        if (tabName === 'facturas') {
+            facturasSubTabs.style.display = 'flex';
+            pagosSubTabs.style.display = 'none';
+            
+            // Activar primera sub-pestaña de facturas por defecto
+            if (currentSubTab === 'no-asignados' || currentSubTab === 'aplicados') {
+                switchSubTab('vencidas');
+            }
+        } else if (tabName === 'pagos') {
+            facturasSubTabs.style.display = 'none';
+            pagosSubTabs.style.display = 'flex';
+            
+            // Activar primera sub-pestaña de pagos por defecto
+            if (currentSubTab === 'vencidas' || currentSubTab === 'no-vencidas' || currentSubTab === 'pagadas') {
+                switchSubTab('no-asignados');
+            }
+        }
+        
+        // Actualizar contadores si es necesario
+        updateTabCounters();
+    }
+    
+    // Función para cambiar sub-pestaña
+    function switchSubTab(subTabName) {
+        console.log('🔄 Cambiando a sub-pestaña:', subTabName);
+        
+        // Actualizar variables globales
+        currentSubTab = subTabName;
+        
+        // Ocultar todos los paneles de contenido
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('active');
+        });
+        
+        // Mostrar el panel correspondiente
+        const targetPane = document.getElementById(`${subTabName}-pane`);
+        if (targetPane) {
+            targetPane.classList.add('active');
+        }
+        
+        // Actualizar sub-pestañas activas
+        const currentMainTabElement = document.querySelector('.main-tab.active');
+        const subTabsContainer = currentMainTabElement.getAttribute('data-tab') === 'facturas' 
+            ? document.getElementById('facturas-sub-tabs') 
+            : document.getElementById('pagos-sub-tabs');
+        
+        subTabsContainer.querySelectorAll('.sub-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        const targetSubTab = subTabsContainer.querySelector(`[data-subtab="${subTabName}"]`);
+        if (targetSubTab) {
+            targetSubTab.classList.add('active');
+        }
+        
+        // Recargar datos específicos de la pestaña si es necesario
+        loadTabSpecificData(subTabName);
+    }
+    
+    // Función para actualizar contadores de pestañas
+    function updateTabCounters() {
+        // Contadores de facturas
+        const vencidasCount = document.getElementById('overdueCount')?.textContent || '0';
+        const noVencidasCount = document.getElementById('noVencidasSectionCount')?.textContent || '0';
+        const pagadasCount = document.getElementById('paidCount')?.textContent || '0';
+        
+        // Contadores de pagos
+        const noAsignadosCount = document.getElementById('unassignedPaymentsCount')?.textContent || '0';
+        const aplicadosCount = document.getElementById('assignedPaymentsCount')?.textContent || '0';
+        
+        // Actualizar elementos de contador
+        document.getElementById('vencidasCount').textContent = vencidasCount;
+        document.getElementById('noVencidasCount').textContent = noVencidasCount;
+        document.getElementById('pagadasCount').textContent = pagadasCount;
+        document.getElementById('noAsignadosCount').textContent = noAsignadosCount;
+        document.getElementById('aplicadosCount').textContent = aplicadosCount;
+    }
+    
+    // Función para cargar datos específicos de cada pestaña
+    function loadTabSpecificData(subTabName) {
+        console.log('📊 Cargando datos para pestaña:', subTabName);
+        
+        switch (subTabName) {
+            case 'vencidas':
+                // Los datos ya están cargados, solo actualizar contadores
+                updateTabCounters();
+                break;
+                
+            case 'no-vencidas':
+                // Cargar facturas no vencidas
+                loadNoVencidasInvoices();
+                break;
+                
+            case 'pagadas':
+                // Los datos ya están cargados, solo actualizar contadores
+                updateTabCounters();
+                break;
+                
+            case 'no-asignados':
+                // Los datos ya están cargados, solo actualizar contadores
+                updateTabCounters();
+                break;
+                
+            case 'aplicados':
+                // Los datos ya están cargados, solo actualizar contadores
+                updateTabCounters();
+                break;
+        }
+    }
+    
+    // Función para cargar facturas no vencidas
+    function loadNoVencidasInvoices() {
+        console.log('🟡 Cargando facturas no vencidas...');
+        
+        if (!clientInvoices || clientInvoices.length === 0) {
+            console.log('❌ No hay facturas disponibles');
+            return;
+        }
+        
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        
+        // Filtrar facturas no vencidas (fecha de vencimiento >= mañana)
+        const noVencidasInvoices = clientInvoices.filter(invoice => {
+            const dueDate = new Date(invoice.FechaVencimiento);
+            dueDate.setHours(0, 0, 0, 0);
+            
+            // Solo facturas que vencen desde mañana en adelante
+            return dueDate >= tomorrow && invoice.Estado !== 'Pagado';
+        });
+        
+        // Ordenar por proximidad al vencimiento (más próxima primero)
+        noVencidasInvoices.sort((a, b) => {
+            const dateA = new Date(a.FechaVencimiento);
+            const dateB = new Date(b.FechaVencimiento);
+            return dateA - dateB;
+        });
+        
+        console.log(`🟡 Encontradas ${noVencidasInvoices.length} facturas no vencidas`);
+        
+        // Renderizar facturas no vencidas
+        renderNoVencidasInvoices(noVencidasInvoices);
+        
+        // Actualizar contador
+        document.getElementById('noVencidasSectionCount').textContent = noVencidasInvoices.length;
+        document.getElementById('noVencidasCount').textContent = noVencidasInvoices.length;
+    }
+    
+    // Función para renderizar facturas no vencidas
+    function renderNoVencidasInvoices(invoices) {
+        const container = document.getElementById('noVencidasInvoices');
+        const emptySection = document.getElementById('emptyNoVencidas');
+        
+        if (!invoices || invoices.length === 0) {
+            container.innerHTML = '';
+            emptySection.style.display = 'block';
+            return;
+        }
+        
+        emptySection.style.display = 'none';
+        
+        let html = '';
+        invoices.forEach(invoice => {
+            const dueDate = new Date(invoice.FechaVencimiento);
+            const daysUntilDue = Math.ceil((dueDate - new Date()) / (1000 * 60 * 60 * 24));
+            
+            html += `
+                <div class="invoice-card pending">
+                    <div class="invoice-header">
+                        <div class="invoice-number">${invoice.NumeroFactura}</div>
+                        <div class="invoice-week">Semana ${invoice.Semana}</div>
+                        <div class="status-badge status-pending">Pendiente</div>
+                    </div>
+                    
+                    <div class="invoice-details">
+                        <div class="invoice-detail">
+                            <span class="invoice-detail-label">Vence:</span>
+                            <span class="invoice-detail-value">${formatDateForDisplay(invoice.FechaVencimiento)}</span>
+                        </div>
+                        <div class="invoice-detail">
+                            <span class="invoice-detail-label">Días restantes:</span>
+                            <span class="invoice-detail-value">${daysUntilDue} días</span>
+                        </div>
+                        <div class="invoice-detail">
+                            <span class="invoice-detail-label">Monto:</span>
+                            <span class="invoice-detail-value amount-highlight">₡${parseFloat(invoice.MontoBase || 0).toLocaleString('es-CR')}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="invoice-actions">
+                        <button class="btn btn-assign" onclick="assignPaymentToInvoice('${invoice.NumeroFactura}')">
+                            💰 Asignar Pago
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+    
+    // Inicializar sistema de pestañas cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🎯 Inicializando sistema de pestañas...');
+        
+        // Configurar pestañas por defecto
+        switchMainTab('facturas');
+        switchSubTab('vencidas');
+        
+        // Actualizar contadores iniciales
+        setTimeout(updateTabCounters, 1000);
+    });
+    
     // Verificar autenticación al cargar
     function checkAuthentication() {
         const urlParams = new URLSearchParams(window.location.search);
