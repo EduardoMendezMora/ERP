@@ -774,12 +774,12 @@
         const mainContent = document.getElementById('mainContent');
         const vencidasPane = document.getElementById('vencidas-pane');
         const overdueInvoices = document.getElementById('overdueInvoices');
-        const unassignedPayments = document.getElementById('unassignedPayments');
+        const unassignedPaymentsElement = document.getElementById('unassignedPayments');
         
         console.log('  mainContent visible:', mainContent?.style.display !== 'none');
         console.log('  vencidas-pane visible:', vencidasPane?.classList.contains('active'));
         console.log('  overdueInvoices contenido:', overdueInvoices?.innerHTML?.substring(0, 100));
-        console.log('  unassignedPayments contenido:', unassignedPayments?.innerHTML?.substring(0, 100));
+        console.log('  unassignedPayments contenido:', unassignedPaymentsElement?.innerHTML?.substring(0, 100));
         
         // Verificar contadores
         console.log('📈 Contadores:');
