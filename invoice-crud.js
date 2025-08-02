@@ -400,7 +400,7 @@ async function loadClientAndInvoices(clientId) {
             }
         });
 
-        // Filtrar: NO mostrar facturas pendientes (fecha futura), SÍ mostrar vencidas y pagadas
+        // Filtrar: mostrar facturas pagadas, vencidas y pendientes (incluyendo futuras)
         clientInvoices = clientAllInvoices.filter(inv => {
             // Si está pagada, mostrarla siempre
             if (inv.Estado === 'Pagado') return true;
@@ -408,7 +408,9 @@ async function loadClientAndInvoices(clientId) {
             // Si está vencida (incluye las que vencen hoy), mostrarla
             if (inv.Estado === 'Vencido') return true;
 
-            // NO mostrar pendientes (fecha futura)
+            // Mostrar pendientes (incluyendo fecha futura) para la sección "Facturas No Vencidas"
+            if (inv.Estado === 'Pendiente') return true;
+
             return false;
         });
 
@@ -435,7 +437,7 @@ async function loadClientAndInvoices(clientId) {
             return weekA - weekB;
         });
 
-        console.log(`📋 Facturas cargadas: ${clientInvoices.length} (sin pendientes futuras)`);
+        console.log(`📋 Facturas cargadas: ${clientInvoices.length} (incluyendo pendientes futuras)`);
 
     } catch (error) {
         console.error('❌ Error en loadClientAndInvoices:', error);
@@ -535,18 +537,21 @@ function renderInvoicesSection(status, invoices) {
     const containerMap = {
         'overdue': 'overdueInvoices',
         'pending': 'pendingInvoices',
+        'upcoming': 'upcomingInvoices',
         'paid': 'paidInvoices'
     };
 
     const emptyMap = {
         'overdue': 'emptyOverdue',
         'pending': 'emptyPending',
+        'upcoming': 'emptyUpcoming',
         'paid': 'emptyPaid'
     };
 
     const countMap = {
         'overdue': 'overdueCount',
         'pending': 'pendingCount',
+        'upcoming': 'upcomingCount',
         'paid': 'paidCount'
     };
 
@@ -586,7 +591,7 @@ function renderInvoicesSection(status, invoices) {
             if (!payDateA && payDateB) return 1;
         }
 
-        // Para vencidas y pendientes, ordenar por fecha de vencimiento
+        // Para vencidas, pendientes y próximas, ordenar por fecha de vencimiento
         if (dateA && dateB) {
             return dateA.getTime() - dateB.getTime();
         }
@@ -603,6 +608,7 @@ function renderInvoicesSection(status, invoices) {
     const statusLabels = {
         'overdue': 'Vencida',
         'pending': 'Pendiente',
+        'upcoming': 'Próxima',
         'paid': 'Pagada'
     };
 
@@ -610,6 +616,9 @@ function renderInvoicesSection(status, invoices) {
     const getStatusLabel = (status, isDueToday) => {
         if (status === 'overdue' && isDueToday) {
             return 'Vence HOY';
+        }
+        if (status === 'upcoming') {
+            return 'Próxima';
         }
         return statusLabels[status];
     };
