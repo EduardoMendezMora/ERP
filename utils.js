@@ -596,36 +596,17 @@ function showOnlyActive() {
 }
 
 function updateSectionVisibility() {
-    const sectionMap = {
-        'unassigned': 'unassignedPaymentsSection',
-        'overdue': 'overdueSection',
-        'assigned': 'assignedPaymentsSection',
-        'paid': 'paidSection'
-    };
-
-    Object.entries(sectionVisibility).forEach(([key, visible]) => {
-        const sectionElement = document.getElementById(sectionMap[key]);
-        if (sectionElement) {
-            sectionElement.style.display = visible ? 'block' : 'none';
-        }
-    });
+    // Esta función ya no es necesaria con el nuevo sistema de pestañas
+    // El sistema de pestañas maneja la visibilidad automáticamente
+    console.log('🔄 updateSectionVisibility() llamada pero no es necesaria con el sistema de pestañas');
+    return;
 }
 
 function updateControlUI() {
-    Object.entries(sectionVisibility).forEach(([key, visible]) => {
-        const controlItem = document.getElementById(`control-${key}`);
-        const controlToggle = document.getElementById(`toggle-${key}`);
-
-        if (controlItem && controlToggle) {
-            if (visible) {
-                controlItem.classList.add('active');
-                controlToggle.classList.add('active');
-            } else {
-                controlItem.classList.remove('active');
-                controlToggle.classList.remove('active');
-            }
-        }
-    });
+    // Esta función ya no es necesaria con el nuevo sistema de pestañas
+    // Los controles de sección fueron reemplazados por el sistema de pestañas
+    console.log('🔄 updateControlUI() llamada pero no es necesaria con el sistema de pestañas');
+    return;
 }
 
 function updateSectionCounts() {

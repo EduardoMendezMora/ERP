@@ -112,7 +112,17 @@ function renderPage() {
         // Inicializar sistema de pestañas después de que los datos se hayan renderizado
         if (typeof initializeTabSystem === 'function') {
             console.log('🎯 Inicializando sistema de pestañas desde renderPage...');
-            setTimeout(initializeTabSystem, 500);
+            setTimeout(() => {
+                initializeTabSystem();
+                // Forzar re-renderizado después de que las pestañas estén listas
+                setTimeout(() => {
+                    console.log('🔄 Re-renderizando contenido después de inicializar pestañas...');
+                    renderInvoicesSection('overdue', overdueInvoices);
+                    renderInvoicesSection('paid', paidInvoices);
+                    renderUnassignedPaymentsSection();
+                    renderAssignedPaymentsSection();
+                }, 1000);
+            }, 500);
         }
 
         console.log('✅ Página renderizada completamente');

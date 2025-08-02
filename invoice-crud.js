@@ -532,6 +532,8 @@ function updateStatsWithoutPending(overdueInvoices, paidInvoices) {
 }
 
 function renderInvoicesSection(status, invoices) {
+    console.log(`🎨 Renderizando sección de facturas: ${status} con ${invoices.length} facturas`);
+    
     const containerMap = {
         'overdue': 'overdueInvoices',
         'pending': 'pendingInvoices',
@@ -554,8 +556,14 @@ function renderInvoicesSection(status, invoices) {
     const emptyElement = document.getElementById(emptyMap[status]);
     const countElement = document.getElementById(countMap[status]);
 
+    console.log(`🔍 Elementos encontrados para ${status}:`, {
+        container: container ? '✅' : '❌',
+        emptyElement: emptyElement ? '✅' : '❌',
+        countElement: countElement ? '✅' : '❌'
+    });
+
     if (!container || !emptyElement || !countElement) {
-        console.error(`No se encontraron elementos para la sección: ${status}`);
+        console.error(`❌ No se encontraron elementos para la sección: ${status}`);
         return;
     }
 
@@ -778,6 +786,9 @@ function renderInvoicesSection(status, invoices) {
             </div>
         `;
     }).join('');
+    
+    console.log(`✅ Contenido renderizado para ${status}: ${sortedInvoices.length} facturas en contenedor ${containerMap[status]}`);
+    console.log(`📋 Primeros 200 caracteres del HTML:`, container.innerHTML.substring(0, 200));
 }
 
 // ===== EVENT LISTENERS =====

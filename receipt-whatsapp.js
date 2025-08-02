@@ -809,6 +809,8 @@ function renderUnassignedPaymentsSection() {
             </div>
         `;
     }).join('');
+    
+    console.log(`✅ Pagos no asignados renderizados: ${unassignedPayments.length} pagos`);
 }
 
 function renderAssignedPaymentsSection() {
@@ -939,6 +941,8 @@ function renderAssignedPaymentsSection() {
             </div>
         `;
     }).join('');
+    
+    console.log(`✅ Pagos aplicados renderizados: ${assignedPayments.length} pagos`);
 }
 
 function showMultipleUnassignConfirmation(paymentReference, bankSource) {
