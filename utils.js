@@ -37,9 +37,8 @@ let selectedPaymentForInvoice = null;
 let sectionVisibility = {
     unassigned: true,
     overdue: true,
-    upcoming: false,  // Inicialmente oculta
     assigned: true,
-    paid: false       // Inicialmente oculta
+    paid: true
 };
 
 // ===== FUNCIONES DE DEBUGGING =====
@@ -560,14 +559,7 @@ function showLoadingOverlay(show) {
 
 // ===== FUNCIONES DE CONTROL DE SECCIONES =====
 function toggleSection(sectionKey) {
-    console.log(`🔄 toggleSection llamado con: ${sectionKey}`);
-    console.log(`📊 Estado anterior:`, sectionVisibility[sectionKey]);
-    
     sectionVisibility[sectionKey] = !sectionVisibility[sectionKey];
-    
-    console.log(`📊 Estado nuevo:`, sectionVisibility[sectionKey]);
-    console.log(`🎛️ sectionVisibility completo:`, sectionVisibility);
-    
     updateSectionVisibility();
     updateControlUI();
     saveSectionPreferences();
@@ -598,97 +590,40 @@ function showOnlyActive() {
         sectionVisibility.overdue = true;
     }
 
-    const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
-    if (upcomingInvoices.length > 0) {
-        sectionVisibility.upcoming = true;
-    }
-
     updateSectionVisibility();
     updateControlUI();
     saveSectionPreferences();
 }
 
 function updateSectionVisibility() {
-    console.log('🔄 updateSectionVisibility ejecutándose...');
-    
     const sectionMap = {
         'unassigned': 'unassignedPaymentsSection',
         'overdue': 'overdueSection',
-        'upcoming': 'upcomingSection',
         'assigned': 'assignedPaymentsSection',
         'paid': 'paidSection'
     };
 
     Object.entries(sectionVisibility).forEach(([key, visible]) => {
         const sectionElement = document.getElementById(sectionMap[key]);
-        console.log(`  📋 ${key}: buscando elemento ${sectionMap[key]} - ${sectionElement ? '✅ Encontrado' : '❌ No encontrado'}`);
-        
         if (sectionElement) {
-            const oldDisplay = sectionElement.style.display;
             sectionElement.style.display = visible ? 'block' : 'none';
-            
-            // Agregar efecto visual para hacer el cambio más evidente
-            if (visible) {
-                sectionElement.style.opacity = '0';
-                sectionElement.style.transform = 'translateY(-10px)';
-                setTimeout(() => {
-                    sectionElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                    sectionElement.style.opacity = '1';
-                    sectionElement.style.transform = 'translateY(0)';
-                }, 10);
-            } else {
-                sectionElement.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
-                sectionElement.style.opacity = '0';
-                sectionElement.style.transform = 'translateY(-10px)';
-            }
-            
-            console.log(`    Display: ${oldDisplay} → ${sectionElement.style.display}`);
         }
     });
 }
 
 function updateControlUI() {
-    console.log('🔄 updateControlUI ejecutándose...');
-    
     Object.entries(sectionVisibility).forEach(([key, visible]) => {
         const controlItem = document.getElementById(`control-${key}`);
         const controlToggle = document.getElementById(`toggle-${key}`);
 
-        console.log(`  🎛️ ${key}: control-${key} ${controlItem ? '✅' : '❌'}, toggle-${key} ${controlToggle ? '✅' : '❌'}`);
-
         if (controlItem && controlToggle) {
-            const wasActive = controlItem.classList.contains('active');
-            
             if (visible) {
                 controlItem.classList.add('active');
                 controlToggle.classList.add('active');
-                // Agregar efecto visual más dramático
-                controlItem.style.transform = 'scale(1.05)';
-                controlItem.style.boxShadow = '0 4px 12px rgba(0, 122, 255, 0.3)';
-                controlItem.style.backgroundColor = '#e6f3ff';
-                controlItem.style.borderColor = '#007aff';
-                setTimeout(() => {
-                    controlItem.style.transition = 'transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, border-color 0.3s ease';
-                    controlItem.style.transform = 'scale(1)';
-                    controlItem.style.boxShadow = '0 2px 8px rgba(0, 122, 255, 0.15)';
-                }, 300);
             } else {
                 controlItem.classList.remove('active');
                 controlToggle.classList.remove('active');
-                // Agregar efecto visual más dramático
-                controlItem.style.transform = 'scale(0.95)';
-                controlItem.style.boxShadow = '0 1px 4px rgba(0, 0, 0, 0.1)';
-                controlItem.style.backgroundColor = '#f9f9f9';
-                controlItem.style.borderColor = '#e5e5e7';
-                setTimeout(() => {
-                    controlItem.style.transition = 'transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, border-color 0.3s ease';
-                    controlItem.style.transform = 'scale(1)';
-                    controlItem.style.boxShadow = 'none';
-                }, 300);
             }
-            
-            const isActive = controlItem.classList.contains('active');
-            console.log(`    Active: ${wasActive} → ${isActive}`);
         }
     });
 }
@@ -697,12 +632,10 @@ function updateSectionCounts() {
     // Actualizar contadores en los controles
     const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
     const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
-    const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
 
     const counts = {
         'unassigned': `${unassignedPayments.length} pagos pendientes`,
         'overdue': `${overdueInvoices.length} facturas vencidas`,
-        'upcoming': `${upcomingInvoices.length} próximas facturas`,
         'assigned': `${assignedPayments.length} pagos aplicados`,
         'paid': `${paidInvoices.length} facturas pagadas`
     };
@@ -775,188 +708,6 @@ function findAssociatedPayment(invoiceNumber) {
         };
     }
     return null;
-}
-
-// ===== FUNCIÓN DE DEBUG PARA VERIFICAR FACTURAS =====
-function debugInvoices() {
-    console.log('🔍 === DEBUG DE FACTURAS ===');
-    
-    if (!Array.isArray(clientInvoices)) {
-        console.log('❌ clientInvoices no es un array');
-        return;
-    }
-    
-    console.log(`📋 Total de facturas: ${clientInvoices.length}`);
-    
-    // Agrupar por estado
-    const byStatus = {
-        'Pendiente': [],
-        'Vencido': [],
-        'Pagado': []
-    };
-    
-    clientInvoices.forEach(inv => {
-        const status = inv.Estado || 'Sin Estado';
-        if (byStatus[status]) {
-            byStatus[status].push(inv);
-        }
-    });
-    
-    console.log('📊 Facturas por estado:');
-    Object.entries(byStatus).forEach(([status, invoices]) => {
-        console.log(`  ${status}: ${invoices.length} facturas`);
-        
-        if (status === 'Pendiente') {
-            console.log('    Detalles de facturas pendientes:');
-            invoices.forEach(inv => {
-                const dueDate = parseDate(inv.FechaVencimiento);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                
-                const isFuture = dueDate && dueDate > today;
-                const isToday = dueDate && dueDate.getTime() === today.getTime();
-                const isPast = dueDate && dueDate < today;
-                
-                console.log(`      - ${inv.NumeroFactura}: ${inv.FechaVencimiento} (${isFuture ? 'FUTURA' : isToday ? 'HOY' : isPast ? 'PASADA' : 'SIN FECHA'})`);
-            });
-        }
-    });
-    
-    // Probar función getUpcomingInvoices
-    const upcoming = getUpcomingInvoices(clientInvoices, 2);
-    console.log(`📅 Próximas facturas (getUpcomingInvoices): ${upcoming.length}`);
-    upcoming.forEach(inv => {
-        console.log(`  - ${inv.NumeroFactura}: ${inv.FechaVencimiento}`);
-    });
-    
-    console.log('================================');
-}
-
-// ===== FUNCIÓN DE DEBUG PARA VERIFICAR CONTROLES DE SECCIÓN =====
-function debugSectionControls() {
-    console.log('🔍 === DEBUG DE CONTROLES DE SECCIÓN ===');
-    
-    // Verificar elementos del DOM
-    const sections = ['unassigned', 'overdue', 'upcoming', 'assigned', 'paid'];
-    
-    sections.forEach(section => {
-        const controlItem = document.getElementById(`control-${section}`);
-        const controlToggle = document.getElementById(`toggle-${section}`);
-        const sectionElement = document.getElementById(`${section}Section`);
-        const countElement = document.getElementById(`control-count-${section}`);
-        
-        console.log(`📋 Sección: ${section}`);
-        console.log(`  control-${section}:`, controlItem ? '✅ Encontrado' : '❌ No encontrado');
-        console.log(`  toggle-${section}:`, controlToggle ? '✅ Encontrado' : '❌ No encontrado');
-        console.log(`  ${section}Section:`, sectionElement ? '✅ Encontrado' : '❌ No encontrado');
-        console.log(`  control-count-${section}:`, countElement ? '✅ Encontrado' : '❌ No encontrado');
-        
-        if (controlItem) {
-            console.log(`  Clase active:`, controlItem.classList.contains('active') ? '✅ Sí' : '❌ No');
-            console.log(`  onclick:`, controlItem.getAttribute('onclick'));
-        }
-        
-        if (controlToggle) {
-            console.log(`  Toggle active:`, controlToggle.classList.contains('active') ? '✅ Sí' : '❌ No');
-        }
-        
-        if (sectionElement) {
-            console.log(`  Display:`, sectionElement.style.display);
-        }
-    });
-    
-    // Verificar estado de sectionVisibility
-    console.log('🎛️ Estado de sectionVisibility:', sectionVisibility);
-    
-    // Verificar funciones globales
-    console.log('🔧 Funciones globales:');
-    console.log('  toggleSection:', typeof window.toggleSection);
-    console.log('  toggleAllSections:', typeof window.toggleAllSections);
-    console.log('  showOnlyActive:', typeof window.showOnlyActive);
-    console.log('  updateSectionVisibility:', typeof window.updateSectionVisibility);
-    console.log('  updateControlUI:', typeof window.updateControlUI);
-    
-    console.log('================================');
-}
-
-// ===== FUNCIÓN DE DEBUG PARA VERIFICAR ESTADO VISUAL DE CONTROLES =====
-function debugControlVisualState() {
-    console.log('🔍 === DEBUG ESTADO VISUAL DE CONTROLES ===');
-    
-    const sections = ['unassigned', 'overdue', 'upcoming', 'assigned', 'paid'];
-    
-    sections.forEach(section => {
-        const controlItem = document.getElementById(`control-${section}`);
-        const controlToggle = document.getElementById(`toggle-${section}`);
-        
-        if (controlItem && controlToggle) {
-            const computedStyle = window.getComputedStyle(controlItem);
-            const toggleComputedStyle = window.getComputedStyle(controlToggle);
-            
-            console.log(`📋 Control: ${section}`);
-            console.log(`  Clase active: ${controlItem.classList.contains('active')}`);
-            console.log(`  Background: ${computedStyle.backgroundColor}`);
-            console.log(`  Border: ${computedStyle.borderColor}`);
-            console.log(`  Transform: ${computedStyle.transform}`);
-            console.log(`  Box-shadow: ${computedStyle.boxShadow}`);
-            console.log(`  Toggle background: ${toggleComputedStyle.backgroundColor}`);
-            console.log(`  Toggle transform: ${toggleComputedStyle.transform}`);
-            console.log('  ---');
-        }
-    });
-    
-    console.log('================================');
-}
-
-// Hacer la función disponible globalmente
-window.debugControlVisualState = debugControlVisualState;
-
-// ===== FUNCIÓN PARA MOSTRAR SOLO SECCIONES ACTIVAS POR DEFECTO =====
-function showDefaultActiveSections() {
-    console.log('🎛️ Configurando secciones activas por defecto...');
-    
-    // Ocultar todas las secciones primero
-    Object.keys(sectionVisibility).forEach(key => {
-        sectionVisibility[key] = false;
-    });
-    
-    // Mostrar solo secciones con contenido
-    if (unassignedPayments && unassignedPayments.length > 0) {
-        sectionVisibility.unassigned = true;
-        console.log('✅ Mostrando sección unassigned (tiene contenido)');
-    }
-    
-    if (clientInvoices && clientInvoices.length > 0) {
-        const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
-        if (overdueInvoices.length > 0) {
-            sectionVisibility.overdue = true;
-            console.log('✅ Mostrando sección overdue (tiene contenido)');
-        }
-        
-        const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
-        if (upcomingInvoices.length > 0) {
-            sectionVisibility.upcoming = true;
-            console.log('✅ Mostrando sección upcoming (tiene contenido)');
-        }
-        
-        const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
-        if (paidInvoices.length > 0) {
-            sectionVisibility.paid = true;
-            console.log('✅ Mostrando sección paid (tiene contenido)');
-        }
-    }
-    
-    if (assignedPayments && assignedPayments.length > 0) {
-        sectionVisibility.assigned = true;
-        console.log('✅ Mostrando sección assigned (tiene contenido)');
-    }
-    
-    // Aplicar cambios visuales
-    updateSectionVisibility();
-    updateControlUI();
-    updateSectionCounts();
-    
-    console.log('🎛️ Estado final de secciones:', sectionVisibility);
 }
 
 // ===== SINCRONIZACIÓN AUTOMÁTICA DE VARIABLES =====
@@ -1068,10 +819,6 @@ window.numberToWords = numberToWords;
 window.blobToBase64 = blobToBase64;
 window.generateInvoiceNumber = generateInvoiceNumber;
 window.findAssociatedPayment = findAssociatedPayment;
-window.debugInvoices = debugInvoices;
-window.debugSectionControls = debugSectionControls;
-window.debugControlVisualState = debugControlVisualState;
-window.showDefaultActiveSections = showDefaultActiveSections;
 
 console.log('✅ utils.js cargado - Funciones utilitarias disponibles');
 
@@ -1079,7 +826,4 @@ console.log('✅ utils.js cargado - Funciones utilitarias disponibles');
 setTimeout(() => {
     ensureVariableSync();
     console.log('🔄 Sincronización inicial ejecutada');
-    
-    // Configurar secciones activas por defecto
-    showDefaultActiveSections();
 }, 1000);
