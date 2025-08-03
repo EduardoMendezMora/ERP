@@ -1456,8 +1456,29 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         
         console.log('📝 Datos a actualizar:', updateData);
         
-        // Actualizar en la API
-        const updateUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/${transactionReference}?sheet=${foundSheet}`;
+        // VALIDACIÓN PREVIA: Verificar unicidad de la referencia en la hoja
+        const searchUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/search?Referencia=${encodeURIComponent(transactionReference)}&sheet=${foundSheet}`;
+        console.log('🔍 Verificando unicidad:', searchUrl);
+        
+        const searchResponse = await fetch(searchUrl);
+        if (!searchResponse.ok) {
+            throw new Error(`No se pudo verificar la unicidad de la transacción (HTTP ${searchResponse.status})`);
+        }
+        
+        const searchData = await searchResponse.json();
+        if (searchData.length === 0) {
+            throw new Error(`La transacción ${transactionReference} no existe en la hoja ${foundSheet}`);
+        }
+        if (searchData.length > 1) {
+            throw new Error(`No se puede actualizar la transacción porque la referencia '${transactionReference}' aparece más de una vez en la hoja '${foundSheet}'. Debe ser única para poder modificar el registro.`);
+        }
+        
+        console.log('✅ Transacción encontrada y es única, procediendo con actualización...');
+        
+        // Actualizar en la API usando el patrón correcto de SheetDB
+        const updateUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/Referencia/${encodeURIComponent(transactionReference)}?sheet=${foundSheet}`;
+        console.log('🔗 URL de actualización:', updateUrl);
+        
         const updateResponse = await fetch(updateUrl, {
             method: 'PATCH',
             headers: {
