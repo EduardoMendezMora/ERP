@@ -1120,13 +1120,13 @@ async function loadTransactionsTab() {
                 let availableAmount = 0;
                 let totalAmount = 0;
                 let assignedAmount = 0;
+                const bank = transaction.BankSource || 'BAC';
                 
                 if (transaction.Disponible !== undefined && transaction.Disponible !== null && transaction.Disponible !== '') {
                     availableAmount = parseFloat(transaction.Disponible) || 0;
                     
                     // Para mostrar información completa, calcular el total y asignado
                     const creditValue = transaction.Créditos || '0';
-                    const bank = transaction.BankSource || 'BAC';
                     totalAmount = parsePaymentAmount(creditValue, bank);
                     const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
                     assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
@@ -1135,7 +1135,6 @@ async function loadTransactionsTab() {
                 } else {
                     // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
                     const creditValue = transaction.Créditos || '0';
-                    const bank = transaction.BankSource || 'BAC';
                     
                     // Debug: mostrar el valor original
                     console.log('🔍 Valor original:', creditValue, 'Banco:', bank, 'Tipo:', typeof creditValue);
