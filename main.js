@@ -810,10 +810,13 @@ async function loadTransactionsTab() {
         console.log('📊 Total transacciones cargadas:', allTransactions.length);
         
         // Filtrar transacciones pendientes de conciliar
-        // NO mostrar las que tienen ID_Cliente, Observaciones o están conciliadas
         // Solo mostrar desde el 10/07/2025
         const cutoffDate = new Date('2025-07-10');
         cutoffDate.setHours(0, 0, 0, 0);
+        
+        // Fecha límite para nueva lógica: 03/08/2025
+        const newLogicDate = new Date('2025-08-03');
+        newLogicDate.setHours(0, 0, 0, 0);
         
         const pendingTransactions = allTransactions.filter(t => {
             // Si tiene ID_Cliente asignado, está conciliada
@@ -821,28 +824,34 @@ async function loadTransactionsTab() {
                 return false;
             }
             
-            // Si tiene Observaciones con contenido, está conciliada
-            if (t.Observaciones && t.Observaciones.trim() !== '' && t.Observaciones !== 'undefined') {
-                return false;
-            }
-            
-            // Filtrar por fecha - solo desde 10/07/2025
+            // Parsear fecha de la transacción
+            let transactionDate = null;
             if (t.Fecha) {
-                // Parsear fecha en formato DD/MM/YYYY
                 const dateParts = t.Fecha.split('/');
                 if (dateParts.length === 3) {
                     const day = parseInt(dateParts[0]);
                     const month = parseInt(dateParts[1]) - 1; // Meses en JS van de 0-11
                     const year = parseInt(dateParts[2]);
-                    const transactionDate = new Date(year, month, day);
-                    
-                    if (transactionDate < cutoffDate) {
-                        return false;
-                    }
+                    transactionDate = new Date(year, month, day);
                 }
             }
             
-            // Solo mostrar las que no están conciliadas y son desde la fecha límite
+            // Filtrar por fecha - solo desde 10/07/2025
+            if (transactionDate && transactionDate < cutoffDate) {
+                return false;
+            }
+            
+            // Lógica diferente según la fecha:
+            // - Para transacciones del 03/08/2025 en adelante: NO filtrar por observaciones
+            // - Para transacciones anteriores: SÍ filtrar por observaciones
+            if (transactionDate && transactionDate < newLogicDate) {
+                // Lógica antigua: Si tiene Observaciones con contenido, está conciliada
+                if (t.Observaciones && t.Observaciones.trim() !== '' && t.Observaciones !== 'undefined') {
+                    return false;
+                }
+            }
+            // Para transacciones del 03/08/2025 en adelante, no filtramos por observaciones
+            
             return true;
         });
         
