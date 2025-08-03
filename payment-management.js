@@ -11,6 +11,20 @@ function calculateAvailableAmount(payment) {
         const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
         const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
         const availableAmount = paymentAmount - assignedAmount;
+        
+        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
+        if (payment.Referencia === '970873893') {
+            console.log(`🔍 [DEBUG CÁLCULO] === CÁLCULO SALDO DISPONIBLE 970873893 ===`);
+            console.log(`🔍 [DEBUG CÁLCULO] Créditos original: "${payment.Créditos}"`);
+            console.log(`🔍 [DEBUG CÁLCULO] BankSource: "${payment.BankSource}"`);
+            console.log(`🔍 [DEBUG CÁLCULO] Payment amount calculado: ₡${paymentAmount.toLocaleString('es-CR')}`);
+            console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas: "${payment.FacturasAsignadas}"`);
+            console.log(`🔍 [DEBUG CÁLCULO] Assignments parsed:`, assignments);
+            console.log(`🔍 [DEBUG CÁLCULO] Assigned amount: ₡${assignedAmount.toLocaleString('es-CR')}`);
+            console.log(`🔍 [DEBUG CÁLCULO] Available amount: ₡${availableAmount.toLocaleString('es-CR')}`);
+            console.log(`🔍 [DEBUG CÁLCULO] === FIN DEBUG CÁLCULO ===`);
+        }
+        
         console.log(`💰 Pago ${payment.Referencia}: Calculando saldo disponible dinámicamente: ₡${availableAmount.toLocaleString('es-CR')}`);
         return availableAmount;
     }
@@ -1302,6 +1316,48 @@ async function probarMetodosActualizacion(reference = '970873893') {
     }
 }
 
+// ===== FUNCIÓN PARA PROBAR EL PARSING DE MONTOS =====
+function probarParsingMontos() {
+    console.log(`🧪 [PRUEBA PARSING] === PRUEBA DE PARSING DE MONTOS ===`);
+    
+    // Probar con el monto problemático
+    const montoProblematico = '60.000,00';
+    const bankSource = 'BAC';
+    
+    console.log(`🧪 [PRUEBA PARSING] Monto original: "${montoProblematico}"`);
+    console.log(`🧪 [PRUEBA PARSING] Banco: "${bankSource}"`);
+    
+    // Probar función original
+    const resultadoOriginal = parsePaymentAmount(montoProblematico, bankSource);
+    console.log(`🧪 [PRUEBA PARSING] Resultado original: ${resultadoOriginal}`);
+    
+    // Probar función corregida
+    const resultadoCorregido = parsePaymentAmountFixed(montoProblematico, bankSource);
+    console.log(`🧪 [PRUEBA PARSING] Resultado corregido: ${resultadoCorregido}`);
+    
+    // Probar otros formatos posibles
+    const formatos = [
+        '60.000,00',
+        '60,000.00', 
+        '60000.00',
+        '60000,00'
+    ];
+    
+    console.log(`🧪 [PRUEBA PARSING] === PRUEBA DE DIFERENTES FORMATOS ===`);
+    formatos.forEach(formato => {
+        const resultado = parsePaymentAmountFixed(formato, bankSource);
+        console.log(`🧪 [PRUEBA PARSING] "${formato}" -> ${resultado}`);
+    });
+    
+    console.log(`🧪 [PRUEBA PARSING] === FIN PRUEBA PARSING ===`);
+    
+    return {
+        original: resultadoOriginal,
+        corregido: resultadoCorregido,
+        formatos: formatos.map(f => ({ formato: f, resultado: parsePaymentAmountFixed(f, bankSource) }))
+    };
+}
+
 // ===== FUNCIÓN AUXILIAR PARA RECARGAR DATOS =====
 async function reloadDataAndRender() {
     try {
@@ -1873,6 +1929,7 @@ window.testDisponibleForTransaction = testDisponibleForTransaction;
 window.corregirSaldoDisponible = corregirSaldoDisponible;
 window.verificarEstructuraHoja = verificarEstructuraHoja;
 window.probarMetodosActualizacion = probarMetodosActualizacion;
+window.probarParsingMontos = probarParsingMontos;
 
 console.log('✅ payment-management.js COMPLETO - Usando método oficial SheetDB + WhatsApp');
 console.log('🧪 Funciones de debugging disponibles:');
@@ -1883,6 +1940,7 @@ console.log('  - testDisponibleForTransaction(referencia) - Prueba guardado de D
 console.log('  - corregirSaldoDisponible(referencia) - Corregir saldo disponible de transacción');
 console.log('  - verificarEstructuraHoja(hoja) - Verificar estructura y campos de la hoja');
 console.log('  - probarMetodosActualizacion(referencia) - Probar diferentes métodos de actualización');
+console.log('  - probarParsingMontos() - Probar parsing de montos BAC');
 console.log('');
 console.log('📱 NUEVA FUNCIONALIDAD WHATSAPP:');
 console.log('  ✅ Envío automático de notificaciones al asignar pagos');
