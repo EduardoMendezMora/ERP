@@ -967,6 +967,53 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
     }
 }
 
+// ===== FUNCIÓN PARA VERIFICAR ESTRUCTURA DE LA HOJA Y CAMPOS =====
+async function verificarEstructuraHoja(sheet = 'BN') {
+    try {
+        console.log(`🔍 [VERIFICACIÓN] Verificando estructura de la hoja ${sheet}`);
+        
+        const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
+        const response = await fetch(url);
+        
+        if (response.ok) {
+            const paymentsData = await response.json();
+            const payments = Array.isArray(paymentsData) ? paymentsData : [];
+            
+            if (payments.length > 0) {
+                const firstPayment = payments[0];
+                console.log(`🔍 [VERIFICACIÓN] Campos disponibles en la hoja ${sheet}:`);
+                console.log('🔍 [VERIFICACIÓN] Objeto completo del primer pago:', firstPayment);
+                
+                // Verificar si existe el campo Disponible
+                if ('Disponible' in firstPayment) {
+                    console.log(`✅ [VERIFICACIÓN] Campo "Disponible" existe en la hoja ${sheet}`);
+                    console.log(`🔍 [VERIFICACIÓN] Valor actual: "${firstPayment.Disponible}"`);
+                } else {
+                    console.log(`❌ [VERIFICACIÓN] Campo "Disponible" NO existe en la hoja ${sheet}`);
+                    console.log(`🔍 [VERIFICACIÓN] Campos disponibles:`, Object.keys(firstPayment));
+                }
+                
+                // Buscar la transacción específica
+                const targetPayment = payments.find(p => p.Referencia === '970873893');
+                if (targetPayment) {
+                    console.log(`🔍 [VERIFICACIÓN] Transacción 970873893 encontrada en ${sheet}:`);
+                    console.log('🔍 [VERIFICACIÓN] Datos completos:', targetPayment);
+                    console.log(`🔍 [VERIFICACIÓN] Campo Disponible: "${targetPayment.Disponible}"`);
+                } else {
+                    console.log(`❌ [VERIFICACIÓN] Transacción 970873893 NO encontrada en ${sheet}`);
+                }
+            } else {
+                console.log(`⚠️ [VERIFICACIÓN] No hay pagos en la hoja ${sheet}`);
+            }
+        } else {
+            console.error(`❌ [VERIFICACIÓN] Error al consultar hoja ${sheet}:`, response.status);
+        }
+        
+    } catch (error) {
+        console.error(`❌ [VERIFICACIÓN] Error verificando hoja ${sheet}:`, error);
+    }
+}
+
 // ===== FUNCIÓN PARA CORREGIR SALDO DISPONIBLE DE TRANSACCIÓN ESPECÍFICA =====
 async function corregirSaldoDisponible(reference = '970873893') {
     try {
@@ -1110,6 +1157,147 @@ async function testDisponibleForTransaction(reference = '970873893') {
         
     } catch (error) {
         console.error(`🧪 [TEST] Error en la prueba:`, error);
+        return false;
+    }
+}
+
+// ===== FUNCIÓN PARA PROBAR DIFERENTES MÉTODOS DE ACTUALIZACIÓN =====
+async function probarMetodosActualizacion(reference = '970873893') {
+    try {
+        console.log(`🧪 [PRUEBA] Probando diferentes métodos de actualización para ${reference}`);
+        
+        // Buscar la transacción
+        const sheets = ['BAC', 'BN', 'HuberBN'];
+        let foundPayment = null;
+        
+        for (const sheet of sheets) {
+            try {
+                const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
+                const response = await fetch(url);
+                
+                if (response.ok) {
+                    const paymentsData = await response.json();
+                    const payments = Array.isArray(paymentsData) ? paymentsData : [];
+                    
+                    const payment = payments.find(p => p.Referencia === reference);
+                    if (payment) {
+                        foundPayment = payment;
+                        foundPayment.BankSource = sheet;
+                        console.log(`🧪 [PRUEBA] Transacción encontrada en hoja ${sheet}`);
+                        break;
+                    }
+                }
+            } catch (error) {
+                console.error(`🧪 [PRUEBA] Error consultando hoja ${sheet}:`, error);
+            }
+        }
+        
+        if (!foundPayment) {
+            console.error(`🧪 [PRUEBA] Transacción ${reference} no encontrada`);
+            return false;
+        }
+        
+        console.log(`🧪 [PRUEBA] Datos de la transacción:`, foundPayment);
+        
+        // Calcular el saldo correcto
+        const paymentAmount = parsePaymentAmount(foundPayment.Créditos, foundPayment.BankSource);
+        const assignments = parseAssignedInvoices(foundPayment.FacturasAsignadas || '');
+        const totalAssignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+        const correctAvailableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
+        
+        console.log(`🧪 [PRUEBA] Saldo correcto: ₡${correctAvailableAmount.toLocaleString('es-CR')}`);
+        
+        // MÉTODO 1: JSON con Content-Type application/json
+        console.log(`🧪 [PRUEBA] === MÉTODO 1: JSON ===`);
+        try {
+            const updateData1 = {
+                Disponible: correctAvailableAmount.toString()
+            };
+            
+            const url1 = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(foundPayment.Referencia)}?sheet=${foundPayment.BankSource}`;
+            
+            const response1 = await fetch(url1, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData1)
+            });
+            
+            console.log(`🧪 [PRUEBA] Método 1 - Status: ${response1.status}`);
+            if (response1.ok) {
+                const result1 = await response1.json();
+                console.log(`✅ [PRUEBA] Método 1 exitoso:`, result1);
+            } else {
+                const error1 = await response1.text();
+                console.log(`❌ [PRUEBA] Método 1 falló:`, error1);
+            }
+        } catch (error) {
+            console.log(`❌ [PRUEBA] Método 1 error:`, error);
+        }
+        
+        // MÉTODO 2: Form data con Content-Type application/x-www-form-urlencoded
+        console.log(`🧪 [PRUEBA] === MÉTODO 2: FORM DATA ===`);
+        try {
+            const formData = new URLSearchParams();
+            formData.append('Disponible', correctAvailableAmount.toString());
+            
+            const url2 = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(foundPayment.Referencia)}?sheet=${foundPayment.BankSource}`;
+            
+            const response2 = await fetch(url2, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData.toString()
+            });
+            
+            console.log(`🧪 [PRUEBA] Método 2 - Status: ${response2.status}`);
+            if (response2.ok) {
+                const result2 = await response2.json();
+                console.log(`✅ [PRUEBA] Método 2 exitoso:`, result2);
+            } else {
+                const error2 = await response2.text();
+                console.log(`❌ [PRUEBA] Método 2 falló:`, error2);
+            }
+        } catch (error) {
+            console.log(`❌ [PRUEBA] Método 2 error:`, error);
+        }
+        
+        // MÉTODO 3: Solo el campo Disponible con diferentes formatos
+        console.log(`🧪 [PRUEBA] === MÉTODO 3: SOLO DISPONIBLE ===`);
+        try {
+            const updateData3 = {
+                Disponible: correctAvailableAmount.toString()
+            };
+            
+            const url3 = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(foundPayment.Referencia)}?sheet=${foundPayment.BankSource}`;
+            
+            const response3 = await fetch(url3, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData3)
+            });
+            
+            console.log(`🧪 [PRUEBA] Método 3 - Status: ${response3.status}`);
+            if (response3.ok) {
+                const result3 = await response3.json();
+                console.log(`✅ [PRUEBA] Método 3 exitoso:`, result3);
+            } else {
+                const error3 = await response3.text();
+                console.log(`❌ [PRUEBA] Método 3 falló:`, error3);
+            }
+        } catch (error) {
+            console.log(`❌ [PRUEBA] Método 3 error:`, error);
+        }
+        
+        console.log(`🧪 [PRUEBA] === FIN DE PRUEBAS ===`);
+        return true;
+        
+    } catch (error) {
+        console.error(`❌ [PRUEBA] Error en pruebas:`, error);
         return false;
     }
 }
@@ -1683,6 +1871,8 @@ window.sendPaymentAssignmentWhatsAppNotification = sendPaymentAssignmentWhatsApp
 window.getCurrentUserName = getCurrentUserName;
 window.testDisponibleForTransaction = testDisponibleForTransaction;
 window.corregirSaldoDisponible = corregirSaldoDisponible;
+window.verificarEstructuraHoja = verificarEstructuraHoja;
+window.probarMetodosActualizacion = probarMetodosActualizacion;
 
 console.log('✅ payment-management.js COMPLETO - Usando método oficial SheetDB + WhatsApp');
 console.log('🧪 Funciones de debugging disponibles:');
@@ -1691,6 +1881,8 @@ console.log('  - testSheetDBConnection(referencia, banco) - Prueba conexión ofi
 console.log('  - quickTestUpdate(referencia, banco) - Prueba rápida oficial');
 console.log('  - testDisponibleForTransaction(referencia) - Prueba guardado de Disponible');
 console.log('  - corregirSaldoDisponible(referencia) - Corregir saldo disponible de transacción');
+console.log('  - verificarEstructuraHoja(hoja) - Verificar estructura y campos de la hoja');
+console.log('  - probarMetodosActualizacion(referencia) - Probar diferentes métodos de actualización');
 console.log('');
 console.log('📱 NUEVA FUNCIONALIDAD WHATSAPP:');
 console.log('  ✅ Envío automático de notificaciones al asignar pagos');
