@@ -848,14 +848,39 @@ async function loadTransactionsTab() {
         
         console.log('📋 Transacciones pendientes:', pendingTransactions.length);
         
+        // Filtrar transacciones con saldo disponible
+        console.log('🔍 Iniciando filtrado de transacciones con saldo disponible...');
+        const transactionsWithAvailableBalance = pendingTransactions.filter(transaction => {
+            // Parsear el monto total de la transacción
+            const creditValue = transaction.Créditos || '0';
+            const bank = transaction.banco || 'BAC';
+            const totalAmount = parsePaymentAmountByBank(creditValue, bank);
+            
+            // Parsear facturas asignadas
+            const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
+            const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+            const availableAmount = totalAmount - assignedAmount;
+            
+            // Debug: mostrar información de la transacción
+            if (transaction.Referencia) {
+                console.log(`🔍 ${transaction.Referencia}: Total=${totalAmount}, Asignado=${assignedAmount}, Disponible=${availableAmount}`);
+            }
+            
+            // Solo mostrar transacciones con saldo disponible > 0.01
+            return availableAmount > 0.01;
+        });
+        
+        console.log('💰 Transacciones con saldo disponible:', transactionsWithAvailableBalance.length);
+        
         // Mostrar información
         transactionsInfo.innerHTML = `
             <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-                <h4 style="margin: 0 0 8px 0; color: #007aff;">🏦 Transacciones Pendientes de Conciliar</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; font-size: 0.9rem;">
+                <h4 style="margin: 0 0 8px 0; color: #007aff;">🏦 Transacciones con Saldo Disponible</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; font-size: 0.9rem;">
                     <div><strong>Total:</strong> ${allTransactions.length} transacciones</div>
                     <div><strong>Pendientes:</strong> ${pendingTransactions.length} transacciones</div>
-                    <div><strong>Conciliadas:</strong> ${allTransactions.length - pendingTransactions.length} transacciones</div>
+                    <div><strong>Con saldo:</strong> ${transactionsWithAvailableBalance.length} transacciones</div>
+                    <div><strong>Completamente aplicadas:</strong> ${pendingTransactions.length - transactionsWithAvailableBalance.length} transacciones</div>
                 </div>
             </div>
             
@@ -879,15 +904,15 @@ async function loadTransactionsTab() {
         `;
         
         // Mostrar lista de transacciones
-        if (pendingTransactions.length === 0) {
+        if (transactionsWithAvailableBalance.length === 0) {
             transactionsList.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: #86868b;">
-                    <h4>✅ No hay transacciones pendientes</h4>
-                    <p>Todas las transacciones han sido conciliadas.</p>
+                    <h4>✅ No hay transacciones con saldo disponible</h4>
+                    <p>Todas las transacciones han sido completamente aplicadas a facturas.</p>
                 </div>
             `;
         } else {
-            const transactionsHTML = pendingTransactions.map(transaction => {
+            const transactionsHTML = transactionsWithAvailableBalance.map(transaction => {
                 // Parsear el monto correctamente
                 const creditValue = transaction.Créditos || '0';
                 const bank = transaction.banco || 'BAC';
@@ -895,24 +920,26 @@ async function loadTransactionsTab() {
                 // Debug: mostrar el valor original
                 console.log('🔍 Valor original:', creditValue, 'Banco:', bank, 'Tipo:', typeof creditValue);
                 
-                // Limpiar el valor de espacios y caracteres extraños
-                const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
-                
                 // Convertir a número según el banco usando la función centralizada
-                let amount = parsePaymentAmountByBank(creditValue, bank);
+                let totalAmount = parsePaymentAmountByBank(creditValue, bank);
                 
                 // Verificar que sea un número válido
-                if (isNaN(amount)) {
-                    amount = 0;
+                if (isNaN(totalAmount)) {
+                    totalAmount = 0;
                 }
                 
-                console.log('💰 Monto parseado:', amount);
+                // Calcular saldo disponible
+                const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
+                const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+                const availableAmount = totalAmount - assignedAmount;
+                
+                console.log('💰 Monto total:', totalAmount, 'Asignado:', assignedAmount, 'Disponible:', availableAmount);
                 
                 const date = transaction.Fecha || 'Sin fecha';
                 const reference = transaction.Referencia || 'Sin referencia';
                 
-                // Formatear el monto
-                const formattedAmount = amount.toLocaleString('es-CR', {
+                // Formatear el monto disponible
+                const formattedAvailableAmount = availableAmount.toLocaleString('es-CR', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 });
@@ -923,7 +950,7 @@ async function loadTransactionsTab() {
                 return `
                     <div class="transaction-item" 
                          style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: white; cursor: pointer; transition: all 0.3s ease;"
-                         onclick="selectTransaction('${reference}', '${bank}', ${amount}, '${description}')"
+                         onclick="selectTransaction('${reference}', '${bank}', ${availableAmount}, '${description}')"
                          onmouseover="this.style.borderColor='#007aff'; this.style.boxShadow='0 2px 8px rgba(0,122,255,0.1)'"
                          onmouseout="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -936,9 +963,11 @@ async function loadTransactionsTab() {
                                     ${description}
                                 </div>
                                 <small style="color: #666;">${date}</small>
+                                ${assignedAmount > 0 ? `<br><small style="color: #ff9500;">💰 Total: ₡${totalAmount.toLocaleString('es-CR')} | Asignado: ₡${assignedAmount.toLocaleString('es-CR')}</small>` : ''}
                             </div>
                             <div style="text-align: right; margin-left: 12px;">
-                                <strong style="color: #007aff; font-size: 1.1rem;">₡${formattedAmount}</strong>
+                                <strong style="color: #007aff; font-size: 1.1rem;">₡${formattedAvailableAmount}</strong>
+                                <div style="color: #34c759; font-size: 0.8rem;">disponible</div>
                             </div>
                         </div>
                     </div>

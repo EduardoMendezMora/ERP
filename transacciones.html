@@ -895,6 +895,51 @@
             position: relative;
             display: block;
             width: 100%;
+            background: #fff;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+        }
+        
+        .reconciliation-form {
+            margin-bottom: 15px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .amount-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .amount-input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+        
+        .amount-info {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+            font-style: italic;
         }
 
         .observations-input {
@@ -1780,12 +1825,17 @@
                     }
                    
                     // Crear mensaje de WhatsApp
+                    const reconciliationAmount = transaction.MontoConciliacion ? parseFloat(transaction.MontoConciliacion) : null;
+                    const amountInfo = reconciliationAmount ? 
+                        `💰 *Monto Total:* ${this.formatAmount(transaction.Créditos)}\n💳 *Monto Conciliado:* ₡${reconciliationAmount.toLocaleString('es-CR')}` :
+                        `💰 *Monto:* ${this.formatAmount(transaction.Créditos)}`;
+                    
                     const message = `*✅ TRANSACCIÓN CONCILIADA*
 
 ${bankInfo}
 📅 *Fecha:* ${transaction.Fecha || 'N/A'}
 🔢 *Referencia:* ${transaction.Referencia}
-💰 *Monto:* ${this.formatAmount(transaction.Créditos)}
+${amountInfo}
 
 📄 *Descripción:*
 ${transaction.Descripción || 'Sin descripción'}
@@ -1909,7 +1959,7 @@ _Sistema Inteligente de Transacciones_`;
             }
 
             // === FUNCIÓN MODIFICADA: ACTUALIZAR OBSERVACIONES CON WHATSAPP Y BÚSQUEDA AUTOMÁTICA ===
-            async updateTransactionObservations(transaction, newObservations) {
+            async updateTransactionObservations(transaction, newObservations, reconciliationAmount = null) {
                 try {
                     console.log('📡 Actualizando observaciones en API...');
                     this.showSavingIndicator('Guardando observaciones...');
@@ -1921,10 +1971,23 @@ _Sistema Inteligente de Transacciones_`;
                    
                     const updateUrl = `${this.apiUrl}/Referencia/${transaction.Referencia}?sheet=${sheetName}`;
                    
+                    // Preparar el cuerpo de la solicitud
                     const requestBody = {
                         Observaciones: newObservations,
                         ID_Cliente: newObservations // Guardar el mismo valor en ID_Cliente
                     };
+                    
+                    // Si se proporciona un monto de conciliación, agregarlo
+                    if (reconciliationAmount !== null && reconciliationAmount > 0) {
+                        requestBody.MontoConciliacion = reconciliationAmount;
+                        console.log(`💰 Monto de conciliación: ₡${reconciliationAmount.toLocaleString('es-CR')}`);
+                    }
+                    
+                    // Preservar el arreglo de FacturasAsignadas si existe
+                    if (transaction.FacturasAsignadas && transaction.FacturasAsignadas.trim() !== '') {
+                        requestBody.FacturasAsignadas = transaction.FacturasAsignadas;
+                        console.log(`📋 Preservando FacturasAsignadas: ${transaction.FacturasAsignadas}`);
+                    }
                    
                     const response = await fetch(updateUrl, {
                         method: 'PATCH',
@@ -1939,6 +2002,18 @@ _Sistema Inteligente de Transacciones_`;
                         // Actualizar la transacción localmente
                         transaction.Observaciones = newObservations;
                         transaction.ID_Cliente = newObservations; // Actualizar también localmente
+                        
+                        // Actualizar el monto de conciliación si se proporcionó
+                        if (reconciliationAmount !== null && reconciliationAmount > 0) {
+                            transaction.MontoConciliacion = reconciliationAmount;
+                            console.log(`💰 Monto de conciliación actualizado localmente: ₡${reconciliationAmount.toLocaleString('es-CR')}`);
+                        }
+                        
+                        // Preservar el arreglo de FacturasAsignadas localmente
+                        if (transaction.FacturasAsignadas && transaction.FacturasAsignadas.trim() !== '') {
+                            console.log(`📋 Preservando FacturasAsignadas localmente: ${transaction.FacturasAsignadas}`);
+                        }
+                        
                         this.updateTransactionInArrays(transaction);
                        
                         // Remover sugerencia si existe
@@ -1984,6 +2059,13 @@ _Sistema Inteligente de Transacciones_`;
                                 this.performSearch(transaction.Referencia);
                                 console.log('✅ Transacción conciliada mostrada automáticamente en resultados');
                             }, 300);
+                            
+                            // Mostrar mensaje de éxito con monto si aplica
+                            if (reconciliationAmount && reconciliationAmount > 0) {
+                                this.showSavingIndicator(`✅ Transacción conciliada por ₡${reconciliationAmount.toLocaleString('es-CR')}`, 'conciliated');
+                            } else {
+                                this.showSavingIndicator('✅ Observaciones guardadas', 'conciliated');
+                            }
                         } else {
                             // Si se vaciaron las observaciones, recargar vista normal
                             const currentQuery = this.searchInput.value.trim();
@@ -2019,8 +2101,9 @@ _Sistema Inteligente de Transacciones_`;
                 try {
                     console.log('🧠 Aplicando sugerencia IA:', suggestedObservation);
                    
-                    // Aplicar la observación sugerida (incluirá el envío de WhatsApp automáticamente)
-                    await this.updateTransactionObservations(transaction, suggestedObservation);
+                    // Para sugerencias IA, no aplicamos monto automáticamente
+                    // El usuario deberá editar manualmente si necesita especificar un monto
+                    await this.updateTransactionObservations(transaction, suggestedObservation, null);
                    
                     // Remover la sugerencia del mapa
                     this.aiSuggestions.delete(referencia);
@@ -4396,16 +4479,36 @@ _Sistema Inteligente de Transacciones_`;
                 }
                
                 const currentObservations = transaction.Observaciones || '';
+                const currentAmount = transaction.MontoConciliacion || '';
+                const transactionAmount = this.parseAmount(transaction.Créditos || '0');
                
                 const editor = document.createElement('div');
                 editor.className = 'observations-editor';
                 editor.innerHTML = `
-                    <textarea class="observations-input"
-                              placeholder="Ingrese sus observaciones..."
-                              rows="3">${currentObservations}</textarea>
+                    <div class="reconciliation-form">
+                        <div class="form-group">
+                            <label for="reconciliation-amount">💰 Monto a Conciliar:</label>
+                            <input type="number" 
+                                   id="reconciliation-amount" 
+                                   class="amount-input" 
+                                   placeholder="Ingrese el monto a conciliar"
+                                   value="${currentAmount}"
+                                   min="0" 
+                                   step="0.01"
+                                   required>
+                            <small class="amount-info">Monto total de la transacción: ₡${this.formatAmount(transaction.Créditos)}</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="reconciliation-observations">📝 Observaciones:</label>
+                            <textarea id="reconciliation-observations"
+                                      class="observations-input"
+                                      placeholder="Ingrese sus observaciones..."
+                                      rows="3">${currentObservations}</textarea>
+                        </div>
+                    </div>
                     <div class="observations-actions">
                         <button type="button" class="observations-btn cancel">Cancelar</button>
-                        <button type="button" class="observations-btn save">Guardar</button>
+                        <button type="button" class="observations-btn save">Conciliar</button>
                     </div>
                 `;
                
@@ -4421,12 +4524,31 @@ _Sistema Inteligente de Transacciones_`;
                
                 const saveBtn = editor.querySelector('.save');
                 const cancelBtn = editor.querySelector('.cancel');
+                const amountInput = editor.querySelector('#reconciliation-amount');
+                const observationsTextarea = editor.querySelector('#reconciliation-observations');
                
                 saveBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    const newObservations = textarea.value.trim();
-                    this.updateTransactionObservations(transaction, newObservations);
+                    
+                    const reconciliationAmount = parseFloat(amountInput.value) || 0;
+                    const newObservations = observationsTextarea.value.trim();
+                    
+                    // Validar que se ingrese un monto
+                    if (reconciliationAmount <= 0) {
+                        alert('❌ Por favor ingrese un monto válido para la conciliación.');
+                        amountInput.focus();
+                        return;
+                    }
+                    
+                    // Validar que el monto no exceda el total de la transacción
+                    if (reconciliationAmount > transactionAmount) {
+                        alert(`❌ El monto de conciliación (₡${reconciliationAmount.toLocaleString('es-CR')}) no puede exceder el monto total de la transacción (₡${transactionAmount.toLocaleString('es-CR')}).`);
+                        amountInput.focus();
+                        return;
+                    }
+                    
+                    this.updateTransactionObservations(transaction, newObservations, reconciliationAmount);
                 });
                
                 cancelBtn.addEventListener('click', (e) => {
@@ -4439,11 +4561,28 @@ _Sistema Inteligente de Transacciones_`;
                     }
                 });
                
-                textarea.addEventListener('keydown', (e) => {
+                observationsTextarea.addEventListener('keydown', (e) => {
                     if (e.ctrlKey && e.key === 'Enter') {
                         e.preventDefault();
-                        const newObservations = textarea.value.trim();
-                        this.updateTransactionObservations(transaction, newObservations);
+                        
+                        const reconciliationAmount = parseFloat(amountInput.value) || 0;
+                        const newObservations = observationsTextarea.value.trim();
+                        
+                        // Validar que se ingrese un monto
+                        if (reconciliationAmount <= 0) {
+                            alert('❌ Por favor ingrese un monto válido para la conciliación.');
+                            amountInput.focus();
+                            return;
+                        }
+                        
+                        // Validar que el monto no exceda el total de la transacción
+                        if (reconciliationAmount > transactionAmount) {
+                            alert(`❌ El monto de conciliación (₡${reconciliationAmount.toLocaleString('es-CR')}) no puede exceder el monto total de la transacción (₡${transactionAmount.toLocaleString('es-CR')}).`);
+                            amountInput.focus();
+                            return;
+                        }
+                        
+                        this.updateTransactionObservations(transaction, newObservations, reconciliationAmount);
                     }
                 });
             }
@@ -4456,11 +4595,13 @@ _Sistema Inteligente de Transacciones_`;
             }
 
             updateTransactionInArrays(updatedTransaction) {
+                // Actualizar la transacción en el array principal
                 const allIndex = this.allTransactions.findIndex(t => t.Referencia === updatedTransaction.Referencia);
                 if (allIndex !== -1) {
                     this.allTransactions[allIndex] = updatedTransaction;
                 }
-               
+                
+                // Actualizar en el array específico del banco
                 if (updatedTransaction.banco === 'BAC') {
                     const bacIndex = this.bacTransactions.findIndex(t => t.Referencia === updatedTransaction.Referencia);
                     if (bacIndex !== -1) {
@@ -4487,6 +4628,59 @@ _Sistema Inteligente de Transacciones_`;
                         this.autosubastasBNTransactions[autosubastasBNIndex] = updatedTransaction;
                     }
                 }
+                
+                // Log para debugging
+                if (updatedTransaction.MontoConciliacion) {
+                    console.log(`💰 Transacción ${updatedTransaction.Referencia} actualizada con monto de conciliación: ₡${parseFloat(updatedTransaction.MontoConciliacion).toLocaleString('es-CR')}`);
+                }
+            }
+
+            // === FUNCIÓN PARA PARSEAR FACTURAS ASIGNADAS ===
+            parseAssignedInvoices(assignedString) {
+                if (!assignedString || assignedString.trim() === '') {
+                    return [];
+                }
+                
+                try {
+                    return assignedString.split(';')
+                        .filter(item => item.trim() !== '')
+                        .map(item => {
+                            const [invoiceNumber, amount] = item.split(':');
+                            return {
+                                invoiceNumber: invoiceNumber.trim(),
+                                amount: parseFloat(amount) || 0
+                            };
+                        });
+                } catch (error) {
+                    console.error('❌ Error parseando FacturasAsignadas:', error);
+                    return [];
+                }
+            }
+
+            // === FUNCIÓN PARA MOSTRAR DETALLES DE FACTURAS ASIGNADAS ===
+            showAssignedInvoicesDetails(transaction) {
+                const assignments = this.parseAssignedInvoices(transaction.FacturasAsignadas);
+                
+                if (assignments.length === 0) {
+                    alert('No hay facturas asignadas a esta transacción.');
+                    return;
+                }
+                
+                const totalAssigned = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+                const transactionAmount = this.parseAmount(transaction.Créditos || '0');
+                const remainingAmount = transactionAmount - totalAssigned;
+                
+                let details = `📋 *Facturas Asignadas a ${transaction.Referencia}*\n\n`;
+                details += `💰 *Monto Total:* ₡${transactionAmount.toLocaleString('es-CR')}\n`;
+                details += `📊 *Total Asignado:* ₡${totalAssigned.toLocaleString('es-CR')}\n`;
+                details += `💳 *Saldo Disponible:* ₡${remainingAmount.toLocaleString('es-CR')}\n\n`;
+                details += `*Facturas:*\n`;
+                
+                assignments.forEach((assignment, index) => {
+                    details += `${index + 1}. ${assignment.invoiceNumber}: ₡${assignment.amount.toLocaleString('es-CR')}\n`;
+                });
+                
+                alert(details);
             }
 
             // === FUNCIÓN PARA COPIAR TRANSACCIÓN ===
@@ -5274,6 +5468,16 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                             this.openObservationsEditor(observationElement, transaction);
                         });
                     }
+                    
+                    // Agregar listener para mostrar detalles de facturas asignadas
+                    const assignedInvoicesElement = document.querySelector(`[data-assigned-index="${index}"]`);
+                    if (assignedInvoicesElement && transaction.FacturasAsignadas && transaction.FacturasAsignadas.trim() !== '') {
+                        assignedInvoicesElement.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            this.showAssignedInvoicesDetails(transaction);
+                        });
+                    }
                 });
             }
 
@@ -5394,7 +5598,22 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                             </div>
                         </div>
                         <div class="cell cell-description">${highlightText(transaction.Descripción, query)}</div>
-                        <div class="cell cell-amount">${this.formatAmount(transaction.Créditos)}</div>
+                        <div class="cell cell-amount">
+                            ${this.formatAmount(transaction.Créditos)}
+                            ${transaction.MontoConciliacion ? `
+                                <div class="reconciliation-amount" style="font-size: 11px; color: #007bff; margin-top: 2px; font-weight: 600;">
+                                    💰 Conciliado: ₡${parseFloat(transaction.MontoConciliacion).toLocaleString('es-CR')}
+                                </div>
+                            ` : ''}
+                            ${transaction.FacturasAsignadas && transaction.FacturasAsignadas.trim() !== '' ? `
+                                <div class="assigned-invoices" 
+                                     data-assigned-index="${index}"
+                                     style="font-size: 10px; color: #28a745; margin-top: 2px; cursor: pointer; text-decoration: underline;"
+                                     title="Haga clic para ver detalles de las facturas asignadas">
+                                    📋 Facturas: ${this.parseAssignedInvoices(transaction.FacturasAsignadas).length} asignadas
+                                </div>
+                            ` : ''}
+                        </div>
                         <div class="cell">
                             <div class="observations-container">
                                 <div class="cell-observations ${observationsClass} ${suggestionClass}"
@@ -5472,7 +5691,22 @@ _Enviado desde Sistema Inteligente de Transacciones_`;
                                 </div>
                                 <div class="mobile-amount-container">
                                     <div class="mobile-amount-label">Monto</div>
-                                    <div class="mobile-amount">${this.formatAmount(transaction.Créditos)}</div>
+                                    <div class="mobile-amount">
+                                        ${this.formatAmount(transaction.Créditos)}
+                                        ${transaction.MontoConciliacion ? `
+                                            <div class="reconciliation-amount" style="font-size: 10px; color: #007bff; margin-top: 2px; font-weight: 600;">
+                                                💰 Conciliado: ₡${parseFloat(transaction.MontoConciliacion).toLocaleString('es-CR')}
+                                            </div>
+                                        ` : ''}
+                                        ${transaction.FacturasAsignadas && transaction.FacturasAsignadas.trim() !== '' ? `
+                                            <div class="assigned-invoices" 
+                                                 data-assigned-index="${index}"
+                                                 style="font-size: 9px; color: #28a745; margin-top: 2px; cursor: pointer; text-decoration: underline;"
+                                                 title="Haga clic para ver detalles de las facturas asignadas">
+                                                📋 ${this.parseAssignedInvoices(transaction.FacturasAsignadas).length} facturas
+                                            </div>
+                                        ` : ''}
+                                    </div>
                                 </div>
                             </div>
                         </div>
