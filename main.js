@@ -953,8 +953,8 @@ async function loadTransactionsTab() {
             console.log('❌ TRANSACCIÓN PROBLEMÁTICA NO PASÓ EL PRIMER FILTRO');
         }
         
-        // Filtrar transacciones con saldo disponible
-        console.log('🔍 Iniciando filtrado de transacciones con saldo disponible...');
+        // ===== NUEVA LÓGICA: USAR COLUMNA "DISPONIBLE" =====
+        console.log('🔍 Iniciando filtrado usando columna "Disponible"...');
         
         // Debug específico para la transacción problemática
         const problematicTransaction = pendingTransactions.find(t => 
@@ -971,45 +971,53 @@ async function loadTransactionsTab() {
             console.log('   FacturasAsignadas:', problematicTransaction.FacturasAsignadas);
             console.log('   Observaciones:', problematicTransaction.Observaciones);
             console.log('   ID_Cliente:', problematicTransaction.ID_Cliente);
+            console.log('   Disponible (columna):', problematicTransaction.Disponible);
             
-            const creditValue = problematicTransaction.Créditos || '0';
-            const bank = problematicTransaction.banco || 'BAC';
-            const totalAmount = parsePaymentAmount(creditValue, bank);
-            const assignments = parseAssignedInvoices(problematicTransaction.FacturasAsignadas || '');
-            const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-            const availableAmount = totalAmount - assignedAmount;
+            // Calcular saldo disponible usando la columna "Disponible"
+            let availableAmount = 0;
+            if (problematicTransaction.Disponible !== undefined && problematicTransaction.Disponible !== null && problematicTransaction.Disponible !== '') {
+                availableAmount = parseFloat(problematicTransaction.Disponible) || 0;
+            } else {
+                // Fallback: calcular dinámicamente si no hay columna "Disponible"
+                const creditValue = problematicTransaction.Créditos || '0';
+                const bank = problematicTransaction.banco || 'BAC';
+                const totalAmount = parsePaymentAmount(creditValue, bank);
+                const assignments = parseAssignedInvoices(problematicTransaction.FacturasAsignadas || '');
+                const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+                availableAmount = totalAmount - assignedAmount;
+            }
             
-            console.log('   Total Amount:', totalAmount);
-            console.log('   Assigned Amount:', assignedAmount);
-            console.log('   Available Amount:', availableAmount);
+            console.log('   Available Amount (Disponible):', availableAmount);
             console.log('   Available > 0.01:', availableAmount > 0.01);
         } else {
             console.log('❌ TRANSACCIÓN PROBLEMÁTICA NO ENCONTRADA EN pendingTransactions');
         }
         
         const transactionsWithAvailableBalance = pendingTransactions.filter(transaction => {
-            // Parsear el monto total de la transacción
-            const creditValue = transaction.Créditos || '0';
-            const bank = transaction.banco || 'BAC';
-            const totalAmount = parsePaymentAmount(creditValue, bank);
+            // PRIORIDAD 1: Usar columna "Disponible" si existe
+            let availableAmount = 0;
             
-            // Parsear facturas asignadas
-            const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
-            const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-            const availableAmount = totalAmount - assignedAmount;
+            if (transaction.Disponible !== undefined && transaction.Disponible !== null && transaction.Disponible !== '') {
+                availableAmount = parseFloat(transaction.Disponible) || 0;
+                console.log(`💰 ${transaction.Referencia}: Disponible (columna) = ${availableAmount}`);
+            } else {
+                // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
+                const creditValue = transaction.Créditos || '0';
+                const bank = transaction.banco || 'BAC';
+                const totalAmount = parsePaymentAmount(creditValue, bank);
+                
+                const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
+                const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+                availableAmount = totalAmount - assignedAmount;
+                
+                console.log(`🔍 ${transaction.Referencia}: Total=${totalAmount}, Asignado=${assignedAmount}, Disponible (calculado)=${availableAmount}`);
+            }
             
             // Debug específico para la transacción problemática
             if (transaction.Referencia === '970873893' && transaction.Fecha === '03/08/2025') {
                 console.log('🔍 CÁLCULO DE SALDO DISPONIBLE:');
-                console.log('   FacturasAsignadas raw:', transaction.FacturasAsignadas);
-                console.log('   Assignments parsed:', assignments);
-                console.log('   Assigned Amount:', assignedAmount);
-                console.log('   Available Amount:', availableAmount);
-            }
-            
-            // Debug: mostrar información de la transacción
-            if (transaction.Referencia) {
-                console.log(`🔍 ${transaction.Referencia}: Total=${totalAmount}, Asignado=${assignedAmount}, Disponible=${availableAmount}`);
+                console.log('   Disponible (columna):', transaction.Disponible);
+                console.log('   Available Amount final:', availableAmount);
             }
             
             // Solo mostrar transacciones con saldo disponible > 0.01
@@ -1070,27 +1078,43 @@ async function loadTransactionsTab() {
             `;
         } else {
             const transactionsHTML = transactionsWithAvailableBalance.map(transaction => {
-                // Parsear el monto correctamente
-                const creditValue = transaction.Créditos || '0';
-                const bank = transaction.banco || 'BAC';
+                // PRIORIDAD 1: Usar columna "Disponible" si existe
+                let availableAmount = 0;
+                let totalAmount = 0;
+                let assignedAmount = 0;
                 
-                // Debug: mostrar el valor original
-                console.log('🔍 Valor original:', creditValue, 'Banco:', bank, 'Tipo:', typeof creditValue);
-                
-                // Convertir a número según el banco usando la función centralizada
-                let totalAmount = parsePaymentAmount(creditValue, bank);
-                
-                // Verificar que sea un número válido
-                if (isNaN(totalAmount)) {
-                    totalAmount = 0;
+                if (transaction.Disponible !== undefined && transaction.Disponible !== null && transaction.Disponible !== '') {
+                    availableAmount = parseFloat(transaction.Disponible) || 0;
+                    
+                    // Para mostrar información completa, calcular el total y asignado
+                    const creditValue = transaction.Créditos || '0';
+                    const bank = transaction.banco || 'BAC';
+                    totalAmount = parsePaymentAmount(creditValue, bank);
+                    const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
+                    assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+                    
+                    console.log(`💰 ${transaction.Referencia}: Disponible (columna) = ${availableAmount}, Total = ${totalAmount}, Asignado = ${assignedAmount}`);
+                } else {
+                    // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
+                    const creditValue = transaction.Créditos || '0';
+                    const bank = transaction.banco || 'BAC';
+                    
+                    // Debug: mostrar el valor original
+                    console.log('🔍 Valor original:', creditValue, 'Banco:', bank, 'Tipo:', typeof creditValue);
+                    
+                    totalAmount = parsePaymentAmount(creditValue, bank);
+                    
+                    // Verificar que sea un número válido
+                    if (isNaN(totalAmount)) {
+                        totalAmount = 0;
+                    }
+                    
+                    const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
+                    assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+                    availableAmount = totalAmount - assignedAmount;
+                    
+                    console.log('💰 Monto total:', totalAmount, 'Asignado:', assignedAmount, 'Disponible (calculado):', availableAmount);
                 }
-                
-                // Calcular saldo disponible
-                const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
-                const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-                const availableAmount = totalAmount - assignedAmount;
-                
-                console.log('💰 Monto total:', totalAmount, 'Asignado:', assignedAmount, 'Disponible:', availableAmount);
                 
                 const date = transaction.Fecha || 'Sin fecha';
                 const reference = transaction.Referencia || 'Sin referencia';
@@ -1315,10 +1339,94 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
             console.log(`💰 Monto esperado: ₡${expectedAmount.toLocaleString('es-CR')}`);
         }
         
-        // TODO: Implementar lógica de asignación de transacciones
-        console.log('🔄 Función de asignación de transacciones en desarrollo...');
+        // Buscar la transacción en todas las hojas
+        const sheets = ['BAC', 'BN', 'HuberBN'];
+        let transaction = null;
+        let foundSheet = null;
         
-        showToast('✅ Asignación de transacción completada', 'success');
+        for (const sheet of sheets) {
+            try {
+                const apiUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7?sheet=${sheet}`;
+                const response = await fetch(apiUrl);
+                
+                if (response.ok) {
+                    const sheetTransactions = await response.json();
+                    const found = Array.isArray(sheetTransactions) ? 
+                        sheetTransactions.find(t => t.Referencia === transactionReference) : null;
+                    
+                    if (found) {
+                        transaction = found;
+                        foundSheet = sheet;
+                        console.log(`✅ Transacción encontrada en ${sheet}`);
+                        break;
+                    }
+                }
+            } catch (error) {
+                console.warn(`Error buscando en ${sheet}:`, error);
+            }
+        }
+        
+        if (!transaction) {
+            throw new Error(`No se encontró la transacción ${transactionReference}`);
+        }
+        
+        console.log('📋 Transacción encontrada:', transaction);
+        
+        // Calcular el monto a asignar
+        const amountToAssign = expectedAmount || parseFloat(transaction.Disponible) || 0;
+        
+        if (amountToAssign <= 0) {
+            throw new Error('El monto a asignar debe ser mayor a 0');
+        }
+        
+        // Verificar que hay suficiente saldo disponible
+        const currentAvailable = parseFloat(transaction.Disponible) || 0;
+        if (amountToAssign > currentAvailable) {
+            throw new Error(`Monto insuficiente. Disponible: ₡${currentAvailable.toLocaleString('es-CR')}, Solicitado: ₡${amountToAssign.toLocaleString('es-CR')}`);
+        }
+        
+        // Actualizar FacturasAsignadas
+        const currentAssignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
+        const newAssignment = { invoiceNumber, amount: amountToAssign };
+        currentAssignments.push(newAssignment);
+        
+        // Formatear las asignaciones para guardar
+        const formattedAssignments = currentAssignments.map(a => `${a.invoiceNumber}:${a.amount}`).join(';');
+        
+        // Calcular nuevo saldo disponible
+        const newAvailableAmount = currentAvailable - amountToAssign;
+        
+        // Preparar datos para actualizar
+        const updateData = {
+            FacturasAsignadas: formattedAssignments,
+            Disponible: newAvailableAmount
+        };
+        
+        console.log('📝 Datos a actualizar:', updateData);
+        
+        // Actualizar en la API
+        const updateUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/${transactionReference}?sheet=${foundSheet}`;
+        const updateResponse = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updateData)
+        });
+        
+        if (!updateResponse.ok) {
+            throw new Error(`Error al actualizar transacción: ${updateResponse.status}`);
+        }
+        
+        console.log('✅ Transacción actualizada exitosamente');
+        
+        // Actualizar factura (si es necesario)
+        // TODO: Implementar actualización de factura si es necesario
+        
+        showToast(`✅ Transacción ${transactionReference} asignada a factura ${invoiceNumber} por ₡${amountToAssign.toLocaleString('es-CR')}`, 'success');
+        
+        // Recargar el modal de transacciones
+        await loadTransactionsTab();
         
     } catch (error) {
         console.error('❌ Error en asignación de transacción:', error);

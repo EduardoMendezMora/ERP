@@ -85,15 +85,26 @@ async function debugProblematicTransaction() {
         
         // Filtro 1: ID_Cliente con saldo disponible
         if (problematicInAll.ID_Cliente && problematicInAll.ID_Cliente.trim() !== '' && problematicInAll.ID_Cliente !== 'undefined') {
-            console.log('✅ Tiene ID_Cliente, calculando saldo disponible...');
-            const totalAmount = parsePaymentAmount(problematicInAll.Créditos, problematicInAll.Banco);
-            const assignments = parseAssignedInvoices(problematicInAll.FacturasAsignadas || '');
-            const assignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
-            const availableAmount = totalAmount - assignedAmount;
+            console.log('✅ Tiene ID_Cliente, verificando saldo disponible...');
             
-            console.log('   Total Amount:', totalAmount);
-            console.log('   Assigned Amount:', assignedAmount);
-            console.log('   Available Amount:', availableAmount);
+            // PRIORIDAD 1: Usar columna "Disponible" si existe
+            let availableAmount = 0;
+            
+            if (problematicInAll.Disponible !== undefined && problematicInAll.Disponible !== null && problematicInAll.Disponible !== '') {
+                availableAmount = parseFloat(problematicInAll.Disponible) || 0;
+                console.log('   Disponible (columna):', availableAmount);
+            } else {
+                // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
+                const totalAmount = parsePaymentAmount(problematicInAll.Créditos, problematicInAll.Banco);
+                const assignments = parseAssignedInvoices(problematicInAll.FacturasAsignadas || '');
+                const assignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+                availableAmount = totalAmount - assignedAmount;
+                
+                console.log('   Total Amount:', totalAmount);
+                console.log('   Assigned Amount:', assignedAmount);
+                console.log('   Available Amount (calculado):', availableAmount);
+            }
+            
             console.log('   Available > 0.01:', availableAmount > 0.01);
             
             if (availableAmount <= 0.01) {
@@ -145,15 +156,26 @@ async function debugProblematicTransaction() {
         }
         
         // Filtro 4: Saldo disponible final
-        const totalAmount = parsePaymentAmount(problematicInAll.Créditos, problematicInAll.Banco);
-        const assignments = parseAssignedInvoices(problematicInAll.FacturasAsignadas || '');
-        const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-        const availableAmount = totalAmount - assignedAmount;
+        let availableAmount = 0;
         
-        console.log('\n🔍 CÁLCULO FINAL DE SALDO:');
-        console.log('   Total Amount:', totalAmount);
-        console.log('   Assigned Amount:', assignedAmount);
-        console.log('   Available Amount:', availableAmount);
+        // PRIORIDAD 1: Usar columna "Disponible" si existe
+        if (problematicInAll.Disponible !== undefined && problematicInAll.Disponible !== null && problematicInAll.Disponible !== '') {
+            availableAmount = parseFloat(problematicInAll.Disponible) || 0;
+            console.log('\n🔍 CÁLCULO FINAL DE SALDO (usando columna Disponible):');
+            console.log('   Disponible (columna):', availableAmount);
+        } else {
+            // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
+            const totalAmount = parsePaymentAmount(problematicInAll.Créditos, problematicInAll.Banco);
+            const assignments = parseAssignedInvoices(problematicInAll.FacturasAsignadas || '');
+            const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+            availableAmount = totalAmount - assignedAmount;
+            
+            console.log('\n🔍 CÁLCULO FINAL DE SALDO (calculado dinámicamente):');
+            console.log('   Total Amount:', totalAmount);
+            console.log('   Assigned Amount:', assignedAmount);
+            console.log('   Available Amount:', availableAmount);
+        }
+        
         console.log('   Available > 0.01:', availableAmount > 0.01);
         
         if (availableAmount > 0.01) {
