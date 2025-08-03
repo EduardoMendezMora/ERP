@@ -287,92 +287,30 @@ function testClientIdDetection(clientId, observationsText) {
     console.log(`   Resultado: ${isClientIdInObservations(observationsText, clientId) ? '✅ DETECTADO' : '❌ NO DETECTADO'}`);
 }
 
-// ===== FUNCIONES DE PARSEO DE MONTOS =====
+// ===== FUNCIÓN SIMPLIFICADA PARA MONTOS (BACKEND YA DEVUELVE FLOAT) =====
 function parsePaymentAmount(paymentAmount, bankSource) {
     if (!paymentAmount) return 0;
-
-    let cleanAmount = paymentAmount.toString().trim();
-
-    // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-    if (bankSource === 'BAC' && paymentAmount.includes('60.000,00')) {
-        console.log(`🔍 [DEBUG PARSE] === PARSEO BAC 970873893 ===`);
-        console.log(`🔍 [DEBUG PARSE] Amount original: "${paymentAmount}"`);
-        console.log(`🔍 [DEBUG PARSE] BankSource: "${bankSource}"`);
-        console.log(`🔍 [DEBUG PARSE] Clean amount inicial: "${cleanAmount}"`);
-    }
-
-    if (bankSource === 'BAC') {
-        // BAC usa formato europeo: 105.000.00 (puntos como separadores de miles)
-        const parts = cleanAmount.split('.');
-
-        if (parts.length > 2) {
-            // Formato: 105.000.00 -> unir los primeros como miles y el último como decimales
-            const integerPart = parts.slice(0, -1).join('');
-            const decimalPart = parts[parts.length - 1];
-            cleanAmount = integerPart + '.' + decimalPart;
-        } else if (parts.length === 2 && parts[1].length <= 2) {
-            // Formato: 105.00 (ya correcto)
-            cleanAmount = cleanAmount;
-        } else if (parts.length === 2 && parts[1].length > 2) {
-            // Formato: 105.000 (es separador de miles, no decimal)
-            cleanAmount = parts.join('');
-        }
-
-        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-        if (paymentAmount.includes('60.000,00')) {
-            console.log(`🔍 [DEBUG PARSE] Parts:`, parts);
-            console.log(`🔍 [DEBUG PARSE] Clean amount después de procesar: "${cleanAmount}"`);
-        }
-
-        console.log(`💰 BAC Amount: "${paymentAmount}" -> "${cleanAmount}" = ${parseFloat(cleanAmount)}`);
-    } else {
-        // BN y HuberBN usan formato normal con comas como separadores de miles
-        cleanAmount = cleanAmount.replace(/,/g, '');
-    }
-
-    const result = parseFloat(cleanAmount) || 0;
+    
+    // El backend ya devuelve Float, solo convertir a número
+    const result = parseFloat(paymentAmount) || 0;
     
     // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-    if (bankSource === 'BAC' && paymentAmount.includes('60.000,00')) {
+    if (bankSource === 'BAC' && paymentAmount === 60000) {
+        console.log(`🔍 [DEBUG PARSE] === PARSEO BAC 970873893 (FLOAT) ===`);
+        console.log(`🔍 [DEBUG PARSE] Amount original: ${paymentAmount} (tipo: ${typeof paymentAmount})`);
+        console.log(`🔍 [DEBUG PARSE] BankSource: "${bankSource}"`);
         console.log(`🔍 [DEBUG PARSE] Resultado final: ${result}`);
         console.log(`🔍 [DEBUG PARSE] === FIN DEBUG PARSE ===`);
     }
-
+    
     return result;
 }
 
-// ===== FUNCIÓN CORREGIDA PARA PARSEAR MONTOS BAC =====
+// ===== FUNCIÓN CORREGIDA PARA PARSEAR MONTOS BAC (DEPRECATED - BACKEND YA DEVUELVE FLOAT) =====
 function parsePaymentAmountFixed(paymentAmount, bankSource) {
-    if (!paymentAmount) return 0;
-
-    let cleanAmount = paymentAmount.toString().trim();
-
-    if (bankSource === 'BAC') {
-        // CORRECCIÓN: BAC puede usar tanto puntos como comas como separadores de miles
-        // Formato: "60.000,00" o "60,000.00" o "60000.00"
-        
-        // Si tiene comas, reemplazarlas por puntos para decimales
-        if (cleanAmount.includes(',')) {
-            cleanAmount = cleanAmount.replace(/,/g, '.');
-        }
-        
-        // Si tiene múltiples puntos, el último es decimal
-        const parts = cleanAmount.split('.');
-        
-        if (parts.length > 2) {
-            // Formato: 60.000.00 -> 60000.00
-            const integerPart = parts.slice(0, -1).join('');
-            const decimalPart = parts[parts.length - 1];
-            cleanAmount = integerPart + '.' + decimalPart;
-        }
-        
-        console.log(`💰 BAC Amount FIXED: "${paymentAmount}" -> "${cleanAmount}" = ${parseFloat(cleanAmount)}`);
-    } else {
-        // BN y HuberBN usan formato normal con comas como separadores de miles
-        cleanAmount = cleanAmount.replace(/,/g, '');
-    }
-
-    return parseFloat(cleanAmount) || 0;
+    // Esta función ya no es necesaria, el backend devuelve Float directamente
+    console.log(`⚠️ [DEPRECATED] parsePaymentAmountFixed ya no es necesaria, usando parsePaymentAmount`);
+    return parsePaymentAmount(paymentAmount, bankSource);
 }
 
 // ===== FUNCIONES DE BANCO =====

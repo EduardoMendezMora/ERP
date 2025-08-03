@@ -14,8 +14,8 @@ function calculateAvailableAmount(payment) {
         
         // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
         if (payment.Referencia === '970873893') {
-            console.log(`🔍 [DEBUG CÁLCULO] === CÁLCULO SALDO DISPONIBLE 970873893 ===`);
-            console.log(`🔍 [DEBUG CÁLCULO] Créditos original: "${payment.Créditos}"`);
+            console.log(`🔍 [DEBUG CÁLCULO] === CÁLCULO SALDO DISPONIBLE 970873893 (BACKEND FLOAT) ===`);
+            console.log(`🔍 [DEBUG CÁLCULO] Créditos original: ${payment.Créditos} (tipo: ${typeof payment.Créditos})`);
             console.log(`🔍 [DEBUG CÁLCULO] BankSource: "${payment.BankSource}"`);
             console.log(`🔍 [DEBUG CÁLCULO] Payment amount calculado: ₡${paymentAmount.toLocaleString('es-CR')}`);
             console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas: "${payment.FacturasAsignadas}"`);
@@ -1067,13 +1067,14 @@ async function corregirSaldoDisponible(reference = '970873893') {
         
         console.log(`🔧 [CORRECCIÓN] Datos actuales de la transacción:`, foundPayment);
         
-        // Calcular el saldo disponible correcto
+        // Calcular el saldo disponible correcto (BACKEND YA DEVUELVE FLOAT)
         const paymentAmount = parsePaymentAmount(foundPayment.Créditos, foundPayment.BankSource);
         const assignments = parseAssignedInvoices(foundPayment.FacturasAsignadas || '');
         const totalAssignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
         const correctAvailableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
         
-        console.log(`🔧 [CORRECCIÓN] Cálculo del saldo disponible:`);
+        console.log(`🔧 [CORRECCIÓN] Cálculo del saldo disponible (BACKEND FLOAT):`);
+        console.log(`   - Créditos del backend: ${foundPayment.Créditos} (tipo: ${typeof foundPayment.Créditos})`);
         console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
         console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
         console.log(`   - Saldo disponible correcto: ₡${correctAvailableAmount.toLocaleString('es-CR')}`);
@@ -1213,13 +1214,14 @@ async function probarMetodosActualizacion(reference = '970873893') {
         
         console.log(`🧪 [PRUEBA] Datos de la transacción:`, foundPayment);
         
-        // Calcular el saldo correcto
+        // Calcular el saldo correcto (BACKEND YA DEVUELVE FLOAT)
         const paymentAmount = parsePaymentAmount(foundPayment.Créditos, foundPayment.BankSource);
         const assignments = parseAssignedInvoices(foundPayment.FacturasAsignadas || '');
         const totalAssignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
         const correctAvailableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
         
-        console.log(`🧪 [PRUEBA] Saldo correcto: ₡${correctAvailableAmount.toLocaleString('es-CR')}`);
+        console.log(`🧪 [PRUEBA] Saldo correcto (BACKEND FLOAT): ₡${correctAvailableAmount.toLocaleString('es-CR')}`);
+        console.log(`🧪 [PRUEBA] Créditos del backend: ${foundPayment.Créditos} (tipo: ${typeof foundPayment.Créditos})`);
         
         // MÉTODO 1: JSON con Content-Type application/json
         console.log(`🧪 [PRUEBA] === MÉTODO 1: JSON ===`);
@@ -1316,45 +1318,42 @@ async function probarMetodosActualizacion(reference = '970873893') {
     }
 }
 
-// ===== FUNCIÓN PARA PROBAR EL PARSING DE MONTOS =====
+// ===== FUNCIÓN PARA PROBAR EL PARSING DE MONTOS (BACKEND FLOAT) =====
 function probarParsingMontos() {
-    console.log(`🧪 [PRUEBA PARSING] === PRUEBA DE PARSING DE MONTOS ===`);
+    console.log(`🧪 [PRUEBA PARSING] === PRUEBA DE PARSING DE MONTOS (BACKEND FLOAT) ===`);
     
-    // Probar con el monto problemático
-    const montoProblematico = '60.000,00';
+    // Probar con el monto problemático (ahora como float)
+    const montoProblematico = 60000; // Float del backend
     const bankSource = 'BAC';
     
-    console.log(`🧪 [PRUEBA PARSING] Monto original: "${montoProblematico}"`);
+    console.log(`🧪 [PRUEBA PARSING] Monto original: ${montoProblematico} (tipo: ${typeof montoProblematico})`);
     console.log(`🧪 [PRUEBA PARSING] Banco: "${bankSource}"`);
     
-    // Probar función original
-    const resultadoOriginal = parsePaymentAmount(montoProblematico, bankSource);
-    console.log(`🧪 [PRUEBA PARSING] Resultado original: ${resultadoOriginal}`);
+    // Probar función simplificada
+    const resultado = parsePaymentAmount(montoProblematico, bankSource);
+    console.log(`🧪 [PRUEBA PARSING] Resultado: ${resultado}`);
     
-    // Probar función corregida
-    const resultadoCorregido = parsePaymentAmountFixed(montoProblematico, bankSource);
-    console.log(`🧪 [PRUEBA PARSING] Resultado corregido: ${resultadoCorregido}`);
-    
-    // Probar otros formatos posibles
-    const formatos = [
-        '60.000,00',
-        '60,000.00', 
-        '60000.00',
-        '60000,00'
+    // Probar otros valores float posibles
+    const valoresFloat = [
+        60000,
+        60000.0,
+        60000.00,
+        47000,
+        13000
     ];
     
-    console.log(`🧪 [PRUEBA PARSING] === PRUEBA DE DIFERENTES FORMATOS ===`);
-    formatos.forEach(formato => {
-        const resultado = parsePaymentAmountFixed(formato, bankSource);
-        console.log(`🧪 [PRUEBA PARSING] "${formato}" -> ${resultado}`);
+    console.log(`🧪 [PRUEBA PARSING] === PRUEBA DE DIFERENTES VALORES FLOAT ===`);
+    valoresFloat.forEach(valor => {
+        const resultado = parsePaymentAmount(valor, bankSource);
+        console.log(`🧪 [PRUEBA PARSING] ${valor} (${typeof valor}) -> ${resultado}`);
     });
     
     console.log(`🧪 [PRUEBA PARSING] === FIN PRUEBA PARSING ===`);
     
     return {
-        original: resultadoOriginal,
-        corregido: resultadoCorregido,
-        formatos: formatos.map(f => ({ formato: f, resultado: parsePaymentAmountFixed(f, bankSource) }))
+        montoOriginal: montoProblematico,
+        resultado: resultado,
+        valores: valoresFloat.map(v => ({ valor: v, resultado: parsePaymentAmount(v, bankSource) }))
     };
 }
 
