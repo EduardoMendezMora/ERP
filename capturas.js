@@ -434,12 +434,6 @@ function parseTransactionAssignments(assignmentsString) {
 function parsePaymentAmount(paymentAmount, bankSource) {
     if (!paymentAmount) return 0;
     
-    // Si ya es un número (float), retornarlo directamente
-    if (typeof paymentAmount === 'number') {
-        return paymentAmount;
-    }
-    
-    // Si es string, usar la lógica de parseo existente para compatibilidad
     const cleanValue = paymentAmount.toString().trim().replace(/[^\d.,]/g, '');
     
     if (bankSource === 'BAC') {

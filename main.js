@@ -341,29 +341,10 @@ function createAssignInvoiceModal() {
 
 // ===== RENDERIZADO DE MODALES DE ASIGNACIÓN =====
 function renderAssignPaymentModal(payment) {
-    // PRIORIDAD 1: Usar columna "Disponible" si existe
-    let availableAmount = 0;
-    let totalAmount = 0;
-    let assignedAmount = 0;
-    
-    if (payment.Disponible !== undefined && payment.Disponible !== null && payment.Disponible !== '') {
-        availableAmount = parseFloat(payment.Disponible) || 0;
-        
-        // Para mostrar información completa, calcular el total y asignado
-        totalAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-        assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-        
-        console.log(`💰 ${payment.Referencia}: Disponible (columna) = ${availableAmount}, Total = ${totalAmount}, Asignado = ${assignedAmount}`);
-    } else {
-        // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
-        totalAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-        assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-        availableAmount = totalAmount - assignedAmount;
-        
-        console.log(`🔍 ${payment.Referencia}: Total=${totalAmount}, Asignado=${assignedAmount}, Disponible (calculado)=${availableAmount}`);
-    }
+    const totalAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+    const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+    const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+    const availableAmount = totalAmount - assignedAmount;
 
     // Información del pago
     document.getElementById('paymentInfoForAssignment').innerHTML = `
@@ -463,31 +444,12 @@ function renderAssignInvoiceModal(invoice) {
     }
 
     const paymentOptionsHTML = unassignedPayments.map(payment => {
-        // PRIORIDAD 1: Usar columna "Disponible" si existe
-        let availableAmount = 0;
-        let paymentAmount = 0;
-        let assignedAmount = 0;
-        
-        if (payment.Disponible !== undefined && payment.Disponible !== null && payment.Disponible !== '') {
-            availableAmount = parseFloat(payment.Disponible) || 0;
-            
-            // Para mostrar información completa, calcular el total y asignado
-            paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-            const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-            assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-            
-            console.log(`💰 ${payment.Referencia}: Disponible (columna) = ${availableAmount}, Total = ${paymentAmount}, Asignado = ${assignedAmount}`);
-        } else {
-            // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
-            paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-            const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-            assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-            availableAmount = paymentAmount - assignedAmount;
-            
-            console.log(`🔍 ${payment.Referencia}: Total=${paymentAmount}, Asignado=${assignedAmount}, Disponible (calculado)=${availableAmount}`);
-        }
+        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+        const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+        const availableAmount = paymentAmount - assignedAmount;
 
-        if (availableAmount <= 0.01) return ''; // Skip pagos completamente asignados
+        if (availableAmount <= 0) return ''; // Skip pagos completamente asignados
 
         const difference = Math.abs(totalAmount - availableAmount);
         const isExactMatch = difference < 0.01;
@@ -591,7 +553,7 @@ async function confirmAssignPayment() {
                          currentPaymentForAssignment.BankSource === 'AutosubastasBN' ? 'AutosubastasBN' : 'BAC';
         
         // Obtener el monto del pago
-        const paymentAmount = parsePaymentAmount(currentPaymentForAssignment.Créditos, sheetName);
+        const paymentAmount = parsePaymentAmountByBank(currentPaymentForAssignment.Créditos, sheetName);
         
         await assignTransactionToInvoice(
             currentPaymentForAssignment.Referencia,
@@ -835,22 +797,6 @@ async function loadTransactionsTab() {
                     const transactionsWithBank = Array.isArray(sheetTransactions) ? 
                         sheetTransactions.map(t => ({ ...t, banco: sheet })) : [];
                     
-                    // Debug: buscar la transacción problemática en esta hoja específica
-                    const problematicInSheet = transactionsWithBank.find(t => 
-                        t.Referencia === '970873893' && 
-                        t.Fecha === '03/08/2025'
-                    );
-                    if (problematicInSheet) {
-                        console.log(`🔍 TRANSACCIÓN PROBLEMÁTICA ENCONTRADA EN ${sheet}:`);
-                        console.log('   Referencia:', problematicInSheet.Referencia);
-                        console.log('   Fecha:', problematicInSheet.Fecha);
-                        console.log('   Créditos:', problematicInSheet.Créditos);
-                        console.log('   Banco:', problematicInSheet.Banco);
-                        console.log('   ID_Cliente:', problematicInSheet.ID_Cliente);
-                        console.log('   Observaciones:', problematicInSheet.Observaciones);
-                        console.log('   FacturasAsignadas:', problematicInSheet.FacturasAsignadas);
-                    }
-                    
                     allTransactions.push(...transactionsWithBank);
                     console.log(`✅ ${sheet}: ${transactionsWithBank.length} transacciones cargadas`);
                 } else if (response.status !== 404) {
@@ -863,227 +809,53 @@ async function loadTransactionsTab() {
         
         console.log('📊 Total transacciones cargadas:', allTransactions.length);
         
-        // Debug: buscar la transacción problemática en allTransactions
-        const problematicInAll = allTransactions.find(t => 
-            t.Referencia === '970873893' && 
-            t.Fecha === '03/08/2025'
-        );
-        if (problematicInAll) {
-            console.log('🔍 TRANSACCIÓN PROBLEMÁTICA ENCONTRADA EN allTransactions:');
-            console.log('   Referencia:', problematicInAll.Referencia);
-            console.log('   Fecha:', problematicInAll.Fecha);
-            console.log('   Créditos:', problematicInAll.Créditos);
-            console.log('   Banco:', problematicInAll.Banco);
-            console.log('   ID_Cliente:', problematicInAll.ID_Cliente);
-            console.log('   Observaciones:', problematicInAll.Observaciones);
-            console.log('   FacturasAsignadas:', problematicInAll.FacturasAsignadas);
-        } else {
-            console.log('❌ TRANSACCIÓN PROBLEMÁTICA NO ENCONTRADA EN allTransactions');
-            console.log('🔍 Buscando transacciones similares...');
-            const similarTransactions = allTransactions.filter(t => 
-                t.Referencia === '970873893' || t.Fecha === '03/08/2025'
-            );
-            console.log('   Transacciones con referencia 970873893:', similarTransactions.filter(t => t.Referencia === '970873893').length);
-            console.log('   Transacciones con fecha 03/08/2025:', similarTransactions.filter(t => t.Fecha === '03/08/2025').length);
-        }
-        
         // Filtrar transacciones pendientes de conciliar
+        // NO mostrar las que tienen ID_Cliente, Observaciones o están conciliadas
         // Solo mostrar desde el 10/07/2025
         const cutoffDate = new Date('2025-07-10');
         cutoffDate.setHours(0, 0, 0, 0);
         
-        // Fecha límite para nueva lógica: 03/08/2025
-        const newLogicDate = new Date('2025-08-03');
-        newLogicDate.setHours(0, 0, 0, 0);
-        
         const pendingTransactions = allTransactions.filter(t => {
-            // Debug específico para la transacción problemática
-            if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
-                console.log('🔍 FILTRANDO TRANSACCIÓN PROBLEMÁTICA:');
-                console.log('   Referencia:', t.Referencia);
-                console.log('   Fecha:', t.Fecha);
-                console.log('   Créditos:', t.Créditos);
-                console.log('   Banco:', t.Banco);
-                console.log('   ID_Cliente:', t.ID_Cliente);
-                console.log('   Observaciones:', t.Observaciones);
-                console.log('   FacturasAsignadas:', t.FacturasAsignadas);
-            }
-            
-            // Para transacciones con ID_Cliente, verificar si tienen saldo disponible
+            // Si tiene ID_Cliente asignado, está conciliada
             if (t.ID_Cliente && t.ID_Cliente.trim() !== '' && t.ID_Cliente !== 'undefined') {
-                // Calcular saldo disponible para transacciones con ID_Cliente
-                const totalAmount = parsePaymentAmount(t.Créditos, t.Banco);
-                const assignments = parseAssignedInvoices(t.FacturasAsignadas || '');
-                const assignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
-                const availableAmount = totalAmount - assignedAmount;
-                
-                if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
-                    console.log('   🔍 TRANSACCIÓN CON ID_Cliente - Calculando saldo:');
-                    console.log('   Total:', totalAmount);
-                    console.log('   Asignado:', assignedAmount);
-                    console.log('   Disponible:', availableAmount);
-                }
-                
-                // Solo incluir si tiene saldo disponible
-                if (availableAmount <= 0.01) {
-                    if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
-                        console.log('   ❌ FILTRADA: Sin saldo disponible');
-                    }
-                    return false;
-                }
-                
-                if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
-                    console.log('   ✅ INCLUIDA: Tiene saldo disponible');
-                }
+                return false;
             }
             
-            // Parsear fecha de la transacción
-            let transactionDate = null;
+            // Si tiene Observaciones con contenido, está conciliada
+            if (t.Observaciones && t.Observaciones.trim() !== '' && t.Observaciones !== 'undefined') {
+                return false;
+            }
+            
+            // Filtrar por fecha - solo desde 10/07/2025
             if (t.Fecha) {
+                // Parsear fecha en formato DD/MM/YYYY
                 const dateParts = t.Fecha.split('/');
                 if (dateParts.length === 3) {
                     const day = parseInt(dateParts[0]);
                     const month = parseInt(dateParts[1]) - 1; // Meses en JS van de 0-11
                     const year = parseInt(dateParts[2]);
-                    transactionDate = new Date(year, month, day);
-                }
-            }
-            
-            // Filtrar por fecha - solo desde 10/07/2025
-            if (transactionDate && transactionDate < cutoffDate) {
-                if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
-                    console.log('   ❌ FILTRADA: Fecha anterior al cutoff');
-                }
-                return false;
-            }
-            
-            // Lógica diferente según la fecha:
-            // - Para transacciones del 03/08/2025 en adelante: NO filtrar por observaciones
-            // - Para transacciones anteriores: SÍ filtrar por observaciones
-            if (transactionDate && transactionDate < newLogicDate) {
-                // Lógica antigua: Si tiene Observaciones con contenido, está conciliada
-                if (t.Observaciones && t.Observaciones.trim() !== '' && t.Observaciones !== 'undefined') {
-                    if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
-                        console.log('   ❌ FILTRADA: Tiene observaciones (lógica antigua)');
+                    const transactionDate = new Date(year, month, day);
+                    
+                    if (transactionDate < cutoffDate) {
+                        return false;
                     }
-                    return false;
                 }
             }
-            // Para transacciones del 03/08/2025 en adelante, no filtramos por observaciones
             
-            if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
-                console.log('   ✅ PASÓ TODOS LOS FILTROS');
-            }
-            
+            // Solo mostrar las que no están conciliadas y son desde la fecha límite
             return true;
         });
         
         console.log('📋 Transacciones pendientes:', pendingTransactions.length);
         
-        // Debug: verificar si la transacción problemática pasó el primer filtro
-        const problematicInPending = pendingTransactions.find(t => 
-            t.Referencia === '970873893' && 
-            t.Fecha === '03/08/2025'
-        );
-        if (problematicInPending) {
-            console.log('✅ TRANSACCIÓN PROBLEMÁTICA PASÓ EL PRIMER FILTRO (pendingTransactions)');
-        } else {
-            console.log('❌ TRANSACCIÓN PROBLEMÁTICA NO PASÓ EL PRIMER FILTRO');
-        }
-        
-        // ===== NUEVA LÓGICA: USAR COLUMNA "DISPONIBLE" =====
-        console.log('🔍 Iniciando filtrado usando columna "Disponible"...');
-        
-        // Debug específico para la transacción problemática
-        const problematicTransaction = pendingTransactions.find(t => 
-            t.Referencia === '970873893' && 
-            t.Fecha === '03/08/2025'
-        );
-        
-        if (problematicTransaction) {
-            console.log('🚨 TRANSACCIÓN PROBLEMÁTICA ENCONTRADA EN pendingTransactions:');
-            console.log('   Referencia:', problematicTransaction.Referencia);
-            console.log('   Fecha:', problematicTransaction.Fecha);
-            console.log('   Créditos:', problematicTransaction.Créditos);
-            console.log('   Banco:', problematicTransaction.banco);
-            console.log('   FacturasAsignadas:', problematicTransaction.FacturasAsignadas);
-            console.log('   Observaciones:', problematicTransaction.Observaciones);
-            console.log('   ID_Cliente:', problematicTransaction.ID_Cliente);
-            console.log('   Disponible (columna):', problematicTransaction.Disponible);
-            
-            // Calcular saldo disponible usando la columna "Disponible"
-            let availableAmount = 0;
-            if (problematicTransaction.Disponible !== undefined && problematicTransaction.Disponible !== null && problematicTransaction.Disponible !== '') {
-                availableAmount = parseFloat(problematicTransaction.Disponible) || 0;
-            } else {
-                // Fallback: calcular dinámicamente si no hay columna "Disponible"
-                const creditValue = problematicTransaction.Créditos || '0';
-                const bank = problematicTransaction.banco || 'BAC';
-                const totalAmount = parsePaymentAmount(creditValue, bank);
-                const assignments = parseAssignedInvoices(problematicTransaction.FacturasAsignadas || '');
-                const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-                availableAmount = totalAmount - assignedAmount;
-            }
-            
-            console.log('   Available Amount (Disponible):', availableAmount);
-            console.log('   Available > 0.01:', availableAmount > 0.01);
-        } else {
-            console.log('❌ TRANSACCIÓN PROBLEMÁTICA NO ENCONTRADA EN pendingTransactions');
-        }
-        
-        const transactionsWithAvailableBalance = pendingTransactions.filter(transaction => {
-            // Calcular saldo disponible según la lógica de la columna "Disponible"
-            let availableAmount = 0;
-            
-            if (transaction.Disponible === undefined || transaction.Disponible === null || transaction.Disponible === '') {
-                // Si "Disponible" está vacío, usar el monto original de la transacción
-                const creditValue = transaction.Créditos || '0';
-                const bank = transaction.banco || 'BAC';
-                availableAmount = parsePaymentAmount(creditValue, bank);
-                console.log(`💰 ${transaction.Referencia}: Disponible vacío, usando monto original: ${availableAmount}`);
-            } else if (parseFloat(transaction.Disponible) === 0) {
-                // Si "Disponible" es 0, la transacción ya fue utilizada completamente
-                availableAmount = 0;
-                console.log(`💰 ${transaction.Referencia}: Disponible es 0, transacción completamente utilizada`);
-            } else {
-                // Si "Disponible" tiene un número diferente de 0, usar ese número
-                availableAmount = parseFloat(transaction.Disponible) || 0;
-                console.log(`💰 ${transaction.Referencia}: Disponible (columna) = ${availableAmount}`);
-            }
-            
-            // Debug específico para la transacción problemática
-            if (transaction.Referencia === '970873893' && transaction.Fecha === '03/08/2025') {
-                console.log('🔍 CÁLCULO DE SALDO DISPONIBLE:');
-                console.log('   Disponible (columna):', transaction.Disponible);
-                console.log('   Available Amount final:', availableAmount);
-            }
-            
-            // Solo mostrar transacciones con saldo disponible > 0.01
-            return availableAmount > 0.01;
-        });
-        
-        console.log('💰 Transacciones con saldo disponible:', transactionsWithAvailableBalance.length);
-        
-        // Debug: verificar si la transacción problemática pasó el segundo filtro
-        const problematicInFinal = transactionsWithAvailableBalance.find(t => 
-            t.Referencia === '970873893' && 
-            t.Fecha === '03/08/2025'
-        );
-        if (problematicInFinal) {
-            console.log('✅ TRANSACCIÓN PROBLEMÁTICA PASÓ EL SEGUNDO FILTRO (transactionsWithAvailableBalance)');
-        } else {
-            console.log('❌ TRANSACCIÓN PROBLEMÁTICA NO PASÓ EL SEGUNDO FILTRO');
-        }
-        
         // Mostrar información
         transactionsInfo.innerHTML = `
             <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-                <h4 style="margin: 0 0 8px 0; color: #007aff;">🏦 Transacciones con Saldo Disponible</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; font-size: 0.9rem;">
+                <h4 style="margin: 0 0 8px 0; color: #007aff;">🏦 Transacciones Pendientes de Conciliar</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; font-size: 0.9rem;">
                     <div><strong>Total:</strong> ${allTransactions.length} transacciones</div>
                     <div><strong>Pendientes:</strong> ${pendingTransactions.length} transacciones</div>
-                    <div><strong>Con saldo:</strong> ${transactionsWithAvailableBalance.length} transacciones</div>
-                    <div><strong>Completamente aplicadas:</strong> ${pendingTransactions.length - transactionsWithAvailableBalance.length} transacciones</div>
+                    <div><strong>Conciliadas:</strong> ${allTransactions.length - pendingTransactions.length} transacciones</div>
                 </div>
             </div>
             
@@ -1107,57 +879,40 @@ async function loadTransactionsTab() {
         `;
         
         // Mostrar lista de transacciones
-        if (transactionsWithAvailableBalance.length === 0) {
+        if (pendingTransactions.length === 0) {
             transactionsList.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: #86868b;">
-                    <h4>✅ No hay transacciones con saldo disponible</h4>
-                    <p>Todas las transacciones han sido completamente aplicadas a facturas.</p>
+                    <h4>✅ No hay transacciones pendientes</h4>
+                    <p>Todas las transacciones han sido conciliadas.</p>
                 </div>
             `;
         } else {
-            const transactionsHTML = transactionsWithAvailableBalance.map(transaction => {
-                // PRIORIDAD 1: Usar columna "Disponible" si existe
-                let availableAmount = 0;
-                let totalAmount = 0;
-                let assignedAmount = 0;
-                const bank = transaction.BankSource || 'BAC';
+            const transactionsHTML = pendingTransactions.map(transaction => {
+                // Parsear el monto correctamente
+                const creditValue = transaction.Créditos || '0';
+                const bank = transaction.banco || 'BAC';
                 
-                if (transaction.Disponible !== undefined && transaction.Disponible !== null && transaction.Disponible !== '') {
-                    availableAmount = parseFloat(transaction.Disponible) || 0;
-                    
-                    // Para mostrar información completa, calcular el total y asignado
-                    const creditValue = transaction.Créditos || '0';
-                    totalAmount = parsePaymentAmount(creditValue, bank);
-                    const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
-                    assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-                    
-                    console.log(`💰 ${transaction.Referencia}: Disponible (columna) = ${availableAmount}, Total = ${totalAmount}, Asignado = ${assignedAmount}`);
-                } else {
-                    // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
-                    const creditValue = transaction.Créditos || '0';
-                    
-                    // Debug: mostrar el valor original
-                    console.log('🔍 Valor original:', creditValue, 'Banco:', bank, 'Tipo:', typeof creditValue);
-                    
-                    totalAmount = parsePaymentAmount(creditValue, bank);
-                    
-                    // Verificar que sea un número válido
-                    if (isNaN(totalAmount)) {
-                        totalAmount = 0;
-                    }
-                    
-                    const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
-                    assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-                    availableAmount = totalAmount - assignedAmount;
-                    
-                    console.log('💰 Monto total:', totalAmount, 'Asignado:', assignedAmount, 'Disponible (calculado):', availableAmount);
+                // Debug: mostrar el valor original
+                console.log('🔍 Valor original:', creditValue, 'Banco:', bank, 'Tipo:', typeof creditValue);
+                
+                // Limpiar el valor de espacios y caracteres extraños
+                const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
+                
+                // Convertir a número según el banco usando la función centralizada
+                let amount = parsePaymentAmountByBank(creditValue, bank);
+                
+                // Verificar que sea un número válido
+                if (isNaN(amount)) {
+                    amount = 0;
                 }
+                
+                console.log('💰 Monto parseado:', amount);
                 
                 const date = transaction.Fecha || 'Sin fecha';
                 const reference = transaction.Referencia || 'Sin referencia';
                 
-                // Formatear el monto disponible
-                const formattedAvailableAmount = availableAmount.toLocaleString('es-CR', {
+                // Formatear el monto
+                const formattedAmount = amount.toLocaleString('es-CR', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 });
@@ -1168,7 +923,7 @@ async function loadTransactionsTab() {
                 return `
                     <div class="transaction-item" 
                          style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: white; cursor: pointer; transition: all 0.3s ease;"
-                         onclick="selectTransaction('${reference}', '${bank}', ${availableAmount}, '${description}')"
+                         onclick="selectTransaction('${reference}', '${bank}', ${amount}, '${description}')"
                          onmouseover="this.style.borderColor='#007aff'; this.style.boxShadow='0 2px 8px rgba(0,122,255,0.1)'"
                          onmouseout="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -1181,11 +936,9 @@ async function loadTransactionsTab() {
                                     ${description}
                                 </div>
                                 <small style="color: #666;">${date}</small>
-                                ${assignedAmount > 0 ? `<br><small style="color: #ff9500;">💰 Total: ₡${totalAmount.toLocaleString('es-CR')} | Asignado: ₡${assignedAmount.toLocaleString('es-CR')}</small>` : ''}
                             </div>
                             <div style="text-align: right; margin-left: 12px;">
-                                <strong style="color: #007aff; font-size: 1.1rem;">₡${formattedAvailableAmount}</strong>
-                                <div style="color: #34c759; font-size: 0.8rem;">disponible</div>
+                                <strong style="color: #007aff; font-size: 1.1rem;">₡${formattedAmount}</strong>
                             </div>
                         </div>
                     </div>
@@ -1373,16 +1126,23 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
     try {
         console.log(`🎯 Iniciando asignación de transacción: ${transactionReference} (${bank}) → Factura ${invoiceNumber}`);
         if (expectedAmount) {
-            console.log(`💰 Monto esperado: ₡${expectedAmount.toLocaleString('es-CR')}`);
+            console.log(`💰 Monto esperado del modal: ₡${expectedAmount.toLocaleString('es-CR')}`);
         }
-        
-        // Buscar la transacción en todas las hojas
+
+        // Encontrar la factura
+        const invoice = clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
+        if (!invoice) {
+            throw new Error('Factura no encontrada');
+        }
+
+        // Obtener datos de la transacción desde todas las hojas de la API
         const sheets = ['BAC', 'BN', 'HuberBN'];
         let transaction = null;
-        let foundSheet = null;
+        let foundInSheet = null;
         
         for (const sheet of sheets) {
             try {
+                console.log(`🔍 Buscando transacción ${transactionReference} en ${sheet}...`);
                 const apiUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7?sheet=${sheet}`;
                 const response = await fetch(apiUrl);
                 
@@ -1392,117 +1152,496 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
                         sheetTransactions.find(t => t.Referencia === transactionReference) : null;
                     
                     if (found) {
-                        transaction = found;
-                        foundSheet = sheet;
+                        transaction = { ...found, banco: sheet };
+                        foundInSheet = sheet;
                         console.log(`✅ Transacción encontrada en ${sheet}`);
                         break;
                     }
                 }
             } catch (error) {
-                console.warn(`Error buscando en ${sheet}:`, error);
+                console.warn(`Error al buscar en ${sheet}:`, error);
             }
         }
         
+        console.log('🔍 Total de hojas consultadas:', sheets.length);
+        
+        // ===== NUEVO: BUSCAR EN UNASSIGNEDPAYMENTS COMO RESPALDO =====
         if (!transaction) {
-            throw new Error(`No se encontró la transacción ${transactionReference}`);
+            console.log('🔍 Transacción no encontrada en API, buscando en unassignedPayments...');
+            const localPayment = unassignedPayments.find(p => 
+                p.Referencia === transactionReference && p.BankSource === bank
+            );
+            
+            if (localPayment) {
+                console.log('✅ Transacción encontrada en datos locales');
+                // Convertir el formato de unassignedPayments al formato de transacciones
+                transaction = {
+                    Referencia: localPayment.Referencia,
+                    Créditos: localPayment.Créditos,
+                    Fecha: localPayment.Fecha,
+                    banco: localPayment.BankSource,
+                    FacturasAsignadas: localPayment.FacturasAsignadas || ''
+                };
+            } else {
+                throw new Error(`Transacción ${transactionReference} no encontrada en ninguna hoja (BAC, BN, HuberBN) ni en datos locales`);
+            }
         }
+
+        // Parsear el monto de la transacción
+        const creditValue = transaction.Créditos || '0';
+        console.log('🔍 DEBUG PARSEO DE MONTO:');
+        console.log('   - Valor original:', creditValue);
+        console.log('   - Tipo de dato:', typeof creditValue);
+        console.log('   - Banco de transacción (API):', transaction.banco);
+        console.log('   - Banco de parámetro:', bank);
         
-        console.log('📋 Transacción encontrada:', transaction);
+        // Usar el banco del parámetro si el de la API no está disponible
+        const bankToUse = transaction.banco || bank;
+        console.log('   - Banco a usar para parseo:', bankToUse);
         
-        // Calcular el monto a asignar
-        const amountToAssign = expectedAmount || parseFloat(transaction.Créditos) || 0;
+        const amount = parsePaymentAmountByBank(creditValue, bankToUse);
         
-        if (amountToAssign <= 0) {
-            throw new Error('El monto a asignar debe ser mayor a 0');
+        console.log('   - Monto parseado:', amount);
+        console.log('   - Es NaN:', isNaN(amount));
+        console.log('   - Es <= 0:', amount <= 0);
+        
+        if (isNaN(amount) || amount <= 0) {
+            throw new Error('Monto de transacción inválido');
         }
+
+        // ===== NUEVO: VALIDAR QUE EL MONTO COINCIDA =====
+        if (expectedAmount && Math.abs(amount - expectedAmount) > 0.01) {
+            console.error('❌ ERROR: Monto no coincide');
+            console.error(`   - Monto esperado: ₡${expectedAmount.toLocaleString('es-CR')}`);
+            console.error(`   - Monto real: ₡${amount.toLocaleString('es-CR')}`);
+            console.error(`   - Diferencia: ₡${Math.abs(amount - expectedAmount).toLocaleString('es-CR')}`);
+            throw new Error(`El monto de la transacción (₡${amount.toLocaleString('es-CR')}) no coincide con el monto seleccionado (₡${expectedAmount.toLocaleString('es-CR')})`);
+        }
+
+        console.log(`💰 Monto de transacción: ₡${amount.toLocaleString('es-CR')}`);
+        if (expectedAmount) {
+            console.log(`✅ Monto validado correctamente`);
+        }
+
+        // ===== NUEVO: LEER HISTORIAL DE PAGOS DE LA FACTURA =====
+        console.log('📋 Leyendo historial de pagos de la factura...');
         
-        // Calcular saldo disponible según la lógica de la columna "Disponible"
-        let currentAvailable = 0;
+        // Parsear pagos previos de la factura (formato: "REF:MONTO;REF:MONTO")
+        const previousPayments = parseInvoicePayments(invoice.Pagos || '');
+        const totalPreviousPayments = previousPayments.reduce((sum, payment) => sum + payment.amount, 0);
         
-        if (transaction.Disponible === undefined || transaction.Disponible === null || transaction.Disponible === '') {
-            // Si "Disponible" está vacío, usar el monto original de la transacción
-            currentAvailable = parsePaymentAmount(transaction.Créditos, bank);
-            console.log(`💰 Transacción ${transactionReference}: Disponible vacío, usando monto original: ₡${currentAvailable.toLocaleString('es-CR')}`);
-        } else if (parseFloat(transaction.Disponible) === 0) {
-            // Si "Disponible" es 0, la transacción ya fue utilizada completamente
-            currentAvailable = 0;
-            console.log(`💰 Transacción ${transactionReference}: Disponible es 0, transacción completamente utilizada`);
+        console.log('📊 Historial de pagos:');
+        console.log('   - Pagos previos:', previousPayments);
+        console.log('   - Total pagos previos:', totalPreviousPayments);
+
+        // Calcular multas hasta la fecha de la transacción
+        const transactionDate = transaction.Fecha;
+        const baseAmount = parseFloat(invoice.MontoBase || 0);
+        const finesUntilTransaction = calculateFinesUntilDate(invoice, transactionDate);
+        const totalOwed = baseAmount + finesUntilTransaction;
+        const remainingBalance = totalOwed - totalPreviousPayments;
+
+        console.log(`📊 Análisis de asignación:`);
+        console.log(`   - Monto base: ₡${baseAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Multas hasta transacción: ₡${finesUntilTransaction.toLocaleString('es-CR')}`);
+        console.log(`   - Total adeudado: ₡${totalOwed.toLocaleString('es-CR')}`);
+        console.log(`   - Pagos previos: ₡${totalPreviousPayments.toLocaleString('es-CR')}`);
+        console.log(`   - Saldo restante: ₡${remainingBalance.toLocaleString('es-CR')}`);
+        console.log(`   - Monto transacción: ₡${amount.toLocaleString('es-CR')}`);
+
+        let amountToApply, newStatus, newBalance = 0;
+
+        if (amount >= remainingBalance) {
+            // Pago completo del saldo restante
+            amountToApply = remainingBalance;
+            newStatus = 'Pagado';
+            console.log('✅ Pago completo - Factura será marcada como PAGADA');
         } else {
-            // Si "Disponible" tiene un número diferente de 0, usar ese número
-            currentAvailable = parseFloat(transaction.Disponible) || 0;
-            console.log(`💰 Transacción ${transactionReference}: Disponible (columna) = ₡${currentAvailable.toLocaleString('es-CR')}`);
+            // Pago parcial
+            amountToApply = amount;
+            newStatus = 'Pendiente'; // Mantener como Pendiente hasta que saldo llegue a 0
+            newBalance = remainingBalance - amountToApply;
+            console.log(`⚠️ Pago parcial - Saldo restante: ₡${newBalance.toLocaleString('es-CR')}`);
         }
-        
-        if (amountToAssign > currentAvailable) {
-            throw new Error(`Monto insuficiente. Disponible: ₡${currentAvailable.toLocaleString('es-CR')}, Solicitado: ₡${amountToAssign.toLocaleString('es-CR')}`);
-        }
-        
-        // Actualizar FacturasAsignadas
-        const currentAssignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
-        const newAssignment = { invoiceNumber, amount: amountToAssign };
-        currentAssignments.push(newAssignment);
-        
-        // Formatear las asignaciones para guardar
-        const formattedAssignments = currentAssignments.map(a => `${a.invoiceNumber}:${a.amount}`).join(';');
-        
-        // Calcular nuevo saldo disponible
-        const newAvailableAmount = currentAvailable - amountToAssign;
-        
-        // Preparar datos para actualizar
-        const updateData = {
-            FacturasAsignadas: formattedAssignments,
-            Disponible: newAvailableAmount
+
+        // ===== NUEVO: ACTUALIZAR CAMPO PAGOS DE LA FACTURA =====
+        const newPayment = {
+            reference: transactionReference,
+            bank: bank,
+            amount: amountToApply,
+            date: transactionDate
         };
         
-        console.log('📝 Datos a actualizar:', updateData);
+        const updatedPayments = [...previousPayments, newPayment];
+        const formattedPayments = formatInvoicePayments(updatedPayments);
         
-        // VALIDACIÓN PREVIA: Verificar unicidad de la referencia en la hoja
-        const searchUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/search?Referencia=${encodeURIComponent(transactionReference)}&sheet=${foundSheet}`;
-        console.log('🔍 Verificando unicidad:', searchUrl);
+        console.log('📝 Actualizando pagos de la factura:', formattedPayments);
+
+        // ===== NUEVO: ACTUALIZAR CAMPO FACTURASASIGNADAS DE LA TRANSACCIÓN =====
+        const transactionAssignments = parseTransactionAssignments(transaction.FacturasAsignadas || '');
+        const newAssignment = {
+            invoiceNumber: invoiceNumber,
+            amount: amountToApply
+        };
         
-        const searchResponse = await fetch(searchUrl);
-        if (!searchResponse.ok) {
-            throw new Error(`No se pudo verificar la unicidad de la transacción (HTTP ${searchResponse.status})`);
+        // Buscar si ya existe asignación para esta factura
+        const existingIndex = transactionAssignments.findIndex(a => a.invoiceNumber === invoiceNumber);
+        if (existingIndex > -1) {
+            // Actualizar asignación existente
+            transactionAssignments[existingIndex].amount += amountToApply;
+        } else {
+            // Agregar nueva asignación
+            transactionAssignments.push(newAssignment);
         }
         
-        const searchData = await searchResponse.json();
-        if (searchData.length === 0) {
-            throw new Error(`La transacción ${transactionReference} no existe en la hoja ${foundSheet}`);
+        const formattedAssignments = formatTransactionAssignments(transactionAssignments);
+        console.log('📝 Actualizando asignaciones de transacción:', formattedAssignments);
+
+        // Actualizar la factura
+        const updateData = {
+            Estado: newStatus,
+            MontoMultas: finesUntilTransaction,
+            MontoTotal: newStatus === 'Pagado' ? 0 : Math.round(newBalance), // Asegurar que sea número entero
+            Pagos: formattedPayments
+        };
+
+        if (newStatus === 'Pagado') {
+            updateData.FechaPago = transactionDate || '';
         }
-        if (searchData.length > 1) {
-            throw new Error(`No se puede actualizar la transacción porque la referencia '${transactionReference}' aparece más de una vez en la hoja '${foundSheet}'. Debe ser única para poder modificar el registro.`);
-        }
-        
-        console.log('✅ Transacción encontrada y es única, procediendo con actualización...');
-        
-        // Actualizar en la API usando el patrón correcto de SheetDB
-        const updateUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/Referencia/${encodeURIComponent(transactionReference)}?sheet=${foundSheet}`;
-        console.log('🔗 URL de actualización:', updateUrl);
-        
-        const updateResponse = await fetch(updateUrl, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updateData)
+
+        await updateInvoiceStatus(invoice.NumeroFactura, updateData);
+
+        // Actualizar datos locales
+        Object.assign(invoice, updateData);
+
+        // ===== NUEVO: ACTUALIZAR TRANSACCIÓN EN LA API =====
+        console.log('🔄 Iniciando actualización de transacción en API...');
+        console.log('📋 Datos para actualizar:', {
+            transactionReference,
+            transactionBank: bank,
+            formattedAssignments
         });
         
-        if (!updateResponse.ok) {
-            throw new Error(`Error al actualizar transacción: ${updateResponse.status}`);
+        await updateTransactionAssignments(transactionReference, bank, formattedAssignments);
+        
+        console.log('✅ Actualización de transacción completada');
+
+        // Esperar un momento para que los datos se propaguen en la API
+        console.log('⏳ Esperando propagación de datos en la API...');
+        await new Promise(resolve => setTimeout(resolve, 2000)); // 2 segundos de espera
+
+        // Recargar datos y re-renderizar la página
+        console.log('🔄 Recargando datos después de la asignación...');
+        if (typeof reloadDataAndRender === 'function') {
+            await reloadDataAndRender();
+        } else {
+            // Fallback: solo renderizar si no está disponible reloadDataAndRender
+            if (typeof renderPage === 'function') {
+                renderPage();
+            }
+        }
+
+        // Mostrar mensaje
+        if (newStatus === 'Pagado') {
+            showToast(`✅ Factura ${invoice.NumeroFactura} PAGADA completamente con transacción ${transactionReference}`, 'success');
+        } else {
+            showToast(`⚠️ Pago parcial aplicado a ${invoice.NumeroFactura}. Saldo: ₡${newBalance.toLocaleString('es-CR')}`, 'warning');
+        }
+
+        return true;
+
+    } catch (error) {
+        console.error('❌ Error en assignTransactionToInvoice:', error);
+        showToast('Error al asignar la transacción: ' + error.message, 'error');
+        throw error;
+    }
+}
+
+// Función para sincronizar pagos existentes que no están en la API de transacciones
+async function syncExistingPayments() {
+    try {
+        console.log('🔄 Sincronizando pagos existentes...');
+        
+        // Obtener todas las facturas con pagos
+        const invoicesWithPayments = clientInvoices.filter(invoice => 
+            invoice.Pagos && invoice.Pagos.trim() !== ''
+        );
+        
+        console.log(`📋 Encontradas ${invoicesWithPayments.length} facturas con pagos`);
+        
+        for (const invoice of invoicesWithPayments) {
+            const payments = parseInvoicePayments(invoice.Pagos);
+            
+            for (const payment of payments) {
+                console.log(`🔄 Sincronizando pago ${payment.reference} para factura ${invoice.NumeroFactura}`);
+                
+                try {
+                    // Buscar la transacción en la API
+                    const transactionResponse = await fetch('https://sheetdb.io/api/v1/a7oekivxzreg7');
+                    if (!transactionResponse.ok) continue;
+                    
+                    const transactions = await transactionResponse.json();
+                    const transaction = transactions.find(t => t.Referencia === payment.reference);
+                    
+                    if (transaction) {
+                        // Verificar si ya está actualizada
+                        const currentAssignments = parseTransactionAssignments(transaction.FacturasAsignadas || '');
+                        const hasAssignment = currentAssignments.some(a => a.invoiceNumber === invoice.NumeroFactura);
+                        
+                        if (!hasAssignment) {
+                            console.log(`📝 Actualizando transacción ${payment.reference} con asignación a ${invoice.NumeroFactura}`);
+                            
+                            // Agregar la asignación
+                            const newAssignments = [...currentAssignments, {
+                                invoiceNumber: invoice.NumeroFactura,
+                                amount: payment.amount
+                            }];
+                            
+                            const formattedAssignments = formatTransactionAssignments(newAssignments);
+                            
+                            // Determinar el banco de la transacción
+                            const bank = transaction.banco || 'BAC';
+                            
+                            // Actualizar la transacción
+                            await updateTransactionAssignments(payment.reference, bank, formattedAssignments);
+                            
+                            console.log(`✅ Transacción ${payment.reference} sincronizada`);
+                        } else {
+                            console.log(`✅ Transacción ${payment.reference} ya está actualizada`);
+                        }
+                    } else {
+                        console.warn(`⚠️ Transacción ${payment.reference} no encontrada en la API`);
+                    }
+                    
+                } catch (error) {
+                    console.error(`❌ Error sincronizando pago ${payment.reference}:`, error);
+                }
+            }
         }
         
-        console.log('✅ Transacción actualizada exitosamente');
-        
-        // Actualizar factura (si es necesario)
-        // TODO: Implementar actualización de factura si es necesario
-        
-        showToast(`✅ Transacción ${transactionReference} asignada a factura ${invoiceNumber} por ₡${amountToAssign.toLocaleString('es-CR')}`, 'success');
-        
-        // Recargar el modal de transacciones
-        await loadTransactionsTab();
+        console.log('✅ Sincronización de pagos completada');
         
     } catch (error) {
-        console.error('❌ Error en asignación de transacción:', error);
-        showToast(`❌ Error: ${error.message}`, 'error');
+        console.error('❌ Error en syncExistingPayments:', error);
+    }
+}
+
+// ===== FUNCIONES AUXILIARES PARA MANEJO DE PAGOS =====
+
+// Parsear pagos de una factura (formato: "REF:MONTO:FECHA" o "REF:MONTO" para compatibilidad)
+function parseInvoicePayments(paymentsString) {
+    if (!paymentsString || paymentsString.trim() === '') {
+        return [];
+    }
+    
+    try {
+        return paymentsString.split(';')
+            .filter(part => part.trim() !== '')
+            .map(part => {
+                const parts = part.split(':');
+                const reference = parts[0]?.trim();
+                const amount = parseFloat(parts[1]) || 0;
+                const date = parts[2]?.trim() || new Date().toLocaleDateString('es-CR'); // Fecha por defecto si no existe
+                
+                return {
+                    reference: reference,
+                    amount: amount,
+                    date: date
+                };
+            })
+            .filter(payment => payment.reference && payment.amount > 0);
+    } catch (error) {
+        console.error('Error al parsear pagos de factura:', error);
+        return [];
+    }
+}
+
+// Formatear pagos de una factura para guardar en BD
+function formatInvoicePayments(payments) {
+    if (!payments || payments.length === 0) return '';
+    
+    return payments
+        .filter(payment => payment.reference && payment.amount > 0)
+        .map(payment => {
+            // Formato: REF:MONTO:FECHA
+            const date = payment.date || new Date().toLocaleDateString('es-CR');
+            return `${payment.reference}:${payment.amount}:${date}`;
+        })
+        .join(';');
+}
+
+// Parsear asignaciones de una transacción (formato: "FAC-001:MONTO;FAC-002:MONTO")
+function parseTransactionAssignments(assignmentsString) {
+    if (!assignmentsString || assignmentsString.trim() === '') {
+        return [];
+    }
+    
+    try {
+        return assignmentsString.split(';')
+            .filter(part => part.trim() !== '')
+            .map(part => {
+                const [invoiceNumber, amountStr] = part.split(':');
+                return {
+                    invoiceNumber: invoiceNumber.trim(),
+                    amount: parseFloat(amountStr) || 0
+                };
+            })
+            .filter(assignment => assignment.invoiceNumber && assignment.amount > 0);
+    } catch (error) {
+        console.error('Error al parsear asignaciones de transacción:', error);
+        return [];
+    }
+}
+
+// Formatear asignaciones de una transacción para guardar en BD
+function formatTransactionAssignments(assignments) {
+    if (!assignments || assignments.length === 0) return '';
+    
+    return assignments
+        .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
+        .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}`)
+        .join(';');
+}
+
+// Actualizar asignaciones de una transacción en la API
+async function updateTransactionAssignments(transactionReference, bank, formattedAssignments) {
+    try {
+        console.log('🔄 Actualizando asignaciones de transacción:', transactionReference);
+        console.log('📋 Parámetros recibidos:', { transactionReference, bank, formattedAssignments });
+        
+        // Obtener el cliente correcto
+        const client = window.currentClient || currentClient;
+        if (!client) {
+            console.error('❌ No hay cliente disponible para actualizar transacción');
+            return;
+        }
+        
+        console.log('👤 Cliente encontrado:', { ID: client.ID, ID_Cliente: client.ID_Cliente, Nombre: client.Nombre });
+        
+        // URL para actualizar la transacción
+        const updateUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/Referencia/${encodeURIComponent(transactionReference)}?sheet=${bank}`;
+        console.log('🌐 URL de actualización:', updateUrl);
+        
+        // Formatear fecha actual
+        const today = new Date();
+        const formattedDate = today.toLocaleDateString('es-CR'); // DD/MM/YYYY
+        
+        const updateData = {
+            FacturasAsignadas: formattedAssignments,
+            ID_Cliente: client.ID || client.ID_Cliente,
+            FechaAsignacion: formattedDate,
+            Observaciones: `Conciliada con factura - ${formattedAssignments}`
+        };
+        
+        console.log('📝 Datos a enviar:', updateData);
+        console.log('📝 Body como URLSearchParams:', new URLSearchParams(updateData).toString());
+        
+        const response = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(updateData).toString()
+        });
+        
+        console.log('📡 Respuesta del servidor:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok
+        });
+        
+        if (!response.ok) {
+            console.warn('⚠️ No se pudo actualizar la transacción en la API:', response.status);
+            const errorText = await response.text();
+            console.warn('Error detallado:', errorText);
+            console.warn('URL que falló:', updateUrl);
+            console.warn('Datos que se intentaron enviar:', updateData);
+        } else {
+            const responseText = await response.text();
+            console.log('✅ Transacción actualizada en la API');
+            console.log('📄 Respuesta del servidor:', responseText);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error al actualizar transacción:', error);
+        console.error('❌ Stack trace:', error.stack);
+        console.error('❌ Parámetros que causaron el error:', { transactionReference, bank, formattedAssignments });
+        // No lanzar error para no interrumpir el proceso principal
+    }
+}
+
+// ===== EXPORTAR FUNCIONES AL SCOPE GLOBAL =====
+window.switchPaymentTab = switchPaymentTab;
+window.loadTransactionsTab = loadTransactionsTab;
+window.switchInvoiceTab = switchInvoiceTab;
+window.selectTransaction = selectTransaction;
+window.filterTransactions = filterTransactions;
+window.clearTransactionSearch = clearTransactionSearch;
+window.assignTransactionToInvoice = assignTransactionToInvoice;
+
+// Nuevas funciones de manejo de pagos
+window.parseInvoicePayments = parseInvoicePayments;
+window.formatInvoicePayments = formatInvoicePayments;
+window.parseTransactionAssignments = parseTransactionAssignments;
+window.formatTransactionAssignments = formatTransactionAssignments;
+window.updateTransactionAssignments = updateTransactionAssignments;
+window.syncExistingPayments = syncExistingPayments;
+
+// ===== FUNCIÓN AUXILIAR PARA PARSEAR MONTOS POR BANCO =====
+function parsePaymentAmountByBank(creditValue, bank) {
+    if (!creditValue) return 0;
+    
+    console.log(`🔍 PARSEO DETALLADO:`);
+    console.log(`   - Valor original: "${creditValue}"`);
+    console.log(`   - Banco: "${bank}"`);
+    
+    const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
+    console.log(`   - Valor limpio: "${cleanValue}"`);
+    
+    if (bank === 'BAC') {
+        console.log(`   - Procesando como BAC`);
+        // BAC usa formato europeo: punto como separador de miles, coma como decimal
+        // Ejemplos: 129.000,00 o 129.000
+        if (cleanValue.includes(',')) {
+            // Tiene decimales: 129.000,00 -> 129000.00
+            const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
+            console.log(`   - Con decimales: "${cleanValue}" -> "${normalizedValue}"`);
+            return parseFloat(normalizedValue);
+        } else {
+            // No tiene decimales: 129.000 -> 129000
+            const normalizedValue = cleanValue.replace(/\./g, '');
+            console.log(`   - Sin decimales: "${cleanValue}" -> "${normalizedValue}"`);
+            return parseFloat(normalizedValue);
+        }
+    } else if (bank === 'BN') {
+        console.log(`   - Procesando como BN`);
+        // BN usa formato americano: coma como separador de miles, punto como decimal
+        // Ejemplos: 200,000.00 o 200,000
+        if (cleanValue.includes(',')) {
+            // Tiene coma como separador de miles: 200,000.00 -> 200000.00
+            const normalizedValue = cleanValue.replace(/,/g, '');
+            console.log(`   - Con separador de miles: "${cleanValue}" -> "${normalizedValue}"`);
+            return parseFloat(normalizedValue);
+        } else {
+            // No tiene separador de miles: 200000.00 -> 200000.00
+            console.log(`   - Sin separador de miles: "${cleanValue}" -> "${cleanValue}"`);
+            return parseFloat(cleanValue);
+        }
+    } else if (bank === 'HuberBN') {
+        // HuberBN usa formato americano (ej: 100,000.00)
+        if (cleanValue.includes(',')) {
+            // Si tiene coma, es separador de miles (ej: 100,000.00)
+            const normalizedValue = cleanValue.replace(/,/g, '');
+            return parseFloat(normalizedValue);
+        } else {
+            return parseFloat(cleanValue);
+        }
+    } else {
+        // Otros bancos - usar lógica general
+        if (cleanValue.includes(',')) {
+            return parseFloat(cleanValue.replace(',', '.'));
+        } else {
+            return parseFloat(cleanValue);
+        }
     }
 }

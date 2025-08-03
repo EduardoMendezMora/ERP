@@ -288,30 +288,9 @@ function testClientIdDetection(clientId, observationsText) {
 }
 
 // ===== FUNCIONES DE PARSEO DE MONTOS =====
-// Nueva función para manejar float numbers directamente (después de normalización del backend)
-function parseFloatAmount(amount) {
-    if (amount === null || amount === undefined || amount === '') return 0;
-    
-    // Si ya es un número, retornarlo directamente
-    if (typeof amount === 'number') {
-        return amount;
-    }
-    
-    // Si es string, intentar parsearlo como float
-    const parsed = parseFloat(amount);
-    return isNaN(parsed) ? 0 : parsed;
-}
-
-// Función actualizada para compatibilidad con el nuevo formato de datos normalizados
 function parsePaymentAmount(paymentAmount, bankSource) {
     if (!paymentAmount) return 0;
 
-    // Si ya es un número (float), retornarlo directamente
-    if (typeof paymentAmount === 'number') {
-        return paymentAmount;
-    }
-
-    // Si es string, usar la lógica de parseo existente para compatibilidad
     let cleanAmount = paymentAmount.toString().trim();
 
     if (bankSource === 'BAC') {
@@ -1702,7 +1681,6 @@ window.testClientIdDetection = testClientIdDetection;
 
 // Funciones de parseo
 window.parsePaymentAmount = parsePaymentAmount;
-window.parseFloatAmount = parseFloatAmount; // Exponer la nueva función
 
 // Funciones de banco
 window.getBankDisplayName = getBankDisplayName;
@@ -1785,92 +1763,6 @@ window.clearAllVisualFilters = clearAllVisualFilters;
 window.setupRealTimeSearch = setupRealTimeSearch;
 window.highlightSearchTerms = highlightSearchTerms;
 window.restoreOriginalText = restoreOriginalText;
-
-// ===== FUNCIÓN PARA INICIALIZAR COLUMNA "DISPONIBLE" =====
-async function initializeDisponibleColumn() {
-    console.log('🔧 Iniciando inicialización de columna "Disponible"...');
-    
-    try {
-        const sheets = ['BAC', 'BN', 'HuberBN'];
-        let totalProcessed = 0;
-        let totalUpdated = 0;
-        
-        for (const sheet of sheets) {
-            console.log(`📋 Procesando hoja: ${sheet}`);
-            
-            try {
-                const apiUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7?sheet=${sheet}`;
-                const response = await fetch(apiUrl);
-                
-                if (response.ok) {
-                    const transactions = await response.json();
-                    
-                    if (Array.isArray(transactions)) {
-                        console.log(`   📊 ${transactions.length} transacciones encontradas en ${sheet}`);
-                        
-                        for (const transaction of transactions) {
-                            totalProcessed++;
-                            
-                            // Solo procesar si no tiene columna "Disponible" o está vacía
-                            if (transaction.Disponible === undefined || 
-                                transaction.Disponible === null || 
-                                transaction.Disponible === '' ||
-                                transaction.Disponible === 'undefined') {
-                                
-                                // Calcular saldo disponible
-                                const totalAmount = parsePaymentAmount(transaction.Créditos, sheet);
-                                const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
-                                const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-                                const availableAmount = totalAmount - assignedAmount;
-                                
-                                // Solo actualizar si hay saldo disponible
-                                if (availableAmount > 0.01) {
-                                    const updateData = { Disponible: availableAmount };
-                                    
-                                    const updateUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/${transaction.Referencia}?sheet=${sheet}`;
-                                    const updateResponse = await fetch(updateUrl, {
-                                        method: 'PATCH',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                        },
-                                        body: JSON.stringify(updateData)
-                                    });
-                                    
-                                    if (updateResponse.ok) {
-                                        totalUpdated++;
-                                        console.log(`   ✅ ${transaction.Referencia}: Disponible = ${availableAmount}`);
-                                    } else {
-                                        console.warn(`   ⚠️ Error actualizando ${transaction.Referencia}: ${updateResponse.status}`);
-                                    }
-                                    
-                                    // Pausa pequeña para no sobrecargar la API
-                                    await new Promise(resolve => setTimeout(resolve, 100));
-                                }
-                            }
-                        }
-                    }
-                } else if (response.status !== 404) {
-                    console.warn(`Error al cargar transacciones de ${sheet}:`, response.status);
-                }
-            } catch (error) {
-                console.warn(`Error procesando ${sheet}:`, error);
-            }
-        }
-        
-        console.log(`✅ Inicialización completada:`);
-        console.log(`   📊 Transacciones procesadas: ${totalProcessed}`);
-        console.log(`   ✅ Transacciones actualizadas: ${totalUpdated}`);
-        
-        showToast(`✅ Columna "Disponible" inicializada: ${totalUpdated} transacciones actualizadas`, 'success');
-        
-    } catch (error) {
-        console.error('❌ Error en inicialización:', error);
-        showToast(`❌ Error: ${error.message}`, 'error');
-    }
-}
-
-// Exponer función globalmente
-window.initializeDisponibleColumn = initializeDisponibleColumn;
 
 console.log('✅ utils.js cargado - Funciones utilitarias disponibles');
 
