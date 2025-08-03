@@ -921,18 +921,22 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
             console.log('🔍 [DEBUG ESPECÍFICO RAW] Payment amount:', paymentAmount);
             console.log('🔍 [DEBUG ESPECÍFICO RAW] Total assigned amount:', totalAssignedAmount);
             console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount:', availableAmount);
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount type:', typeof availableAmount);
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount > 0:', availableAmount > 0);
         }
 
         // Datos a actualizar
         const updateData = {
             FacturasAsignadas: formattedAssignments,
             FechaAsignacion: assignments.length > 0 ? formatDateForStorage(new Date()) : '',
-            Disponible: availableAmount > 0 ? availableAmount.toString() : '' // Guardar saldo disponible
+            Disponible: availableAmount.toString() // Guardar saldo disponible (siempre, incluso si es 0)
         };
         
         // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
         if (payment.Referencia === '970873893') {
             console.log('🔍 [DEBUG ESPECÍFICO RAW] Update data:', updateData);
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Disponible value being sent:', updateData.Disponible);
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Disponible type:', typeof updateData.Disponible);
             console.log('🔍 [DEBUG ESPECÍFICO RAW] === FIN DEBUG RAW ===');
         }
 
@@ -2052,3 +2056,56 @@ async function testCompletePaymentAssignment() {
         updateData
     };
 }
+
+// ===== FUNCIÓN DE PRUEBA PARA VERIFICAR CÁLCULO 970873893 =====
+function testCalculation970873893() {
+    console.log('🧪 [PRUEBA CÁLCULO] === PRUEBA ESPECÍFICA PARA 970873893 ===');
+    
+    // Simular los datos del pago problemático
+    const payment = {
+        Referencia: '970873893',
+        Créditos: '60.000,00',
+        BankSource: 'BAC',
+        FacturasAsignadas: 'FAC-19511:47000'
+    };
+    
+    // Simular las asignaciones
+    const assignments = [
+        { invoiceNumber: 'FAC-19511', amount: 47000 }
+    ];
+    
+    console.log('🧪 [PRUEBA CÁLCULO] Payment object:', payment);
+    console.log('🧪 [PRUEBA CÁLCULO] Assignments:', assignments);
+    
+    // Calcular usando la misma lógica que updatePaymentAssignmentsRaw
+    const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+    const totalAssignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+    const availableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
+    
+    console.log('🧪 [PRUEBA CÁLCULO] Payment amount:', paymentAmount);
+    console.log('🧪 [PRUEBA CÁLCULO] Total assigned amount:', totalAssignedAmount);
+    console.log('🧪 [PRUEBA CÁLCULO] Available amount:', availableAmount);
+    console.log('🧪 [PRUEBA CÁLCULO] Available amount type:', typeof availableAmount);
+    console.log('🧪 [PRUEBA CÁLCULO] Available amount > 0:', availableAmount > 0);
+    console.log('🧪 [PRUEBA CÁLCULO] Disponible value:', availableAmount.toString());
+    
+    // Simular el updateData
+    const updateData = {
+        FacturasAsignadas: 'FAC-19511:47000',
+        FechaAsignacion: formatDateForStorage(new Date()),
+        Disponible: availableAmount.toString()
+    };
+    
+    console.log('🧪 [PRUEBA CÁLCULO] Update data:', updateData);
+    console.log('🧪 [PRUEBA CÁLCULO] === FIN PRUEBA CÁLCULO ===');
+    
+    return {
+        paymentAmount,
+        totalAssignedAmount,
+        availableAmount,
+        updateData
+    };
+}
+
+// Función disponible para pruebas manuales
+// testCalculation970873893();
