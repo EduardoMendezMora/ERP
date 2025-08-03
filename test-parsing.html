@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba de Parsing de Montos</title>
+</head>
+<body>
+    <h1>Prueba de Parsing de Montos</h1>
+    <div id="results"></div>
+
+    <script src="utils.js"></script>
+    <script src="payment-management.js"></script>
+    <script>
+        // Función para mostrar resultados
+        function showResult(message) {
+            const resultsDiv = document.getElementById('results');
+            const p = document.createElement('p');
+            p.innerHTML = message;
+            resultsDiv.appendChild(p);
+        }
+
+        // Interceptar console.log para mostrar en la página
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            showResult(`<strong>LOG:</strong> ${message}`);
+        };
+
+        // Interceptar console.error para mostrar en la página
+        const originalError = console.error;
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            showResult(`<strong style="color: red;">ERROR:</strong> ${message}`);
+        };
+
+        // Ejecutar pruebas cuando se carga la página
+        window.addEventListener('load', function() {
+            showResult('<h2>Iniciando pruebas...</h2>');
+            
+            // Las funciones de prueba ya se ejecutan automáticamente
+            // testParsingProblematicAmount() y testCompletePaymentAssignment()
+        });
+    </script>
+</body>
+</html> 

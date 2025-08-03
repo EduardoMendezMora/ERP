@@ -1956,3 +1956,105 @@ console.log('  ✅ Con Content-Type: application/x-www-form-urlencoded');
 console.log('  ✅ Datos en body como URLSearchParams (según documentación)');
 console.log('');
 console.log('🎯 Para probar: testSheetDBConnection("18475172", "BN")');
+
+// ===== FUNCIÓN DE PRUEBA PARA VERIFICAR PARSING DE MONTOS =====
+function testParsingProblematicAmount() {
+    console.log(`🧪 [PRUEBA PARSING] === PRUEBA ESPECÍFICA PARA 970873893 ===`);
+    
+    // Simular el monto problemático que viene del backend
+    const montoProblematico = '60.000,00';
+    const bankSource = 'BAC';
+    
+    console.log(`🧪 [PRUEBA PARSING] Monto original: ${montoProblematico} (tipo: ${typeof montoProblematico})`);
+    console.log(`🧪 [PRUEBA PARSING] Banco: "${bankSource}"`);
+    
+    // Probar la función parsePaymentAmount
+    const resultado = parsePaymentAmount(montoProblematico, bankSource);
+    console.log(`🧪 [PRUEBA PARSING] Resultado parsePaymentAmount: ${resultado}`);
+    
+    // Simular el cálculo completo
+    const paymentAmount = resultado;
+    const assignedAmount = 47000; // FAC-19511:47000
+    const availableAmount = paymentAmount - assignedAmount;
+    
+    console.log(`🧪 [PRUEBA PARSING] Cálculo completo:`);
+    console.log(`   - Payment amount: ₡${paymentAmount.toLocaleString('es-CR')}`);
+    console.log(`   - Assigned amount: ₡${assignedAmount.toLocaleString('es-CR')}`);
+    console.log(`   - Available amount: ₡${availableAmount.toLocaleString('es-CR')}`);
+    
+    console.log(`🧪 [PRUEBA PARSING] === FIN PRUEBA ===`);
+    
+    return {
+        montoOriginal: montoProblematico,
+        resultado: resultado,
+        availableAmount: availableAmount
+    };
+}
+
+// Ejecutar prueba automáticamente
+testParsingProblematicAmount();
+
+// ===== FUNCIÓN DE PRUEBA COMPLETA PARA LA TRANSACCIÓN PROBLEMÁTICA =====
+async function testCompletePaymentAssignment() {
+    console.log(`🧪 [PRUEBA COMPLETA] === PRUEBA COMPLETA PARA 970873893 ===`);
+    
+    // Simular el objeto de pago como viene del backend
+    const mockPayment = {
+        Fecha: '03/08/2025',
+        Referencia: '970873893',
+        Descripción: 'SINPE MOVIL Abono_Carro_CBY419',
+        Créditos: '60.000,00', // String del backend
+        BankSource: 'BAC',
+        Observaciones: 'Conciliada con factura - FAC-19511:47000',
+        FacturasAsignadas: 'FAC-19511:47000'
+    };
+    
+    console.log(`🧪 [PRUEBA COMPLETA] Mock payment object:`, mockPayment);
+    
+    // 1. Probar parsePaymentAmount
+    const paymentAmount = parsePaymentAmount(mockPayment.Créditos, mockPayment.BankSource);
+    console.log(`🧪 [PRUEBA COMPLETA] 1. Payment amount parsed: ${paymentAmount}`);
+    
+    // 2. Probar parseAssignedInvoices
+    const assignments = parseAssignedInvoices(mockPayment.FacturasAsignadas);
+    console.log(`🧪 [PRUEBA COMPLETA] 2. Assignments parsed:`, assignments);
+    
+    // 3. Calcular monto asignado
+    const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+    console.log(`🧪 [PRUEBA COMPLETA] 3. Assigned amount: ${assignedAmount}`);
+    
+    // 4. Calcular saldo disponible
+    const availableAmount = Math.max(0, paymentAmount - assignedAmount);
+    console.log(`🧪 [PRUEBA COMPLETA] 4. Available amount: ${availableAmount}`);
+    
+    // 5. Probar calculateAvailableAmount
+    const calculatedAvailable = calculateAvailableAmount(mockPayment);
+    console.log(`🧪 [PRUEBA COMPLETA] 5. calculateAvailableAmount result: ${calculatedAvailable}`);
+    
+    // 6. Simular datos de actualización
+    const updateData = {
+        FacturasAsignadas: mockPayment.FacturasAsignadas,
+        FechaAsignacion: formatDateForStorage(new Date()),
+        Disponible: availableAmount > 0 ? availableAmount.toString() : ''
+    };
+    
+    console.log(`🧪 [PRUEBA COMPLETA] 6. Update data que se enviaría:`, updateData);
+    
+    console.log(`🧪 [PRUEBA COMPLETA] === RESUMEN ===`);
+    console.log(`   - Monto original: ${mockPayment.Créditos} (${typeof mockPayment.Créditos})`);
+    console.log(`   - Monto parseado: ${paymentAmount}`);
+    console.log(`   - Monto asignado: ${assignedAmount}`);
+    console.log(`   - Saldo disponible: ${availableAmount}`);
+    console.log(`   - Disponible a guardar: "${updateData.Disponible}"`);
+    console.log(`🧪 [PRUEBA COMPLETA] === FIN PRUEBA COMPLETA ===`);
+    
+    return {
+        paymentAmount,
+        assignedAmount,
+        availableAmount,
+        updateData
+    };
+}
+
+// Ejecutar prueba completa automáticamente
+testCompletePaymentAssignment();
