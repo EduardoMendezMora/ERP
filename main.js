@@ -1032,23 +1032,23 @@ async function loadTransactionsTab() {
         }
         
         const transactionsWithAvailableBalance = pendingTransactions.filter(transaction => {
-            // PRIORIDAD 1: Usar columna "Disponible" si existe
+            // Calcular saldo disponible según la lógica de la columna "Disponible"
             let availableAmount = 0;
             
-            if (transaction.Disponible !== undefined && transaction.Disponible !== null && transaction.Disponible !== '') {
-                availableAmount = parseFloat(transaction.Disponible) || 0;
-                console.log(`💰 ${transaction.Referencia}: Disponible (columna) = ${availableAmount}`);
-            } else {
-                // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
+            if (transaction.Disponible === undefined || transaction.Disponible === null || transaction.Disponible === '') {
+                // Si "Disponible" está vacío, usar el monto original de la transacción
                 const creditValue = transaction.Créditos || '0';
                 const bank = transaction.banco || 'BAC';
-                const totalAmount = parsePaymentAmount(creditValue, bank);
-                
-                const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
-                const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-                availableAmount = totalAmount - assignedAmount;
-                
-                console.log(`🔍 ${transaction.Referencia}: Total=${totalAmount}, Asignado=${assignedAmount}, Disponible (calculado)=${availableAmount}`);
+                availableAmount = parsePaymentAmount(creditValue, bank);
+                console.log(`💰 ${transaction.Referencia}: Disponible vacío, usando monto original: ${availableAmount}`);
+            } else if (parseFloat(transaction.Disponible) === 0) {
+                // Si "Disponible" es 0, la transacción ya fue utilizada completamente
+                availableAmount = 0;
+                console.log(`💰 ${transaction.Referencia}: Disponible es 0, transacción completamente utilizada`);
+            } else {
+                // Si "Disponible" tiene un número diferente de 0, usar ese número
+                availableAmount = parseFloat(transaction.Disponible) || 0;
+                console.log(`💰 ${transaction.Referencia}: Disponible (columna) = ${availableAmount}`);
             }
             
             // Debug específico para la transacción problemática
@@ -1410,14 +1410,29 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         console.log('📋 Transacción encontrada:', transaction);
         
         // Calcular el monto a asignar
-        const amountToAssign = expectedAmount || parseFloat(transaction.Disponible) || 0;
+        const amountToAssign = expectedAmount || parseFloat(transaction.Créditos) || 0;
         
         if (amountToAssign <= 0) {
             throw new Error('El monto a asignar debe ser mayor a 0');
         }
         
-        // Verificar que hay suficiente saldo disponible
-        const currentAvailable = parseFloat(transaction.Disponible) || 0;
+        // Calcular saldo disponible según la lógica de la columna "Disponible"
+        let currentAvailable = 0;
+        
+        if (transaction.Disponible === undefined || transaction.Disponible === null || transaction.Disponible === '') {
+            // Si "Disponible" está vacío, usar el monto original de la transacción
+            currentAvailable = parsePaymentAmount(transaction.Créditos, bank);
+            console.log(`💰 Transacción ${transactionReference}: Disponible vacío, usando monto original: ₡${currentAvailable.toLocaleString('es-CR')}`);
+        } else if (parseFloat(transaction.Disponible) === 0) {
+            // Si "Disponible" es 0, la transacción ya fue utilizada completamente
+            currentAvailable = 0;
+            console.log(`💰 Transacción ${transactionReference}: Disponible es 0, transacción completamente utilizada`);
+        } else {
+            // Si "Disponible" tiene un número diferente de 0, usar ese número
+            currentAvailable = parseFloat(transaction.Disponible) || 0;
+            console.log(`💰 Transacción ${transactionReference}: Disponible (columna) = ₡${currentAvailable.toLocaleString('es-CR')}`);
+        }
+        
         if (amountToAssign > currentAvailable) {
             throw new Error(`Monto insuficiente. Disponible: ₡${currentAvailable.toLocaleString('es-CR')}, Solicitado: ₡${amountToAssign.toLocaleString('es-CR')}`);
         }

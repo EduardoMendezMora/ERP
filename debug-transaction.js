@@ -87,22 +87,21 @@ async function debugProblematicTransaction() {
         if (problematicInAll.ID_Cliente && problematicInAll.ID_Cliente.trim() !== '' && problematicInAll.ID_Cliente !== 'undefined') {
             console.log('✅ Tiene ID_Cliente, verificando saldo disponible...');
             
-            // PRIORIDAD 1: Usar columna "Disponible" si existe
+            // Calcular saldo disponible según la lógica de la columna "Disponible"
             let availableAmount = 0;
             
-            if (problematicInAll.Disponible !== undefined && problematicInAll.Disponible !== null && problematicInAll.Disponible !== '') {
+            if (problematicInAll.Disponible === undefined || problematicInAll.Disponible === null || problematicInAll.Disponible === '') {
+                // Si "Disponible" está vacío, usar el monto original de la transacción
+                availableAmount = parsePaymentAmount(problematicInAll.Créditos, problematicInAll.Banco);
+                console.log('   Disponible vacío, usando monto original:', availableAmount);
+            } else if (parseFloat(problematicInAll.Disponible) === 0) {
+                // Si "Disponible" es 0, la transacción ya fue utilizada completamente
+                availableAmount = 0;
+                console.log('   Disponible es 0, transacción completamente utilizada');
+            } else {
+                // Si "Disponible" tiene un número diferente de 0, usar ese número
                 availableAmount = parseFloat(problematicInAll.Disponible) || 0;
                 console.log('   Disponible (columna):', availableAmount);
-            } else {
-                // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
-                const totalAmount = parsePaymentAmount(problematicInAll.Créditos, problematicInAll.Banco);
-                const assignments = parseAssignedInvoices(problematicInAll.FacturasAsignadas || '');
-                const assignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
-                availableAmount = totalAmount - assignedAmount;
-                
-                console.log('   Total Amount:', totalAmount);
-                console.log('   Assigned Amount:', assignedAmount);
-                console.log('   Available Amount (calculado):', availableAmount);
             }
             
             console.log('   Available > 0.01:', availableAmount > 0.01);
@@ -158,21 +157,21 @@ async function debugProblematicTransaction() {
         // Filtro 4: Saldo disponible final
         let availableAmount = 0;
         
-        // PRIORIDAD 1: Usar columna "Disponible" si existe
-        if (problematicInAll.Disponible !== undefined && problematicInAll.Disponible !== null && problematicInAll.Disponible !== '') {
+        // Calcular saldo disponible según la lógica de la columna "Disponible"
+        if (problematicInAll.Disponible === undefined || problematicInAll.Disponible === null || problematicInAll.Disponible === '') {
+            // Si "Disponible" está vacío, usar el monto original de la transacción
+            availableAmount = parsePaymentAmount(problematicInAll.Créditos, problematicInAll.Banco);
+            console.log('\n🔍 CÁLCULO FINAL DE SALDO (Disponible vacío, usando monto original):');
+            console.log('   Available Amount:', availableAmount);
+        } else if (parseFloat(problematicInAll.Disponible) === 0) {
+            // Si "Disponible" es 0, la transacción ya fue utilizada completamente
+            availableAmount = 0;
+            console.log('\n🔍 CÁLCULO FINAL DE SALDO (Disponible es 0):');
+            console.log('   Available Amount:', availableAmount);
+        } else {
+            // Si "Disponible" tiene un número diferente de 0, usar ese número
             availableAmount = parseFloat(problematicInAll.Disponible) || 0;
             console.log('\n🔍 CÁLCULO FINAL DE SALDO (usando columna Disponible):');
-            console.log('   Disponible (columna):', availableAmount);
-        } else {
-            // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
-            const totalAmount = parsePaymentAmount(problematicInAll.Créditos, problematicInAll.Banco);
-            const assignments = parseAssignedInvoices(problematicInAll.FacturasAsignadas || '');
-            const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-            availableAmount = totalAmount - assignedAmount;
-            
-            console.log('\n🔍 CÁLCULO FINAL DE SALDO (calculado dinámicamente):');
-            console.log('   Total Amount:', totalAmount);
-            console.log('   Assigned Amount:', assignedAmount);
             console.log('   Available Amount:', availableAmount);
         }
         
