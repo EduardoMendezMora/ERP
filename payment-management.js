@@ -1,3 +1,21 @@
+// ===== FUNCIÓN DE UTILIDAD PARA CALCULAR SALDO DISPONIBLE =====
+function calculateAvailableAmount(payment) {
+    // Si la columna "Disponible" tiene contenido, usarla
+    if (payment.Disponible && payment.Disponible.trim() !== '') {
+        const availableAmount = parseFloat(payment.Disponible) || 0;
+        console.log(`💰 Pago ${payment.Referencia}: Usando saldo disponible del backend: ₡${availableAmount.toLocaleString('es-CR')}`);
+        return availableAmount;
+    } else {
+        // Si está vacía, calcular dinámicamente (comportamiento anterior)
+        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+        const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+        const availableAmount = paymentAmount - assignedAmount;
+        console.log(`💰 Pago ${payment.Referencia}: Calculando saldo disponible dinámicamente: ₡${availableAmount.toLocaleString('es-CR')}`);
+        return availableAmount;
+    }
+}
+
 // ===== VARIABLES PARA DISTRIBUCIÓN DE PAGOS =====
 let currentPaymentForDistribution = null;
 let paymentDistributionData = [];
@@ -16,13 +34,9 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
         }
 
         // Calcular el monto disponible del pago (descontando asignaciones previas)
-        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-        const previousAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-        const previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
-        const availableAmount = paymentAmount - previouslyAssignedAmount;
+        const availableAmount = calculateAvailableAmount(payment);
 
-        console.log(`💰 Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
-        console.log(`💸 Previamente asignado: ₡${previouslyAssignedAmount.toLocaleString('es-CR')}`);
+        console.log(`💰 Monto total del pago: ₡${parsePaymentAmount(payment.Créditos, payment.BankSource).toLocaleString('es-CR')}`);
         console.log(`💵 Disponible para asignar: ₡${availableAmount.toLocaleString('es-CR')}`);
 
         if (availableAmount <= 0) {
@@ -360,10 +374,8 @@ function updateDistributionCalculation(index) {
 }
 
 function updateDistributionSummary() {
-    const availableAmount = parsePaymentAmount(currentPaymentForDistribution.Créditos, currentPaymentForDistribution.BankSource);
-    const previousAssignments = parseAssignedInvoices(currentPaymentForDistribution.FacturasAsignadas || '');
-    const previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
-    const actualAvailable = availableAmount - previouslyAssignedAmount;
+    // ===== NUEVA LÓGICA: USAR COLUMNA DISPONIBLE DEL BACKEND =====
+    const actualAvailable = calculateAvailableAmount(currentPaymentForDistribution);
 
     const totalAssigned = paymentDistributionData.reduce((sum, item) => sum + item.assignedAmount, 0);
     const remaining = actualAvailable - totalAssigned;
@@ -632,6 +644,16 @@ async function updatePaymentAssignments(payment, newAssignments) {
 
         console.log('📝 Asignaciones formateadas para BD:', formattedAssignments);
 
+        // ===== NUEVO: CALCULAR SALDO DISPONIBLE =====
+        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+        const totalAssignedAmount = combinedAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+        const availableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
+        
+        console.log(`💰 Cálculo de saldo disponible:`);
+        console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Saldo disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
+
         // ✅ MÉTODO OFICIAL SEGÚN DOCUMENTACIÓN
         // URL: https://sheetdb.io/api/v1/{API_ID}/{COLUMN_NAME}/{VALUE}?sheet={SHEET}
         const officialUpdateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
@@ -641,7 +663,8 @@ async function updatePaymentAssignments(payment, newAssignments) {
         // Preparar datos como JSON (según documentación oficial)
         const updateData = {
             FacturasAsignadas: formattedAssignments,
-            FechaAsignacion: formatDateForStorage(new Date())
+            FechaAsignacion: formatDateForStorage(new Date()),
+            Disponible: availableAmount > 0 ? availableAmount.toString() : '' // Guardar saldo disponible
         };
 
         console.log('📦 Datos a actualizar:', updateData);
@@ -680,6 +703,7 @@ async function updatePaymentAssignments(payment, newAssignments) {
         if (response.ok) {
             const result = await response.json();
             console.log('✅ Actualización oficial exitosa:', result);
+            console.log(`✅ Saldo disponible guardado: ₡${availableAmount.toLocaleString('es-CR')}`);
             return combinedAssignments;
         }
 
@@ -821,10 +845,21 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
         const formattedAssignments = formatAssignedInvoices(assignments);
         console.log('🔄 Actualización RAW para:', payment.Referencia, 'con asignaciones:', formattedAssignments);
 
+        // ===== NUEVO: CALCULAR SALDO DISPONIBLE =====
+        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+        const totalAssignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+        const availableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
+        
+        console.log(`💰 Cálculo de saldo disponible (RAW):`);
+        console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Saldo disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
+
         // Datos a actualizar
         const updateData = {
             FacturasAsignadas: formattedAssignments,
-            FechaAsignacion: assignments.length > 0 ? formatDateForStorage(new Date()) : ''
+            FechaAsignacion: assignments.length > 0 ? formatDateForStorage(new Date()) : '',
+            Disponible: availableAmount > 0 ? availableAmount.toString() : '' // Guardar saldo disponible
         };
 
         // URL oficial según documentación
@@ -841,11 +876,13 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
 
         if (response.ok) {
             console.log('✅ Actualización RAW oficial exitosa');
-            return assignments;
+            console.log(`✅ Saldo disponible guardado: ₡${availableAmount.toLocaleString('es-CR')}`);
+            return true;
+        } else {
+            const errorText = await response.text();
+            console.error('❌ Error en actualización RAW:', response.status, errorText);
+            throw new Error(`Actualización RAW fallida: HTTP ${response.status} - ${errorText}`);
         }
-
-        const errorText = await response.text();
-        throw new Error(`Actualización RAW fallida: HTTP ${response.status}: ${errorText}`);
 
     } catch (error) {
         console.error('❌ Error en updatePaymentAssignmentsRaw:', error);
@@ -913,27 +950,21 @@ async function loadUnassignedPayments(clientId) {
 
                     // Filtrar solo los que NO están completamente asignados
                     const unassignedFromSheet = clientRelatedPayments.filter(payment => {
-                        const paymentAmount = parsePaymentAmount(payment.Créditos, sheet);
-                        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-                        const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-                        const availableAmount = paymentAmount - assignedAmount;
+                        // ===== NUEVA LÓGICA: USAR COLUMNA DISPONIBLE DEL BACKEND =====
+                        const availableAmount = calculateAvailableAmount(payment);
 
                         // DEBUGGING ESPECÍFICO PARA EL PAGO PROBLEMÁTICO
                         if (payment.Referencia === '970430862') {
                             console.log(`🔍 [DEBUG] Pago 970430862 en ${sheet}:`);
                             console.log(`   - Créditos: "${payment.Créditos}"`);
                             console.log(`   - FacturasAsignadas: "${payment.FacturasAsignadas}"`);
-                            console.log(`   - paymentAmount: ₡${paymentAmount.toLocaleString('es-CR')}`);
-                            console.log(`   - assignedAmount: ₡${assignedAmount.toLocaleString('es-CR')}`);
+                            console.log(`   - Disponible (backend): "${payment.Disponible}"`);
                             console.log(`   - availableAmount: ₡${availableAmount.toLocaleString('es-CR')}`);
-                            console.log(`   - assignments.length: ${assignments.length}`);
-                            console.log(`   - Condición 1 (no asignaciones): ${assignments.length === 0}`);
-                            console.log(`   - Condición 2 (monto disponible): ${availableAmount > 0.01}`);
-                            console.log(`   - Resultado final: ${assignments.length === 0 || availableAmount > 0.01}`);
+                            console.log(`   - Condición (monto disponible): ${availableAmount > 0.01}`);
                         }
 
-                        // Si no tiene asignaciones O tiene monto disponible
-                        return assignments.length === 0 || availableAmount > 0.01;
+                        // Mostrar transacción si tiene saldo disponible
+                        return availableAmount > 0.01;
                     });
 
                     // Agregar información de la fuente (banco)
@@ -1397,35 +1428,22 @@ function getCurrentUserName() {
     return 'Usuario Sistema';
 }
 
-// ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
+// ===== EXPORTAR FUNCIONES GLOBALMENTE =====
+window.calculateAvailableAmount = calculateAvailableAmount;
 window.assignPaymentToInvoice = assignPaymentToInvoice;
+window.applySinglePayment = applySinglePayment;
+window.showPaymentDistributionModal = showPaymentDistributionModal;
+window.closePaymentDistributionModal = closePaymentDistributionModal;
+window.updatePaymentAssignments = updatePaymentAssignments;
+window.updatePaymentAssignmentsRaw = updatePaymentAssignmentsRaw;
 window.unassignPaymentFromInvoice = unassignPaymentFromInvoice;
-window.showUnassignConfirmation = showUnassignConfirmation;
 window.loadUnassignedPayments = loadUnassignedPayments;
 window.loadAssignedPayments = loadAssignedPayments;
 window.updateInvoiceStatus = updateInvoiceStatus;
-window.reloadDataAndRender = reloadDataAndRender;
-
-// Funciones de distribución
-window.showPaymentDistributionModal = showPaymentDistributionModal;
-window.closePaymentDistributionModal = closePaymentDistributionModal;
-window.confirmPaymentDistribution = confirmPaymentDistribution;
-window.updateDistributionCalculation = updateDistributionCalculation;
-
-// Funciones de parseo
-window.parseAssignedInvoices = parseAssignedInvoices;
-window.formatAssignedInvoices = formatAssignedInvoices;
-
-// Funciones principales de actualización
-window.updatePaymentAssignments = updatePaymentAssignments;
-window.updatePaymentAssignmentsRaw = updatePaymentAssignmentsRaw;
-
-// ✅ FUNCIONES DE DEBUGGING EXPUESTAS (COMPLETAS)
+window.showUnassignConfirmation = showUnassignConfirmation;
 window.testSheetDBConnection = testSheetDBConnection;
-window.debugSheetDBInfo = debugSheetDBInfo;
 window.quickTestUpdate = quickTestUpdate;
-
-// ✅ FUNCIONES DE WHATSAPP EXPUESTAS
+window.debugSheetDBInfo = debugSheetDBInfo;
 window.sendPaymentAssignmentWhatsAppNotification = sendPaymentAssignmentWhatsAppNotification;
 window.getCurrentUserName = getCurrentUserName;
 

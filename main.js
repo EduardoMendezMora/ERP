@@ -444,10 +444,8 @@ function renderAssignInvoiceModal(invoice) {
     }
 
     const paymentOptionsHTML = unassignedPayments.map(payment => {
-        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-        const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-        const availableAmount = paymentAmount - assignedAmount;
+        // ===== NUEVA LÓGICA: USAR COLUMNA DISPONIBLE DEL BACKEND =====
+        const availableAmount = calculateAvailableAmount(payment);
 
         if (availableAmount <= 0) return ''; // Skip pagos completamente asignados
 
@@ -472,7 +470,10 @@ function renderAssignInvoiceModal(invoice) {
                 </div>
                 <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">
                     ${getBankDisplayName(payment.BankSource)} | ${formatDateForDisplay(payment.Fecha)}
-                    ${assignedAmount > 0 ? ` | Total: ₡${paymentAmount.toLocaleString('es-CR')} (₡${assignedAmount.toLocaleString('es-CR')} asignado)` : ''}
+                    ${payment.Disponible && payment.Disponible.trim() !== '' ? 
+                        ` | Saldo disponible del backend` : 
+                        ` | Total: ₡${parsePaymentAmount(payment.Créditos, payment.BankSource).toLocaleString('es-CR')} (₡${parseAssignedInvoices(payment.FacturasAsignadas || '').reduce((sum, a) => sum + a.amount, 0).toLocaleString('es-CR')} asignado)`
+                    }
                 </div>
             </div>
         `;
