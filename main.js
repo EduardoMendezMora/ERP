@@ -809,6 +809,23 @@ async function loadTransactionsTab() {
         
         console.log('📊 Total transacciones cargadas:', allTransactions.length);
         
+        // Debug: buscar la transacción problemática en allTransactions
+        const problematicInAll = allTransactions.find(t => 
+            t.Referencia === '970873893' && 
+            t.Fecha === '03/08/2025'
+        );
+        if (problematicInAll) {
+            console.log('🔍 TRANSACCIÓN PROBLEMÁTICA ENCONTRADA EN allTransactions:');
+            console.log('   ID_Cliente:', problematicInAll.ID_Cliente);
+            console.log('   Observaciones:', problematicInAll.Observaciones);
+            console.log('   Fecha:', problematicInAll.Fecha);
+            console.log('   Créditos:', problematicInAll.Créditos);
+            console.log('   Banco:', problematicInAll.Banco);
+            console.log('   FacturasAsignadas:', problematicInAll.FacturasAsignadas);
+        } else {
+            console.log('❌ TRANSACCIÓN PROBLEMÁTICA NO ENCONTRADA EN allTransactions');
+        }
+        
         // Filtrar transacciones pendientes de conciliar
         // Solo mostrar desde el 10/07/2025
         const cutoffDate = new Date('2025-07-10');
@@ -819,8 +836,22 @@ async function loadTransactionsTab() {
         newLogicDate.setHours(0, 0, 0, 0);
         
         const pendingTransactions = allTransactions.filter(t => {
+            // Debug específico para la transacción problemática
+            if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
+                console.log('🔍 FILTRANDO TRANSACCIÓN PROBLEMÁTICA:');
+                console.log('   ID_Cliente:', t.ID_Cliente);
+                console.log('   Observaciones:', t.Observaciones);
+                console.log('   Fecha:', t.Fecha);
+                console.log('   Créditos:', t.Créditos);
+                console.log('   Banco:', t.Banco);
+                console.log('   FacturasAsignadas:', t.FacturasAsignadas);
+            }
+            
             // Si tiene ID_Cliente asignado, está conciliada
             if (t.ID_Cliente && t.ID_Cliente.trim() !== '' && t.ID_Cliente !== 'undefined') {
+                if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
+                    console.log('   ❌ FILTRADA: Tiene ID_Cliente');
+                }
                 return false;
             }
             
@@ -838,6 +869,9 @@ async function loadTransactionsTab() {
             
             // Filtrar por fecha - solo desde 10/07/2025
             if (transactionDate && transactionDate < cutoffDate) {
+                if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
+                    console.log('   ❌ FILTRADA: Fecha anterior al cutoff');
+                }
                 return false;
             }
             
@@ -847,10 +881,17 @@ async function loadTransactionsTab() {
             if (transactionDate && transactionDate < newLogicDate) {
                 // Lógica antigua: Si tiene Observaciones con contenido, está conciliada
                 if (t.Observaciones && t.Observaciones.trim() !== '' && t.Observaciones !== 'undefined') {
+                    if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
+                        console.log('   ❌ FILTRADA: Tiene observaciones (lógica antigua)');
+                    }
                     return false;
                 }
             }
             // Para transacciones del 03/08/2025 en adelante, no filtramos por observaciones
+            
+            if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
+                console.log('   ✅ PASÓ TODOS LOS FILTROS');
+            }
             
             return true;
         });
@@ -859,6 +900,48 @@ async function loadTransactionsTab() {
         
         // Filtrar transacciones con saldo disponible
         console.log('🔍 Iniciando filtrado de transacciones con saldo disponible...');
+        
+        // Debug específico para la transacción problemática
+        const problematicTransaction = pendingTransactions.find(t => 
+            t.Referencia === '970873893' && 
+            t.Fecha === '03/08/2025' &&
+            t.Créditos === '60.000,00'
+        );
+        
+        if (problematicTransaction) {
+            console.log('🚨 TRANSACCIÓN PROBLEMÁTICA ENCONTRADA:');
+            console.log('   Referencia:', problematicTransaction.Referencia);
+            console.log('   Fecha:', problematicTransaction.Fecha);
+            console.log('   Créditos:', problematicTransaction.Créditos);
+            console.log('   Banco:', problematicTransaction.banco);
+            console.log('   FacturasAsignadas:', problematicTransaction.FacturasAsignadas);
+            console.log('   Observaciones:', problematicTransaction.Observaciones);
+            console.log('   ID_Cliente:', problematicTransaction.ID_Cliente);
+            
+            const creditValue = problematicTransaction.Créditos || '0';
+            const bank = problematicTransaction.banco || 'BAC';
+            const totalAmount = parsePaymentAmountByBank(creditValue, bank);
+            const assignments = parseAssignedInvoices(problematicTransaction.FacturasAsignadas || '');
+            const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+            const availableAmount = totalAmount - assignedAmount;
+            
+            console.log('   Total Amount:', totalAmount);
+            console.log('   Assigned Amount:', assignedAmount);
+            console.log('   Available Amount:', availableAmount);
+            console.log('   Available > 0.01:', availableAmount > 0.01);
+        } else {
+            console.log('❌ TRANSACCIÓN PROBLEMÁTICA NO ENCONTRADA EN pendingTransactions');
+            console.log('   Buscando en allTransactions...');
+            const allProblematic = allTransactions.filter(t => 
+                t.Referencia === '970873893' && 
+                t.Fecha === '03/08/2025'
+            );
+            console.log('   Transacciones encontradas con esa referencia:', allProblematic.length);
+            allProblematic.forEach((t, i) => {
+                console.log(`   ${i + 1}. Referencia: ${t.Referencia}, Fecha: ${t.Fecha}, Créditos: ${t.Créditos}, Banco: ${t.banco}, ID_Cliente: ${t.ID_Cliente}, Observaciones: ${t.Observaciones}`);
+            });
+        }
+        
         const transactionsWithAvailableBalance = pendingTransactions.filter(transaction => {
             // Parsear el monto total de la transacción
             const creditValue = transaction.Créditos || '0';
@@ -869,6 +952,15 @@ async function loadTransactionsTab() {
             const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
             const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
             const availableAmount = totalAmount - assignedAmount;
+            
+            // Debug específico para la transacción problemática
+            if (transaction.Referencia === '970873893' && transaction.Fecha === '03/08/2025') {
+                console.log('🔍 CÁLCULO DE SALDO DISPONIBLE:');
+                console.log('   FacturasAsignadas raw:', transaction.FacturasAsignadas);
+                console.log('   Assignments parsed:', assignments);
+                console.log('   Assigned Amount:', assignedAmount);
+                console.log('   Available Amount:', availableAmount);
+            }
             
             // Debug: mostrar información de la transacción
             if (transaction.Referencia) {
@@ -1629,56 +1721,94 @@ window.syncExistingPayments = syncExistingPayments;
 function parsePaymentAmountByBank(creditValue, bank) {
     if (!creditValue) return 0;
     
-    console.log(`🔍 PARSEO DETALLADO:`);
-    console.log(`   - Valor original: "${creditValue}"`);
-    console.log(`   - Banco: "${bank}"`);
+    // Debug específico para la transacción problemática
+    const isProblematic = creditValue === '60.000,00' && bank === 'BAC';
+    
+    if (isProblematic) {
+        console.log(`🔍 PARSEO DETALLADO PARA TRANSACCIÓN PROBLEMÁTICA:`);
+        console.log(`   - Valor original: "${creditValue}"`);
+        console.log(`   - Banco: "${bank}"`);
+    }
     
     const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
-    console.log(`   - Valor limpio: "${cleanValue}"`);
+    if (isProblematic) {
+        console.log(`   - Valor limpio: "${cleanValue}"`);
+    }
     
     if (bank === 'BAC') {
-        console.log(`   - Procesando como BAC`);
+        if (isProblematic) {
+            console.log(`   - Procesando como BAC`);
+        }
         // BAC usa formato europeo: punto como separador de miles, coma como decimal
         // Ejemplos: 129.000,00 o 129.000
         if (cleanValue.includes(',')) {
             // Tiene decimales: 129.000,00 -> 129000.00
             const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
-            console.log(`   - Con decimales: "${cleanValue}" -> "${normalizedValue}"`);
+            if (isProblematic) {
+                console.log(`   - Con decimales: "${cleanValue}" -> "${normalizedValue}"`);
+            }
             return parseFloat(normalizedValue);
         } else {
             // No tiene decimales: 129.000 -> 129000
             const normalizedValue = cleanValue.replace(/\./g, '');
-            console.log(`   - Sin decimales: "${cleanValue}" -> "${normalizedValue}"`);
+            if (isProblematic) {
+                console.log(`   - Sin decimales: "${cleanValue}" -> "${normalizedValue}"`);
+            }
             return parseFloat(normalizedValue);
         }
     } else if (bank === 'BN') {
-        console.log(`   - Procesando como BN`);
+        if (isProblematic) {
+            console.log(`   - Procesando como BN`);
+        }
         // BN usa formato americano: coma como separador de miles, punto como decimal
         // Ejemplos: 200,000.00 o 200,000
         if (cleanValue.includes(',')) {
             // Tiene coma como separador de miles: 200,000.00 -> 200000.00
             const normalizedValue = cleanValue.replace(/,/g, '');
-            console.log(`   - Con separador de miles: "${cleanValue}" -> "${normalizedValue}"`);
+            if (isProblematic) {
+                console.log(`   - Con separador de miles: "${cleanValue}" -> "${normalizedValue}"`);
+            }
             return parseFloat(normalizedValue);
         } else {
             // No tiene separador de miles: 200000.00 -> 200000.00
-            console.log(`   - Sin separador de miles: "${cleanValue}" -> "${cleanValue}"`);
+            if (isProblematic) {
+                console.log(`   - Sin separador de miles: "${cleanValue}" -> "${cleanValue}"`);
+            }
             return parseFloat(cleanValue);
         }
     } else if (bank === 'HuberBN') {
+        if (isProblematic) {
+            console.log(`   - Procesando como HuberBN`);
+        }
         // HuberBN usa formato americano (ej: 100,000.00)
         if (cleanValue.includes(',')) {
             // Si tiene coma, es separador de miles (ej: 100,000.00)
             const normalizedValue = cleanValue.replace(/,/g, '');
+            if (isProblematic) {
+                console.log(`   - Con separador de miles: "${cleanValue}" -> "${normalizedValue}"`);
+            }
             return parseFloat(normalizedValue);
         } else {
+            if (isProblematic) {
+                console.log(`   - Sin separador de miles: "${cleanValue}" -> "${cleanValue}"`);
+            }
             return parseFloat(cleanValue);
         }
     } else {
+        if (isProblematic) {
+            console.log(`   - Procesando como banco general`);
+        }
         // Otros bancos - usar lógica general
         if (cleanValue.includes(',')) {
-            return parseFloat(cleanValue.replace(',', '.'));
+            const normalizedValue = cleanValue.replace(',', '.');
+            if (isProblematic) {
+                console.log(`   - Reemplazando coma por punto: "${cleanValue}" -> "${normalizedValue}"`);
+            }
+            return parseFloat(normalizedValue);
         } else {
+            if (isProblematic) {
+                console.log(`   - Sin cambios: "${cleanValue}" -> "${cleanValue}"`);
+            }
             return parseFloat(cleanValue);
         }
     }

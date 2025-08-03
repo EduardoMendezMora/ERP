@@ -716,14 +716,32 @@ function parseAssignedInvoices(assignedString) {
     if (!assignedString || assignedString.trim() === '') return [];
 
     try {
+        // Debug específico para la transacción problemática
+        if (assignedString === 'FAC-19511:47000') {
+            console.log('🔍 PARSEANDO FACTURAS ASIGNADAS PROBLEMÁTICAS:');
+            console.log('   Input string:', assignedString);
+        }
+        
         // Formato esperado: "FAC-001:15000;FAC-002:25000"
-        return assignedString.split(';').map(assignment => {
+        const result = assignedString.split(';').map(assignment => {
             const [invoiceNumber, amount] = assignment.split(':');
-            return {
+            const parsed = {
                 invoiceNumber: invoiceNumber.trim(),
                 amount: parseFloat(amount) || 0
             };
+            
+            if (assignedString === 'FAC-19511:47000') {
+                console.log('   Assignment parsed:', parsed);
+            }
+            
+            return parsed;
         }).filter(assignment => assignment.invoiceNumber && assignment.amount > 0);
+        
+        if (assignedString === 'FAC-19511:47000') {
+            console.log('   Final result:', result);
+        }
+        
+        return result;
     } catch (error) {
         console.error('Error al parsear asignaciones:', error);
         return [];
