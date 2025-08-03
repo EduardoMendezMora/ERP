@@ -1991,9 +1991,6 @@ function testParsingProblematicAmount() {
     };
 }
 
-// Ejecutar prueba automáticamente
-testParsingProblematicAmount();
-
 // ===== FUNCIÓN DE PRUEBA COMPLETA PARA LA TRANSACCIÓN PROBLEMÁTICA =====
 async function testCompletePaymentAssignment() {
     console.log(`🧪 [PRUEBA COMPLETA] === PRUEBA COMPLETA PARA 970873893 ===`);
@@ -2055,6 +2052,3 @@ async function testCompletePaymentAssignment() {
         updateData
     };
 }
-
-// Ejecutar prueba completa automáticamente
-testCompletePaymentAssignment();
