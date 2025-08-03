@@ -4298,7 +4298,13 @@ _Sistema Inteligente de Transacciones_`;
 
             parseAmount(amountStr) {
                 if (!amountStr) return 0;
-               
+                
+                // Si ya es un número (float), retornarlo directamente
+                if (typeof amountStr === 'number') {
+                    return amountStr;
+                }
+                
+                // Si es string, usar la lógica de parseo existente para compatibilidad
                 let cleanStr = amountStr.toString();
                
                 if (cleanStr.includes('.') && !cleanStr.includes(',')) {
@@ -4392,7 +4398,16 @@ _Sistema Inteligente de Transacciones_`;
 
             formatAmount(amount) {
                 if (!amount) return '¢0,00';
-               
+                
+                // Si ya es un número (float), formatearlo directamente
+                if (typeof amount === 'number') {
+                    return `¢${amount.toLocaleString('es-CR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }).replace(/\./g, 'TEMP').replace(/,/g, '.').replace(/TEMP/g, ',')}`;
+                }
+                
+                // Si es string, usar la lógica de parseo existente para compatibilidad
                 let amountStr = amount.toString();
                
                 if (amountStr.includes('.') && !amountStr.includes(',')) {

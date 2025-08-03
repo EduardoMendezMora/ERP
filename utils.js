@@ -288,9 +288,30 @@ function testClientIdDetection(clientId, observationsText) {
 }
 
 // ===== FUNCIONES DE PARSEO DE MONTOS =====
+// Nueva función para manejar float numbers directamente (después de normalización del backend)
+function parseFloatAmount(amount) {
+    if (amount === null || amount === undefined || amount === '') return 0;
+    
+    // Si ya es un número, retornarlo directamente
+    if (typeof amount === 'number') {
+        return amount;
+    }
+    
+    // Si es string, intentar parsearlo como float
+    const parsed = parseFloat(amount);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
+// Función actualizada para compatibilidad con el nuevo formato de datos normalizados
 function parsePaymentAmount(paymentAmount, bankSource) {
     if (!paymentAmount) return 0;
 
+    // Si ya es un número (float), retornarlo directamente
+    if (typeof paymentAmount === 'number') {
+        return paymentAmount;
+    }
+
+    // Si es string, usar la lógica de parseo existente para compatibilidad
     let cleanAmount = paymentAmount.toString().trim();
 
     if (bankSource === 'BAC') {
@@ -1681,6 +1702,7 @@ window.testClientIdDetection = testClientIdDetection;
 
 // Funciones de parseo
 window.parsePaymentAmount = parsePaymentAmount;
+window.parseFloatAmount = parseFloatAmount; // Exponer la nueva función
 
 // Funciones de banco
 window.getBankDisplayName = getBankDisplayName;
