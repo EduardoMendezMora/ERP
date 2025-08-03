@@ -967,6 +967,92 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
     }
 }
 
+// ===== FUNCIÓN PARA CORREGIR SALDO DISPONIBLE DE TRANSACCIÓN ESPECÍFICA =====
+async function corregirSaldoDisponible(reference = '970873893') {
+    try {
+        console.log(`🔧 [CORRECCIÓN] Iniciando corrección de saldo para transacción ${reference}`);
+        
+        // Buscar la transacción en todas las hojas
+        const sheets = ['BAC', 'BN', 'HuberBN'];
+        let foundPayment = null;
+        let foundSheet = null;
+        
+        for (const sheet of sheets) {
+            try {
+                const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
+                const response = await fetch(url);
+                
+                if (response.ok) {
+                    const paymentsData = await response.json();
+                    const payments = Array.isArray(paymentsData) ? paymentsData : [];
+                    
+                    const payment = payments.find(p => p.Referencia === reference);
+                    if (payment) {
+                        foundPayment = payment;
+                        foundSheet = sheet;
+                        console.log(`🔧 [CORRECCIÓN] Transacción encontrada en hoja ${sheet}`);
+                        break;
+                    }
+                }
+            } catch (error) {
+                console.error(`🔧 [CORRECCIÓN] Error consultando hoja ${sheet}:`, error);
+            }
+        }
+        
+        if (!foundPayment) {
+            console.error(`🔧 [CORRECCIÓN] Transacción ${reference} no encontrada en ninguna hoja`);
+            return false;
+        }
+        
+        console.log(`🔧 [CORRECCIÓN] Datos actuales de la transacción:`, foundPayment);
+        
+        // Calcular el saldo disponible correcto
+        const paymentAmount = parsePaymentAmount(foundPayment.Créditos, foundPayment.BankSource);
+        const assignments = parseAssignedInvoices(foundPayment.FacturasAsignadas || '');
+        const totalAssignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+        const correctAvailableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
+        
+        console.log(`🔧 [CORRECCIÓN] Cálculo del saldo disponible:`);
+        console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Saldo disponible correcto: ₡${correctAvailableAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Saldo disponible actual: "${foundPayment.Disponible}"`);
+        
+        // Preparar datos para actualizar
+        const updateData = {
+            Disponible: correctAvailableAmount > 0 ? correctAvailableAmount.toString() : ''
+        };
+        
+        console.log(`🔧 [CORRECCIÓN] Datos a actualizar:`, updateData);
+        
+        // Actualizar usando el método oficial
+        const updateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(foundPayment.Referencia)}?sheet=${foundPayment.BankSource}`;
+        
+        const response = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updateData)
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log(`✅ [CORRECCIÓN] Saldo disponible corregido exitosamente:`, result);
+            console.log(`✅ [CORRECCIÓN] Nuevo saldo disponible: ₡${correctAvailableAmount.toLocaleString('es-CR')}`);
+            return true;
+        } else {
+            const errorText = await response.text();
+            console.error(`❌ [CORRECCIÓN] Error al corregir saldo:`, response.status, errorText);
+            return false;
+        }
+        
+    } catch (error) {
+        console.error(`❌ [CORRECCIÓN] Error en la corrección:`, error);
+        return false;
+    }
+}
+
 // ===== FUNCIÓN DE PRUEBA PARA DEBUGGING DE TRANSACCIÓN ESPECÍFICA =====
 async function testDisponibleForTransaction(reference = '970873893') {
     try {
@@ -1099,6 +1185,17 @@ async function loadUnassignedPayments(clientId) {
                             console.log(`   - Disponible (backend): "${payment.Disponible}"`);
                             console.log(`   - availableAmount: ₡${availableAmount.toLocaleString('es-CR')}`);
                             console.log(`   - Condición (monto disponible): ${availableAmount > 0.01}`);
+                        }
+                        
+                        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA 970873893
+                        if (payment.Referencia === '970873893') {
+                            console.log(`🔍 [DEBUG ESPECÍFICO] Pago 970873893 en ${sheet}:`);
+                            console.log(`   - Créditos: "${payment.Créditos}"`);
+                            console.log(`   - FacturasAsignadas: "${payment.FacturasAsignadas}"`);
+                            console.log(`   - Disponible (backend): "${payment.Disponible}"`);
+                            console.log(`   - availableAmount: ₡${availableAmount.toLocaleString('es-CR')}`);
+                            console.log(`   - Condición (monto disponible): ${availableAmount > 0.01}`);
+                            console.log(`   - Payment object completo:`, payment);
                         }
 
                         // Mostrar transacción si tiene saldo disponible
@@ -1585,6 +1682,7 @@ window.debugSheetDBInfo = debugSheetDBInfo;
 window.sendPaymentAssignmentWhatsAppNotification = sendPaymentAssignmentWhatsAppNotification;
 window.getCurrentUserName = getCurrentUserName;
 window.testDisponibleForTransaction = testDisponibleForTransaction;
+window.corregirSaldoDisponible = corregirSaldoDisponible;
 
 console.log('✅ payment-management.js COMPLETO - Usando método oficial SheetDB + WhatsApp');
 console.log('🧪 Funciones de debugging disponibles:');
@@ -1592,6 +1690,7 @@ console.log('  - debugSheetDBInfo() - Información de debugging');
 console.log('  - testSheetDBConnection(referencia, banco) - Prueba conexión oficial');
 console.log('  - quickTestUpdate(referencia, banco) - Prueba rápida oficial');
 console.log('  - testDisponibleForTransaction(referencia) - Prueba guardado de Disponible');
+console.log('  - corregirSaldoDisponible(referencia) - Corregir saldo disponible de transacción');
 console.log('');
 console.log('📱 NUEVA FUNCIONALIDAD WHATSAPP:');
 console.log('  ✅ Envío automático de notificaciones al asignar pagos');
