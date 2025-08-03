@@ -15,11 +15,29 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
             throw new Error('Factura o pago no encontrado');
         }
 
-        // Calcular el monto disponible del pago (descontando asignaciones previas)
-        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-        const previousAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-        const previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
-        const availableAmount = paymentAmount - previouslyAssignedAmount;
+        // PRIORIDAD 1: Usar columna "Disponible" si existe
+        let availableAmount = 0;
+        let paymentAmount = 0;
+        let previouslyAssignedAmount = 0;
+        
+        if (payment.Disponible !== undefined && payment.Disponible !== null && payment.Disponible !== '') {
+            availableAmount = parseFloat(payment.Disponible) || 0;
+            
+            // Para mostrar información completa, calcular el total y asignado
+            paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+            const previousAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+            previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+            
+            console.log(`💰 ${payment.Referencia}: Disponible (columna) = ${availableAmount}, Total = ${paymentAmount}, Asignado = ${previouslyAssignedAmount}`);
+        } else {
+            // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
+            paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+            const previousAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+            previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+            availableAmount = paymentAmount - previouslyAssignedAmount;
+            
+            console.log(`🔍 ${payment.Referencia}: Total=${paymentAmount}, Asignado=${previouslyAssignedAmount}, Disponible (calculado)=${availableAmount}`);
+        }
 
         console.log(`💰 Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
         console.log(`💸 Previamente asignado: ₡${previouslyAssignedAmount.toLocaleString('es-CR')}`);
@@ -360,10 +378,29 @@ function updateDistributionCalculation(index) {
 }
 
 function updateDistributionSummary() {
-    const availableAmount = parsePaymentAmount(currentPaymentForDistribution.Créditos, currentPaymentForDistribution.BankSource);
-    const previousAssignments = parseAssignedInvoices(currentPaymentForDistribution.FacturasAsignadas || '');
-    const previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
-    const actualAvailable = availableAmount - previouslyAssignedAmount;
+    // PRIORIDAD 1: Usar columna "Disponible" si existe
+    let actualAvailable = 0;
+    let availableAmount = 0;
+    let previouslyAssignedAmount = 0;
+    
+    if (currentPaymentForDistribution.Disponible !== undefined && currentPaymentForDistribution.Disponible !== null && currentPaymentForDistribution.Disponible !== '') {
+        actualAvailable = parseFloat(currentPaymentForDistribution.Disponible) || 0;
+        
+        // Para mostrar información completa, calcular el total y asignado
+        availableAmount = parsePaymentAmount(currentPaymentForDistribution.Créditos, currentPaymentForDistribution.BankSource);
+        const previousAssignments = parseAssignedInvoices(currentPaymentForDistribution.FacturasAsignadas || '');
+        previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+        
+        console.log(`💰 ${currentPaymentForDistribution.Referencia}: Disponible (columna) = ${actualAvailable}, Total = ${availableAmount}, Asignado = ${previouslyAssignedAmount}`);
+    } else {
+        // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
+        availableAmount = parsePaymentAmount(currentPaymentForDistribution.Créditos, currentPaymentForDistribution.BankSource);
+        const previousAssignments = parseAssignedInvoices(currentPaymentForDistribution.FacturasAsignadas || '');
+        previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+        actualAvailable = availableAmount - previouslyAssignedAmount;
+        
+        console.log(`🔍 ${currentPaymentForDistribution.Referencia}: Total=${availableAmount}, Asignado=${previouslyAssignedAmount}, Disponible (calculado)=${actualAvailable}`);
+    }
 
     const totalAssigned = paymentDistributionData.reduce((sum, item) => sum + item.assignedAmount, 0);
     const remaining = actualAvailable - totalAssigned;
@@ -931,27 +968,47 @@ async function loadUnassignedPayments(clientId) {
 
                     // Filtrar solo los que NO están completamente asignados
                     const unassignedFromSheet = clientRelatedPayments.filter(payment => {
-                        const paymentAmount = parsePaymentAmount(payment.Créditos, sheet);
-                        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-                        const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-                        const availableAmount = paymentAmount - assignedAmount;
+                        // PRIORIDAD 1: Usar columna "Disponible" si existe
+                        let availableAmount = 0;
+                        let paymentAmount = 0;
+                        let assignedAmount = 0;
+                        
+                        if (payment.Disponible !== undefined && payment.Disponible !== null && payment.Disponible !== '') {
+                            availableAmount = parseFloat(payment.Disponible) || 0;
+                            
+                            // Para mostrar información completa, calcular el total y asignado
+                            paymentAmount = parsePaymentAmount(payment.Créditos, sheet);
+                            const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+                            assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+                            
+                            console.log(`💰 ${payment.Referencia}: Disponible (columna) = ${availableAmount}, Total = ${paymentAmount}, Asignado = ${assignedAmount}`);
+                        } else {
+                            // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
+                            paymentAmount = parsePaymentAmount(payment.Créditos, sheet);
+                            const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+                            assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+                            availableAmount = paymentAmount - assignedAmount;
+                            
+                            console.log(`🔍 ${payment.Referencia}: Total=${paymentAmount}, Asignado=${assignedAmount}, Disponible (calculado)=${availableAmount}`);
+                        }
 
                         // DEBUGGING ESPECÍFICO PARA EL PAGO PROBLEMÁTICO
                         if (payment.Referencia === '970430862') {
                             console.log(`🔍 [DEBUG] Pago 970430862 en ${sheet}:`);
                             console.log(`   - Créditos: "${payment.Créditos}"`);
                             console.log(`   - FacturasAsignadas: "${payment.FacturasAsignadas}"`);
+                            console.log(`   - Disponible (columna): "${payment.Disponible}"`);
                             console.log(`   - paymentAmount: ₡${paymentAmount.toLocaleString('es-CR')}`);
                             console.log(`   - assignedAmount: ₡${assignedAmount.toLocaleString('es-CR')}`);
                             console.log(`   - availableAmount: ₡${availableAmount.toLocaleString('es-CR')}`);
-                            console.log(`   - assignments.length: ${assignments.length}`);
-                            console.log(`   - Condición 1 (no asignaciones): ${assignments.length === 0}`);
+                            console.log(`   - assignments.length: ${assignments ? assignments.length : 0}`);
+                            console.log(`   - Condición 1 (no asignaciones): ${!assignments || assignments.length === 0}`);
                             console.log(`   - Condición 2 (monto disponible): ${availableAmount > 0.01}`);
-                            console.log(`   - Resultado final: ${assignments.length === 0 || availableAmount > 0.01}`);
+                            console.log(`   - Resultado final: ${(!assignments || assignments.length === 0) || availableAmount > 0.01}`);
                         }
 
                         // Si no tiene asignaciones O tiene monto disponible
-                        return assignments.length === 0 || availableAmount > 0.01;
+                        return (!assignments || assignments.length === 0) || availableAmount > 0.01;
                     });
 
                     // Agregar información de la fuente (banco)

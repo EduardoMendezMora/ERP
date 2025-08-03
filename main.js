@@ -341,10 +341,29 @@ function createAssignInvoiceModal() {
 
 // ===== RENDERIZADO DE MODALES DE ASIGNACIÓN =====
 function renderAssignPaymentModal(payment) {
-    const totalAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-    const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-    const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-    const availableAmount = totalAmount - assignedAmount;
+    // PRIORIDAD 1: Usar columna "Disponible" si existe
+    let availableAmount = 0;
+    let totalAmount = 0;
+    let assignedAmount = 0;
+    
+    if (payment.Disponible !== undefined && payment.Disponible !== null && payment.Disponible !== '') {
+        availableAmount = parseFloat(payment.Disponible) || 0;
+        
+        // Para mostrar información completa, calcular el total y asignado
+        totalAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+        assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+        
+        console.log(`💰 ${payment.Referencia}: Disponible (columna) = ${availableAmount}, Total = ${totalAmount}, Asignado = ${assignedAmount}`);
+    } else {
+        // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
+        totalAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+        assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+        availableAmount = totalAmount - assignedAmount;
+        
+        console.log(`🔍 ${payment.Referencia}: Total=${totalAmount}, Asignado=${assignedAmount}, Disponible (calculado)=${availableAmount}`);
+    }
 
     // Información del pago
     document.getElementById('paymentInfoForAssignment').innerHTML = `
@@ -444,12 +463,31 @@ function renderAssignInvoiceModal(invoice) {
     }
 
     const paymentOptionsHTML = unassignedPayments.map(payment => {
-        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-        const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-        const availableAmount = paymentAmount - assignedAmount;
+        // PRIORIDAD 1: Usar columna "Disponible" si existe
+        let availableAmount = 0;
+        let paymentAmount = 0;
+        let assignedAmount = 0;
+        
+        if (payment.Disponible !== undefined && payment.Disponible !== null && payment.Disponible !== '') {
+            availableAmount = parseFloat(payment.Disponible) || 0;
+            
+            // Para mostrar información completa, calcular el total y asignado
+            paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+            const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+            assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+            
+            console.log(`💰 ${payment.Referencia}: Disponible (columna) = ${availableAmount}, Total = ${paymentAmount}, Asignado = ${assignedAmount}`);
+        } else {
+            // PRIORIDAD 2: Calcular dinámicamente si no hay columna "Disponible"
+            paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+            const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+            assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+            availableAmount = paymentAmount - assignedAmount;
+            
+            console.log(`🔍 ${payment.Referencia}: Total=${paymentAmount}, Asignado=${assignedAmount}, Disponible (calculado)=${availableAmount}`);
+        }
 
-        if (availableAmount <= 0) return ''; // Skip pagos completamente asignados
+        if (availableAmount <= 0.01) return ''; // Skip pagos completamente asignados
 
         const difference = Math.abs(totalAmount - availableAmount);
         const isExactMatch = difference < 0.01;
