@@ -512,6 +512,20 @@ async function confirmPaymentDistribution() {
             console.log(`   - ¿Es completamente asignado?: ${Math.abs(totalAccumulatedAssignments - totalPayment) < 0.01}`);
         }
         
+        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA 970873893
+        if (currentPaymentForDistribution.Referencia === '970873893') {
+            console.log(`🔍 [DEBUG ESPECÍFICO] Pago 970873893 - Verificando distribución completa:`);
+            console.log(`   - FacturasAsignadas actual: "${currentPaymentForDistribution.FacturasAsignadas}"`);
+            console.log(`   - previousAssignments:`, previousAssignments);
+            console.log(`   - previouslyAssignedAmount: ₡${previouslyAssignedAmount.toLocaleString('es-CR')}`);
+            console.log(`   - newAssignments:`, newAssignments);
+            console.log(`   - totalAssigned: ₡${totalAssigned.toLocaleString('es-CR')}`);
+            console.log(`   - totalAccumulatedAssignments: ₡${totalAccumulatedAssignments.toLocaleString('es-CR')}`);
+            console.log(`   - totalPayment: ₡${totalPayment.toLocaleString('es-CR')}`);
+            console.log(`   - Diferencia: ₡${(totalAccumulatedAssignments - totalPayment).toLocaleString('es-CR')}`);
+            console.log(`   - ¿Es completamente asignado?: ${Math.abs(totalAccumulatedAssignments - totalPayment) < 0.01}`);
+        }
+        
         console.log(`🔍 Verificando si pago distribuido está completamente asignado:`);
         console.log(`   - Asignaciones previas: ₡${previouslyAssignedAmount.toLocaleString('es-CR')}`);
         console.log(`   - Nuevas asignaciones: ₡${totalAssigned.toLocaleString('es-CR')}`);
@@ -670,6 +684,19 @@ async function updatePaymentAssignments(payment, newAssignments) {
         console.log('📦 Datos a actualizar:', updateData);
 
         // DEBUGGING PROFUNDO: Mostrar toda la información relevante antes del PATCH
+        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
+        if (payment.Referencia === '970873893') {
+            console.log('🔍 [DEBUG ESPECÍFICO] === TRANSACCIÓN 970873893 ===');
+            console.log('🔍 [DEBUG ESPECÍFICO] Payment object:', payment);
+            console.log('🔍 [DEBUG ESPECÍFICO] New assignments:', newAssignments);
+            console.log('🔍 [DEBUG ESPECÍFICO] Combined assignments:', combinedAssignments);
+            console.log('🔍 [DEBUG ESPECÍFICO] Payment amount:', paymentAmount);
+            console.log('🔍 [DEBUG ESPECÍFICO] Total assigned amount:', totalAssignedAmount);
+            console.log('🔍 [DEBUG ESPECÍFICO] Available amount:', availableAmount);
+            console.log('🔍 [DEBUG ESPECÍFICO] Update data:', updateData);
+            console.log('🔍 [DEBUG ESPECÍFICO] === FIN DEBUG ESPECÍFICO ===');
+        }
+
         console.log('🛠️ [DEBUG] --- INICIO DEBUG PROFUNDO PATCH SheetDB ---');
         console.log('🛠️ [DEBUG] URL PATCH:', officialUpdateUrl);
         console.log('🛠️ [DEBUG] Headers:', { 'Content-Type': 'application/json' });
@@ -704,12 +731,29 @@ async function updatePaymentAssignments(payment, newAssignments) {
             const result = await response.json();
             console.log('✅ Actualización oficial exitosa:', result);
             console.log(`✅ Saldo disponible guardado: ₡${availableAmount.toLocaleString('es-CR')}`);
+            
+            // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
+            if (payment.Referencia === '970873893') {
+                console.log('🔍 [DEBUG ESPECÍFICO] === RESPUESTA EXITOSA 970873893 ===');
+                console.log('🔍 [DEBUG ESPECÍFICO] Response result:', result);
+                console.log('🔍 [DEBUG ESPECÍFICO] Available amount saved:', availableAmount);
+                console.log('🔍 [DEBUG ESPECÍFICO] === FIN DEBUG RESPUESTA ===');
+            }
+            
             return combinedAssignments;
         }
 
         // Si el método oficial falla, obtener más información del error
         const errorText = await response.text();
         console.error('❌ Error en método oficial:', response.status, errorText);
+        
+        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
+        if (payment.Referencia === '970873893') {
+            console.log('🔍 [DEBUG ESPECÍFICO] === ERROR 970873893 ===');
+            console.log('🔍 [DEBUG ESPECÍFICO] Response status:', response.status);
+            console.log('🔍 [DEBUG ESPECÍFICO] Error text:', errorText);
+            console.log('🔍 [DEBUG ESPECÍFICO] === FIN DEBUG ERROR ===');
+        }
 
         // Verificar si el problema es que el registro no existe
         if (response.status === 404) {
@@ -855,12 +899,28 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
         console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
         console.log(`   - Saldo disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
 
+        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
+        if (payment.Referencia === '970873893') {
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] === TRANSACCIÓN 970873893 RAW ===');
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Payment object:', payment);
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Assignments:', assignments);
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Payment amount:', paymentAmount);
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Total assigned amount:', totalAssignedAmount);
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount:', availableAmount);
+        }
+
         // Datos a actualizar
         const updateData = {
             FacturasAsignadas: formattedAssignments,
             FechaAsignacion: assignments.length > 0 ? formatDateForStorage(new Date()) : '',
             Disponible: availableAmount > 0 ? availableAmount.toString() : '' // Guardar saldo disponible
         };
+        
+        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
+        if (payment.Referencia === '970873893') {
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Update data:', updateData);
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] === FIN DEBUG RAW ===');
+        }
 
         // URL oficial según documentación
         const updateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
@@ -869,24 +929,102 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
         const response = await fetch(updateUrl, {
             method: 'PATCH',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
             },
-            body: new URLSearchParams(updateData).toString()
+            body: JSON.stringify(updateData)
         });
 
         if (response.ok) {
             console.log('✅ Actualización RAW oficial exitosa');
             console.log(`✅ Saldo disponible guardado: ₡${availableAmount.toLocaleString('es-CR')}`);
+            
+            // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
+            if (payment.Referencia === '970873893') {
+                console.log('🔍 [DEBUG ESPECÍFICO RAW] === RESPUESTA EXITOSA RAW 970873893 ===');
+                console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount saved:', availableAmount);
+                console.log('🔍 [DEBUG ESPECÍFICO RAW] === FIN DEBUG RESPUESTA RAW ===');
+            }
+            
             return true;
         } else {
             const errorText = await response.text();
             console.error('❌ Error en actualización RAW:', response.status, errorText);
+            
+            // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
+            if (payment.Referencia === '970873893') {
+                console.log('🔍 [DEBUG ESPECÍFICO RAW] === ERROR RAW 970873893 ===');
+                console.log('🔍 [DEBUG ESPECÍFICO RAW] Response status:', response.status);
+                console.log('🔍 [DEBUG ESPECÍFICO RAW] Error text:', errorText);
+                console.log('🔍 [DEBUG ESPECÍFICO RAW] === FIN DEBUG ERROR RAW ===');
+            }
+            
             throw new Error(`Actualización RAW fallida: HTTP ${response.status} - ${errorText}`);
         }
 
     } catch (error) {
         console.error('❌ Error en updatePaymentAssignmentsRaw:', error);
         throw error;
+    }
+}
+
+// ===== FUNCIÓN DE PRUEBA PARA DEBUGGING DE TRANSACCIÓN ESPECÍFICA =====
+async function testDisponibleForTransaction(reference = '970873893') {
+    try {
+        console.log(`🧪 [TEST] Iniciando prueba para transacción ${reference}`);
+        
+        // Buscar la transacción en todas las hojas
+        const sheets = ['BAC', 'BN', 'HuberBN'];
+        let foundPayment = null;
+        let foundSheet = null;
+        
+        for (const sheet of sheets) {
+            try {
+                const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
+                const response = await fetch(url);
+                
+                if (response.ok) {
+                    const paymentsData = await response.json();
+                    const payments = Array.isArray(paymentsData) ? paymentsData : [];
+                    
+                    const payment = payments.find(p => p.Referencia === reference);
+                    if (payment) {
+                        foundPayment = payment;
+                        foundSheet = sheet;
+                        console.log(`🧪 [TEST] Transacción encontrada en hoja ${sheet}`);
+                        break;
+                    }
+                }
+            } catch (error) {
+                console.error(`🧪 [TEST] Error consultando hoja ${sheet}:`, error);
+            }
+        }
+        
+        if (!foundPayment) {
+            console.error(`🧪 [TEST] Transacción ${reference} no encontrada en ninguna hoja`);
+            return false;
+        }
+        
+        console.log(`🧪 [TEST] Datos de la transacción:`, foundPayment);
+        
+        // Simular una asignación de prueba
+        const testAssignments = [{
+            invoiceNumber: 'TEST-001',
+            amount: 1000
+        }];
+        
+        console.log(`🧪 [TEST] Aplicando asignación de prueba...`);
+        
+        // Usar updatePaymentAssignments para probar el guardado de Disponible
+        const result = await updatePaymentAssignments(foundPayment, testAssignments);
+        
+        console.log(`🧪 [TEST] Resultado de la prueba:`, result);
+        console.log(`🧪 [TEST] Prueba completada exitosamente`);
+        
+        return true;
+        
+    } catch (error) {
+        console.error(`🧪 [TEST] Error en la prueba:`, error);
+        return false;
     }
 }
 
@@ -1446,12 +1584,14 @@ window.quickTestUpdate = quickTestUpdate;
 window.debugSheetDBInfo = debugSheetDBInfo;
 window.sendPaymentAssignmentWhatsAppNotification = sendPaymentAssignmentWhatsAppNotification;
 window.getCurrentUserName = getCurrentUserName;
+window.testDisponibleForTransaction = testDisponibleForTransaction;
 
 console.log('✅ payment-management.js COMPLETO - Usando método oficial SheetDB + WhatsApp');
 console.log('🧪 Funciones de debugging disponibles:');
 console.log('  - debugSheetDBInfo() - Información de debugging');
 console.log('  - testSheetDBConnection(referencia, banco) - Prueba conexión oficial');
 console.log('  - quickTestUpdate(referencia, banco) - Prueba rápida oficial');
+console.log('  - testDisponibleForTransaction(referencia) - Prueba guardado de Disponible');
 console.log('');
 console.log('📱 NUEVA FUNCIONALIDAD WHATSAPP:');
 console.log('  ✅ Envío automático de notificaciones al asignar pagos');
