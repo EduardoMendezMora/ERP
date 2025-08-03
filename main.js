@@ -847,12 +847,32 @@ async function loadTransactionsTab() {
                 console.log('   FacturasAsignadas:', t.FacturasAsignadas);
             }
             
-            // Si tiene ID_Cliente asignado, está conciliada
+            // Para transacciones con ID_Cliente, verificar si tienen saldo disponible
             if (t.ID_Cliente && t.ID_Cliente.trim() !== '' && t.ID_Cliente !== 'undefined') {
+                // Calcular saldo disponible para transacciones con ID_Cliente
+                const totalAmount = parsePaymentAmountByBank(t.Créditos, t.Banco);
+                const assignments = parseAssignedInvoices(t.FacturasAsignadas || '');
+                const assignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+                const availableAmount = totalAmount - assignedAmount;
+                
                 if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
-                    console.log('   ❌ FILTRADA: Tiene ID_Cliente');
+                    console.log('   🔍 TRANSACCIÓN CON ID_Cliente - Calculando saldo:');
+                    console.log('   Total:', totalAmount);
+                    console.log('   Asignado:', assignedAmount);
+                    console.log('   Disponible:', availableAmount);
                 }
-                return false;
+                
+                // Solo incluir si tiene saldo disponible
+                if (availableAmount <= 0.01) {
+                    if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
+                        console.log('   ❌ FILTRADA: Sin saldo disponible');
+                    }
+                    return false;
+                }
+                
+                if (t.Referencia === '970873893' && t.Fecha === '03/08/2025') {
+                    console.log('   ✅ INCLUIDA: Tiene saldo disponible');
+                }
             }
             
             // Parsear fecha de la transacción
