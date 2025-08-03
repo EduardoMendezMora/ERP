@@ -287,18 +287,39 @@ function testClientIdDetection(clientId, observationsText) {
     console.log(`   Resultado: ${isClientIdInObservations(observationsText, clientId) ? '✅ DETECTADO' : '❌ NO DETECTADO'}`);
 }
 
-// ===== FUNCIÓN SIMPLIFICADA PARA MONTOS (BACKEND YA DEVUELVE FLOAT) =====
+// ===== FUNCIÓN PARA PARSEAR MONTOS (MANEJA TANTO FLOAT COMO STRING) =====
 function parsePaymentAmount(paymentAmount, bankSource) {
     if (!paymentAmount) return 0;
     
-    // El backend ya devuelve Float, solo convertir a número
-    const result = parseFloat(paymentAmount) || 0;
-    
     // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-    if (bankSource === 'BAC' && paymentAmount === 60000) {
-        console.log(`🔍 [DEBUG PARSE] === PARSEO BAC 970873893 (FLOAT) ===`);
+    if (bankSource === 'BAC' && (paymentAmount === '60.000,00' || paymentAmount === 60000)) {
+        console.log(`🔍 [DEBUG PARSE] === PARSEO BAC 970873893 ===`);
         console.log(`🔍 [DEBUG PARSE] Amount original: ${paymentAmount} (tipo: ${typeof paymentAmount})`);
         console.log(`🔍 [DEBUG PARSE] BankSource: "${bankSource}"`);
+    }
+    
+    let result = 0;
+    
+    // Si es un número, usarlo directamente
+    if (typeof paymentAmount === 'number') {
+        result = paymentAmount;
+    } else if (typeof paymentAmount === 'string') {
+        // Si es string, procesar según el formato
+        if (bankSource === 'BAC' || bankSource === 'BN') {
+            // Formato: "60.000,00" -> 60000
+            const cleanAmount = paymentAmount.replace(/\./g, '').replace(',', '.');
+            result = parseFloat(cleanAmount) || 0;
+        } else {
+            // Otros bancos: intentar parseFloat directo
+            result = parseFloat(paymentAmount) || 0;
+        }
+    } else {
+        // Otros tipos: intentar conversión
+        result = parseFloat(paymentAmount) || 0;
+    }
+    
+    // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
+    if (bankSource === 'BAC' && (paymentAmount === '60.000,00' || paymentAmount === 60000)) {
         console.log(`🔍 [DEBUG PARSE] Resultado final: ${result}`);
         console.log(`🔍 [DEBUG PARSE] === FIN DEBUG PARSE ===`);
     }

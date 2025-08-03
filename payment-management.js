@@ -12,18 +12,18 @@ function calculateAvailableAmount(payment) {
         const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
         const availableAmount = paymentAmount - assignedAmount;
         
-        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-        if (payment.Referencia === '970873893') {
-            console.log(`🔍 [DEBUG CÁLCULO] === CÁLCULO SALDO DISPONIBLE 970873893 (BACKEND FLOAT) ===`);
-            console.log(`🔍 [DEBUG CÁLCULO] Créditos original: ${payment.Créditos} (tipo: ${typeof payment.Créditos})`);
-            console.log(`🔍 [DEBUG CÁLCULO] BankSource: "${payment.BankSource}"`);
-            console.log(`🔍 [DEBUG CÁLCULO] Payment amount calculado: ₡${paymentAmount.toLocaleString('es-CR')}`);
-            console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas: "${payment.FacturasAsignadas}"`);
-            console.log(`🔍 [DEBUG CÁLCULO] Assignments parsed:`, assignments);
-            console.log(`🔍 [DEBUG CÁLCULO] Assigned amount: ₡${assignedAmount.toLocaleString('es-CR')}`);
-            console.log(`🔍 [DEBUG CÁLCULO] Available amount: ₡${availableAmount.toLocaleString('es-CR')}`);
-            console.log(`🔍 [DEBUG CÁLCULO] === FIN DEBUG CÁLCULO ===`);
-        }
+                         // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
+                 if (payment.Referencia === '970873893') {
+                     console.log(`🔍 [DEBUG CÁLCULO] === CÁLCULO SALDO DISPONIBLE 970873893 ===`);
+                     console.log(`🔍 [DEBUG CÁLCULO] Créditos original: ${payment.Créditos} (tipo: ${typeof payment.Créditos})`);
+                     console.log(`🔍 [DEBUG CÁLCULO] BankSource: "${payment.BankSource}"`);
+                     console.log(`🔍 [DEBUG CÁLCULO] Payment amount calculado: ₡${paymentAmount.toLocaleString('es-CR')}`);
+                     console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas: "${payment.FacturasAsignadas}"`);
+                     console.log(`🔍 [DEBUG CÁLCULO] Assignments parsed:`, assignments);
+                     console.log(`🔍 [DEBUG CÁLCULO] Assigned amount: ₡${assignedAmount.toLocaleString('es-CR')}`);
+                     console.log(`🔍 [DEBUG CÁLCULO] Available amount: ₡${availableAmount.toLocaleString('es-CR')}`);
+                     console.log(`🔍 [DEBUG CÁLCULO] === FIN DEBUG CÁLCULO ===`);
+                 }
         
         console.log(`💰 Pago ${payment.Referencia}: Calculando saldo disponible dinámicamente: ₡${availableAmount.toLocaleString('es-CR')}`);
         return availableAmount;
@@ -1067,13 +1067,13 @@ async function corregirSaldoDisponible(reference = '970873893') {
         
         console.log(`🔧 [CORRECCIÓN] Datos actuales de la transacción:`, foundPayment);
         
-        // Calcular el saldo disponible correcto (BACKEND YA DEVUELVE FLOAT)
+        // Calcular el saldo disponible correcto (maneja tanto Float como String)
         const paymentAmount = parsePaymentAmount(foundPayment.Créditos, foundPayment.BankSource);
         const assignments = parseAssignedInvoices(foundPayment.FacturasAsignadas || '');
         const totalAssignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
         const correctAvailableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
         
-        console.log(`🔧 [CORRECCIÓN] Cálculo del saldo disponible (BACKEND FLOAT):`);
+        console.log(`🔧 [CORRECCIÓN] Cálculo del saldo disponible:`);
         console.log(`   - Créditos del backend: ${foundPayment.Créditos} (tipo: ${typeof foundPayment.Créditos})`);
         console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
         console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
@@ -1318,32 +1318,35 @@ async function probarMetodosActualizacion(reference = '970873893') {
     }
 }
 
-// ===== FUNCIÓN PARA PROBAR EL PARSING DE MONTOS (BACKEND FLOAT) =====
+// ===== FUNCIÓN PARA PROBAR EL PARSING DE MONTOS =====
 function probarParsingMontos() {
-    console.log(`🧪 [PRUEBA PARSING] === PRUEBA DE PARSING DE MONTOS (BACKEND FLOAT) ===`);
+    console.log(`🧪 [PRUEBA PARSING] === PRUEBA DE PARSING DE MONTOS ===`);
     
-    // Probar con el monto problemático (ahora como float)
-    const montoProblematico = 60000; // Float del backend
+    // Probar con el monto problemático (string que viene del backend)
+    const montoProblematico = '60.000,00'; // String del backend
     const bankSource = 'BAC';
     
     console.log(`🧪 [PRUEBA PARSING] Monto original: ${montoProblematico} (tipo: ${typeof montoProblematico})`);
     console.log(`🧪 [PRUEBA PARSING] Banco: "${bankSource}"`);
     
-    // Probar función simplificada
+    // Probar función actualizada
     const resultado = parsePaymentAmount(montoProblematico, bankSource);
     console.log(`🧪 [PRUEBA PARSING] Resultado: ${resultado}`);
     
-    // Probar otros valores float posibles
-    const valoresFloat = [
-        60000,
-        60000.0,
-        60000.00,
-        47000,
-        13000
+    // Probar diferentes formatos posibles
+    const valoresPrueba = [
+        '60.000,00',  // String con formato BAC
+        '60000',      // String numérico
+        60000,        // Float
+        60000.0,      // Float con decimal
+        '47000',      // String numérico
+        47000,        // Float
+        '13.000,00',  // String con formato BAC
+        13000         // Float
     ];
     
-    console.log(`🧪 [PRUEBA PARSING] === PRUEBA DE DIFERENTES VALORES FLOAT ===`);
-    valoresFloat.forEach(valor => {
+    console.log(`🧪 [PRUEBA PARSING] === PRUEBA DE DIFERENTES FORMATOS ===`);
+    valoresPrueba.forEach(valor => {
         const resultado = parsePaymentAmount(valor, bankSource);
         console.log(`🧪 [PRUEBA PARSING] ${valor} (${typeof valor}) -> ${resultado}`);
     });
@@ -1353,7 +1356,7 @@ function probarParsingMontos() {
     return {
         montoOriginal: montoProblematico,
         resultado: resultado,
-        valores: valoresFloat.map(v => ({ valor: v, resultado: parsePaymentAmount(v, bankSource) }))
+        valores: valoresPrueba.map(v => ({ valor: v, resultado: parsePaymentAmount(v, bankSource) }))
     };
 }
 
