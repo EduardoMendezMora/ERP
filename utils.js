@@ -1802,7 +1802,7 @@ setTimeout(() => {
     // Configurar event listeners de búsqueda
     setupSearchEventListeners();
     
-    // Verificar que todo está funcionando
+    // Verificar que todo está funcionando (sin cambiar visibilidad)
     console.log('🔍 Verificando estado de controles...');
-    testSectionControls();
+    console.log('📊 Estado actual de secciones:', sectionVisibility);
 }, 1000);
