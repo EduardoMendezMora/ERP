@@ -620,36 +620,10 @@ function toggleAllSections(show) {
 }
 
 function showOnlyActive() {
-    // Ocultar todo primero
+    // Ocultar todo primero - todas las secciones cerradas por defecto
     Object.keys(sectionVisibility).forEach(key => {
         sectionVisibility[key] = false;
     });
-
-    // Mostrar solo secciones con contenido
-    if (unassignedPayments.length > 0) {
-        sectionVisibility.unassigned = true;
-    }
-
-    const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
-    if (overdueInvoices.length > 0) {
-        sectionVisibility.overdue = true;
-    }
-
-    const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
-    if (upcomingInvoices.length > 0) {
-        sectionVisibility.upcoming = true;
-    }
-
-    // NUEVO: Mostrar Facturas Pagadas si hay contenido
-    const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
-    if (paidInvoices.length > 0) {
-        sectionVisibility.paid = true;
-    }
-
-    // NUEVO: Mostrar Pagos Aplicados si hay contenido
-    if (assignedPayments.length > 0) {
-        sectionVisibility.assigned = true;
-    }
 
     updateSectionVisibility();
     updateControlUI();
