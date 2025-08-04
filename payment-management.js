@@ -2156,3 +2156,121 @@ function testCalculation970873893() {
 
 // Función disponible para pruebas manuales
 // testCalculation970873893();
+
+// ===== FUNCIÓN DE PRUEBA PARA DIAGNOSTICAR 970873893 =====
+function test970873893Calculation() {
+    console.log('🧪 [PRUEBA DIAGNÓSTICO] === PRUEBA ESPECÍFICA PARA 970873893 ===');
+    
+    // Simular los datos exactos del problema
+    const testPayment = {
+        Referencia: '970873893',
+        Créditos: '60.000,00',
+        BankSource: 'BAC',
+        FacturasAsignadas: 'FAC-19511:47000'
+    };
+    
+    console.log('🧪 [PRUEBA DIAGNÓSTICO] Datos de prueba:', testPayment);
+    
+    // Probar parsePaymentAmount
+    const paymentAmount = parsePaymentAmount(testPayment.Créditos, testPayment.BankSource);
+    console.log('🧪 [PRUEBA DIAGNÓSTICO] Payment amount parsed:', paymentAmount);
+    
+    // Probar parseAssignedInvoices
+    const assignments = parseAssignedInvoices(testPayment.FacturasAsignadas);
+    console.log('🧪 [PRUEBA DIAGNÓSTICO] Assignments parsed:', assignments);
+    
+    // Probar cálculo manual
+    const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+    console.log('🧪 [PRUEBA DIAGNÓSTICO] Assigned amount:', assignedAmount);
+    
+    const availableAmount = Math.max(0, paymentAmount - assignedAmount);
+    console.log('🧪 [PRUEBA DIAGNÓSTICO] Available amount calculated:', availableAmount);
+    
+    // Probar calculateAvailableAmount
+    const result = calculateAvailableAmount(testPayment);
+    console.log('🧪 [PRUEBA DIAGNÓSTICO] calculateAvailableAmount result:', result);
+    
+    console.log('🧪 [PRUEBA DIAGNÓSTICO] === FIN PRUEBA DIAGNÓSTICO ===');
+    
+    return {
+        paymentAmount,
+        assignments,
+        assignedAmount,
+        availableAmount,
+        result
+    };
+}
+
+// Ejecutar la prueba automáticamente
+test970873893Calculation();
+
+// ===== FUNCIÓN PARA DEMOSTRAR EL NUEVO FORMATO SUGERIDO =====
+function demonstrateNewFormat() {
+    console.log('💡 [NUEVO FORMATO] === DEMOSTRACIÓN DEL FORMATO SUGERIDO ===');
+    
+    // Formato actual: "FAC-19511:47000"
+    // Formato sugerido: "FAC-19511:47000(13000)" donde (13000) es el saldo disponible
+    
+    const currentFormat = 'FAC-19511:47000';
+    const newFormat = 'FAC-19511:47000(13000)';
+    
+    console.log('💡 [NUEVO FORMATO] Formato actual:', currentFormat);
+    console.log('💡 [NUEVO FORMATO] Formato sugerido:', newFormat);
+    console.log('💡 [NUEVO FORMATO] Ventajas del nuevo formato:');
+    console.log('   - El saldo disponible está integrado en la asignación');
+    console.log('   - Fácil de interpretar: FAC-19511:47000(13000)');
+    console.log('   - No necesita columna separada "Disponible"');
+    console.log('   - Más compacto y legible');
+    
+    // Función para parsear el nuevo formato
+    function parseNewFormat(assignedString) {
+        if (!assignedString || assignedString.trim() === '') return [];
+        
+        const assignments = [];
+        const parts = assignedString.split(';');
+        
+        for (const part of parts) {
+            // Buscar el patrón: FAC-XXX:amount(available)
+            const match = part.match(/^([^:]+):(\d+)(?:\((\d+)\))?$/);
+            if (match) {
+                const [, invoiceNumber, amount, available] = match;
+                assignments.push({
+                    invoiceNumber: invoiceNumber.trim(),
+                    amount: parseFloat(amount) || 0,
+                    available: available ? parseFloat(available) : 0
+                });
+            }
+        }
+        
+        return assignments;
+    }
+    
+    // Probar el nuevo formato
+    const parsedNew = parseNewFormat(newFormat);
+    console.log('💡 [NUEVO FORMATO] Parseado del nuevo formato:', parsedNew);
+    
+    // Función para formatear el nuevo formato
+    function formatNewFormat(assignments, availableAmount) {
+        if (!assignments || assignments.length === 0) return '';
+        
+        return assignments
+            .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
+            .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}(${availableAmount})`)
+            .join(';');
+    }
+    
+    const formattedNew = formatNewFormat(parsedNew, 13000);
+    console.log('💡 [NUEVO FORMATO] Formateado del nuevo formato:', formattedNew);
+    
+    console.log('💡 [NUEVO FORMATO] === FIN DEMOSTRACIÓN ===');
+    
+    return {
+        currentFormat,
+        newFormat,
+        parsedNew,
+        formattedNew
+    };
+}
+
+// Ejecutar la demostración
+demonstrateNewFormat();
