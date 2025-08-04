@@ -6,12 +6,14 @@
     <title>ERP - Gestión de Clientes</title>
     <link rel="stylesheet" href="styles.css">
     <script>
-        // Función parseAmount específica para clientes.html
+        // Función parseAmount específica para clientes.html (maneja formato Float 1.000.000,00)
         function parseAmount(amount) {
             if (!amount) return 0;
             
-            // Si ya es un número, devolverlo
-            if (typeof amount === 'number') return amount;
+            // Si ya es un número, usarlo directamente
+            if (typeof amount === 'number') {
+                return amount;
+            }
             
             // Convertir a string y limpiar
             const cleanAmount = amount.toString().trim();
@@ -25,28 +27,19 @@
             // Si no hay números, devolver 0
             if (!numericOnly) return 0;
             
-            // Detectar formato (punto como separador decimal o coma como separador decimal)
-            const hasComma = numericOnly.includes(',');
-            const hasDot = numericOnly.includes('.');
-            
             let result;
             
-            if (hasComma && hasDot) {
-                // Formato: 1.234,56 (punto como separador de miles, coma como decimal)
-                result = numericOnly.replace('.', '').replace(',', '.');
-            } else if (hasComma && !hasDot) {
-                // Formato: 1234,56 (coma como decimal)
-                result = numericOnly.replace(',', '.');
-            } else if (!hasComma && hasDot) {
-                // Formato: 1234.56 (punto como decimal)
-                result = numericOnly;
+            if (numericOnly.includes(',')) {
+                // Formato: "1.000.000,00" -> 1000000.00
+                const normalizedValue = numericOnly.replace(/\./g, '').replace(',', '.');
+                result = parseFloat(normalizedValue) || 0;
             } else {
-                // Solo números sin separadores
-                result = numericOnly;
+                // Formato: "1000000" o "1.000.000" -> 1000000
+                const normalizedValue = numericOnly.replace(/\./g, '');
+                result = parseFloat(normalizedValue) || 0;
             }
             
-            const parsed = parseFloat(result);
-            return isNaN(parsed) ? 0 : parsed;
+            return result;
         }
     </script>
     <style>
