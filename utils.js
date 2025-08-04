@@ -640,6 +640,17 @@ function showOnlyActive() {
         sectionVisibility.upcoming = true;
     }
 
+    // NUEVO: Mostrar Facturas Pagadas si hay contenido
+    const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
+    if (paidInvoices.length > 0) {
+        sectionVisibility.paid = true;
+    }
+
+    // NUEVO: Mostrar Pagos Aplicados si hay contenido
+    if (assignedPayments.length > 0) {
+        sectionVisibility.assigned = true;
+    }
+
     updateSectionVisibility();
     updateControlUI();
     saveSectionPreferences();
