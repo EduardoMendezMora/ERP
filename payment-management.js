@@ -19,20 +19,18 @@ function calculateAvailableAmount(payment) {
         const availableAmount = Math.max(0, paymentAmount - assignedAmount);
         console.log(`🔍 [DEBUG CÁLCULO] Available amount calculated: ${availableAmount}`);
         
-                         // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-                 if (payment.Referencia === '970873893') {
-                     console.log(`🔍 [DEBUG CÁLCULO] === CÁLCULO SALDO DISPONIBLE 970873893 ===`);
-                     console.log(`🔍 [DEBUG CÁLCULO] Créditos original: ${payment.Créditos} (tipo: ${typeof payment.Créditos})`);
-                     console.log(`🔍 [DEBUG CÁLCULO] BankSource: "${payment.BankSource}"`);
-                     console.log(`🔍 [DEBUG CÁLCULO] Payment amount calculado: ₡${paymentAmount.toLocaleString('es-CR')}`);
-                     console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas: "${payment.FacturasAsignadas}"`);
-                     console.log(`🔍 [DEBUG CÁLCULO] Assignments parsed:`, assignments);
-                     console.log(`🔍 [DEBUG CÁLCULO] Assigned amount: ₡${assignedAmount.toLocaleString('es-CR')}`);
-                     console.log(`🔍 [DEBUG CÁLCULO] Available amount: ₡${availableAmount.toLocaleString('es-CR')}`);
-                     console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas length: ${payment.FacturasAsignadas ? payment.FacturasAsignadas.length : 0}`);
-                     console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas trim: "${payment.FacturasAsignadas ? payment.FacturasAsignadas.trim() : ''}"`);
-                     console.log(`🔍 [DEBUG CÁLCULO] === FIN DEBUG CÁLCULO ===`);
-                 }
+        // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+        console.log(`🔍 [DEBUG CÁLCULO] === CÁLCULO SALDO DISPONIBLE ${payment.Referencia} ===`);
+        console.log(`🔍 [DEBUG CÁLCULO] Créditos original: ${payment.Créditos} (tipo: ${typeof payment.Créditos})`);
+        console.log(`🔍 [DEBUG CÁLCULO] BankSource: "${payment.BankSource}"`);
+        console.log(`🔍 [DEBUG CÁLCULO] Payment amount calculado: ₡${paymentAmount.toLocaleString('es-CR')}`);
+        console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas: "${payment.FacturasAsignadas}"`);
+        console.log(`🔍 [DEBUG CÁLCULO] Assignments parsed:`, assignments);
+        console.log(`🔍 [DEBUG CÁLCULO] Assigned amount: ₡${assignedAmount.toLocaleString('es-CR')}`);
+        console.log(`🔍 [DEBUG CÁLCULO] Available amount: ₡${availableAmount.toLocaleString('es-CR')}`);
+        console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas length: ${payment.FacturasAsignadas ? payment.FacturasAsignadas.length : 0}`);
+        console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas trim: "${payment.FacturasAsignadas ? payment.FacturasAsignadas.trim() : ''}"`);
+        console.log(`🔍 [DEBUG CÁLCULO] === FIN DEBUG CÁLCULO ===`);
         
         console.log(`💰 Pago ${payment.Referencia}: Calculando saldo disponible dinámicamente: ₡${availableAmount.toLocaleString('es-CR')}`);
         return availableAmount;
@@ -806,16 +804,14 @@ async function updatePaymentAssignments(payment, newAssignments) {
 function parseAssignedInvoices(assignedString) {
     if (!assignedString || assignedString.trim() === '') return [];
 
-    // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-    if (assignedString.includes('970873893') || assignedString.includes('FAC-19511')) {
-        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] === PARSEO ASIGNACIONES 970873893 ===`);
-        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString: "${assignedString}"`);
-        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString type: ${typeof assignedString}`);
-        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString length: ${assignedString.length}`);
-        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString.trim(): "${assignedString.trim()}"`);
-        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] !assignedString: ${!assignedString}`);
-        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString.trim() === '': ${assignedString.trim() === ''}`);
-    }
+    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] === PARSEO ASIGNACIONES ===`);
+    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString: "${assignedString}"`);
+    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString type: ${typeof assignedString}`);
+    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString length: ${assignedString.length}`);
+    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString.trim(): "${assignedString.trim()}"`);
+    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] !assignedString: ${!assignedString}`);
+    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString.trim() === '': ${assignedString.trim() === ''}`);
 
     try {
         // Formato esperado: "FAC-001:15000;FAC-002:25000"
@@ -829,21 +825,17 @@ function parseAssignedInvoices(assignedString) {
                 amount: parseFloat(amount) || 0
             };
             
-            // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-            if (assignedString.includes('970873893') || assignedString.includes('FAC-19511')) {
-                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Assignment parsed:`, result);
-                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] invoiceNumber.trim(): "${invoiceNumber.trim()}"`);
-                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] parseFloat(amount): ${parseFloat(amount)}`);
-            }
+            // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+            console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Assignment parsed:`, result);
+            console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] invoiceNumber.trim(): "${invoiceNumber.trim()}"`);
+            console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] parseFloat(amount): ${parseFloat(amount)}`);
             
             return result;
         }).filter(assignment => assignment.invoiceNumber && assignment.amount > 0);
         
-        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-        if (assignedString.includes('970873893') || assignedString.includes('FAC-19511')) {
-            console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Final assignments:`, assignments);
-            console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] === FIN DEBUG PARSE ASSIGNMENTS ===`);
-        }
+        // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Final assignments:`, assignments);
+        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] === FIN DEBUG PARSE ASSIGNMENTS ===`);
         
         return assignments;
     } catch (error) {
