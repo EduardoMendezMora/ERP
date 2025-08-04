@@ -1060,7 +1060,7 @@ body {
 
 .receipt-header-text {
     flex: 1;
-    text-align: left;
+    text-align: center;
 }
 
 .company-name {
@@ -1443,7 +1443,7 @@ body {
 
     .receipt-header-text {
         flex: 1 !important;
-        text-align: left !important;
+        text-align: center !important;
     }
 
     .company-name {

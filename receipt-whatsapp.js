@@ -39,7 +39,7 @@ function generateReceipt(paymentReference, bankSource) {
                     <div class="company-name">EasyCars</div>
                     <div class="company-details">
                         Sistema de Arrendamiento de Vehículos | Costa Rica<br>
-                        Tel: (506) 8511-0601 | Email: info@easycars.cr
+                        Tel: (506) 8511-0601 | Email: emendez@autosubastas.com
                     </div>
                 </div>
             </div>
@@ -990,7 +990,7 @@ function generateUnassignedPaymentReceipt(paymentReference, bankSource) {
             <div class="company-name">EasyCars</div>
             <div class="company-details">
                 Sistema de Arrendamiento de Vehículos | Costa Rica<br>
-                Tel: (506) 8511-0601 | Email: info@easycars.cr
+                Tel: (506) 8511-0601 | Email: emendez@autosubastas.com
             </div>
             <div class="receipt-title">Recibo de Depósito de Reserva</div>
         </div>
