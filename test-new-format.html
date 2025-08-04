@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Nuevo Formato Disponible</title>
+</head>
+<body>
+    <h1>Test Nuevo Formato Disponible</h1>
+    <div id="results"></div>
+
+    <script>
+        // Simular las funciones del sistema
+        function parseAssignedInvoices(assignedString) {
+            if (!assignedString || assignedString.trim() === '') return [];
+
+            console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] === PARSEO ASIGNACIONES ===`);
+            console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString: "${assignedString}"`);
+
+            try {
+                const splitAssignments = assignedString.split(';');
+                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Split assignments:`, splitAssignments);
+                
+                const assignments = splitAssignments.map(assignment => {
+                    // Buscar el patrón: FAC-XXX:amount(available) o FAC-XXX:amount
+                    const match = assignment.match(/^([^:]+):(\d+)(?:\((\d+)\))?$/);
+                    if (match) {
+                        const [, invoiceNumber, amount, available] = match;
+                        const result = {
+                            invoiceNumber: invoiceNumber.trim(),
+                            amount: parseFloat(amount) || 0,
+                            available: available ? parseFloat(available) : null
+                        };
+                        
+                        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Assignment parsed:`, result);
+                        return result;
+                    } else {
+                        // Formato legacy: FAC-XXX:amount
+                        const [invoiceNumber, amount] = assignment.split(':');
+                        const result = {
+                            invoiceNumber: invoiceNumber.trim(),
+                            amount: parseFloat(amount) || 0,
+                            available: null
+                        };
+                        
+                        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Assignment parsed (legacy):`, result);
+                        return result;
+                    }
+                }).filter(assignment => assignment.invoiceNumber && assignment.amount > 0);
+                
+                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Final assignments:`, assignments);
+                return assignments;
+            } catch (error) {
+                console.error('Error al parsear asignaciones:', error);
+                return [];
+            }
+        }
+
+        function formatAssignedInvoices(assignments, availableAmount = null) {
+            if (!assignments || assignments.length === 0) return '';
+
+            // Nuevo formato: "FAC-001:15000(13000);FAC-002:25000(0)" donde (13000) es el saldo disponible
+            if (availableAmount !== null) {
+                return assignments
+                    .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
+                    .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}(${availableAmount})`)
+                    .join(';');
+            }
+            
+            // Formato original: "FAC-001:15000;FAC-002:25000"
+            return assignments
+                .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
+                .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}`)
+                .join(';');
+        }
+
+        function parsePaymentAmount(paymentAmount, bankSource) {
+            if (!paymentAmount) return 0;
+            
+            console.log(`🔍 [DEBUG PARSE] === PARSEO ${bankSource} ${paymentAmount} ===`);
+            console.log(`🔍 [DEBUG PARSE] Amount original: ${paymentAmount} (tipo: ${typeof paymentAmount})`);
+            
+            let result = 0;
+            
+            if (typeof paymentAmount === 'number') {
+                result = paymentAmount;
+            } else if (typeof paymentAmount === 'string') {
+                if (bankSource === 'BAC' || bankSource === 'BN') {
+                    const cleanAmount = paymentAmount.replace(/\./g, '').replace(',', '.');
+                    result = parseFloat(cleanAmount) || 0;
+                    console.log(`🔍 [DEBUG PARSE] cleanAmount: "${cleanAmount}"`);
+                    console.log(`🔍 [DEBUG PARSE] parseFloat(cleanAmount): ${parseFloat(cleanAmount)}`);
+                } else {
+                    result = parseFloat(paymentAmount) || 0;
+                }
+            } else {
+                result = parseFloat(paymentAmount) || 0;
+            }
+            
+            console.log(`🔍 [DEBUG PARSE] Resultado final: ${result}`);
+            return result;
+        }
+
+        function calculateAvailableAmount(payment) {
+            if (payment.Disponible && payment.Disponible.trim() !== '') {
+                const availableAmount = parseFloat(payment.Disponible) || 0;
+                console.log(`💰 Pago ${payment.Referencia}: Usando saldo disponible del backend: ₡${availableAmount.toLocaleString('es-CR')}`);
+                return availableAmount;
+            } else {
+                const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+                console.log(`🔍 [DEBUG CÁLCULO] Payment amount after parsing: ${paymentAmount}`);
+                
+                const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+                console.log(`🔍 [DEBUG CÁLCULO] Assignments after parsing:`, assignments);
+                
+                // Verificar si hay disponible en el nuevo formato
+                const availableFromFormat = assignments.find(a => a.available !== null)?.available;
+                if (availableFromFormat !== undefined && availableFromFormat !== null) {
+                    console.log(`🔍 [DEBUG CÁLCULO] Available amount from new format: ${availableFromFormat}`);
+                    console.log(`💰 Pago ${payment.Referencia}: Usando saldo disponible del nuevo formato: ₡${availableFromFormat.toLocaleString('es-CR')}`);
+                    return availableFromFormat;
+                }
+                
+                const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+                console.log(`🔍 [DEBUG CÁLCULO] Assigned amount calculated: ${assignedAmount}`);
+                
+                const availableAmount = Math.max(0, paymentAmount - assignedAmount);
+                console.log(`🔍 [DEBUG CÁLCULO] Available amount calculated: ${availableAmount}`);
+                
+                console.log(`🔍 [DEBUG CÁLCULO] === CÁLCULO SALDO DISPONIBLE ${payment.Referencia} ===`);
+                console.log(`🔍 [DEBUG CÁLCULO] Créditos original: ${payment.Créditos} (tipo: ${typeof payment.Créditos})`);
+                console.log(`🔍 [DEBUG CÁLCULO] BankSource: "${payment.BankSource}"`);
+                console.log(`🔍 [DEBUG CÁLCULO] Payment amount calculado: ₡${paymentAmount.toLocaleString('es-CR')}`);
+                console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas: "${payment.FacturasAsignadas}"`);
+                console.log(`🔍 [DEBUG CÁLCULO] Assignments parsed:`, assignments);
+                console.log(`🔍 [DEBUG CÁLCULO] Assigned amount: ₡${assignedAmount.toLocaleString('es-CR')}`);
+                console.log(`🔍 [DEBUG CÁLCULO] Available amount: ₡${availableAmount.toLocaleString('es-CR')}`);
+                console.log(`🔍 [DEBUG CÁLCULO] === FIN DEBUG CÁLCULO ===`);
+                
+                console.log(`💰 Pago ${payment.Referencia}: Calculando saldo disponible dinámicamente: ₡${availableAmount.toLocaleString('es-CR')}`);
+                return availableAmount;
+            }
+        }
+
+        // Test 1: Formato actual
+        console.log('🧪 [TEST 1] === TEST FORMATO ACTUAL ===');
+        const testPayment1 = {
+            Referencia: '970873893',
+            Créditos: '60.000,00',
+            BankSource: 'BAC',
+            FacturasAsignadas: 'FAC-19511:47000',
+            Disponible: ''
+        };
+        
+        const result1 = calculateAvailableAmount(testPayment1);
+        console.log('🧪 [TEST 1] Resultado:', result1);
+        
+        // Test 2: Nuevo formato
+        console.log('🧪 [TEST 2] === TEST NUEVO FORMATO ===');
+        const testPayment2 = {
+            Referencia: '970873893',
+            Créditos: '60.000,00',
+            BankSource: 'BAC',
+            FacturasAsignadas: 'FAC-19511:47000(13000)',
+            Disponible: ''
+        };
+        
+        const result2 = calculateAvailableAmount(testPayment2);
+        console.log('🧪 [TEST 2] Resultado:', result2);
+        
+        // Test 3: Formatear con nuevo formato
+        console.log('🧪 [TEST 3] === TEST FORMATEAR NUEVO FORMATO ===');
+        const assignments = [
+            { invoiceNumber: 'FAC-19511', amount: 47000 }
+        ];
+        const formatted = formatAssignedInvoices(assignments, 13000);
+        console.log('🧪 [TEST 3] Formateado:', formatted);
+        
+        // Test 4: Parsear nuevo formato
+        console.log('🧪 [TEST 4] === TEST PARSEAR NUEVO FORMATO ===');
+        const parsed = parseAssignedInvoices(formatted);
+        console.log('🧪 [TEST 4] Parseado:', parsed);
+        
+        // Mostrar resultados en la página
+        document.getElementById('results').innerHTML = `
+            <h2>Resultados de las Pruebas:</h2>
+            <p><strong>Test 1 (Formato actual):</strong> ${result1}</p>
+            <p><strong>Test 2 (Nuevo formato):</strong> ${result2}</p>
+            <p><strong>Test 3 (Formatear):</strong> ${formatted}</p>
+            <p><strong>Test 4 (Parsear):</strong> ${JSON.stringify(parsed)}</p>
+        `;
+    </script>
+</body>
+</html> 

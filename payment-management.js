@@ -13,6 +13,14 @@ function calculateAvailableAmount(payment) {
         const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
         console.log(`🔍 [DEBUG CÁLCULO] Assignments after parsing:`, assignments);
         
+        // Verificar si hay disponible en el nuevo formato
+        const availableFromFormat = assignments.find(a => a.available !== null)?.available;
+        if (availableFromFormat !== undefined && availableFromFormat !== null) {
+            console.log(`🔍 [DEBUG CÁLCULO] Available amount from new format: ${availableFromFormat}`);
+            console.log(`💰 Pago ${payment.Referencia}: Usando saldo disponible del nuevo formato: ₡${availableFromFormat.toLocaleString('es-CR')}`);
+            return availableFromFormat;
+        }
+        
         const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
         console.log(`🔍 [DEBUG CÁLCULO] Assigned amount calculated: ${assignedAmount}`);
         
@@ -819,18 +827,39 @@ function parseAssignedInvoices(assignedString) {
         console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Split assignments:`, splitAssignments);
         
         const assignments = splitAssignments.map(assignment => {
-            const [invoiceNumber, amount] = assignment.split(':');
-            const result = {
-                invoiceNumber: invoiceNumber.trim(),
-                amount: parseFloat(amount) || 0
-            };
-            
-            // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-            console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Assignment parsed:`, result);
-            console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] invoiceNumber.trim(): "${invoiceNumber.trim()}"`);
-            console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] parseFloat(amount): ${parseFloat(amount)}`);
-            
-            return result;
+            // Buscar el patrón: FAC-XXX:amount(available) o FAC-XXX:amount
+            const match = assignment.match(/^([^:]+):(\d+)(?:\((\d+)\))?$/);
+            if (match) {
+                const [, invoiceNumber, amount, available] = match;
+                const result = {
+                    invoiceNumber: invoiceNumber.trim(),
+                    amount: parseFloat(amount) || 0,
+                    available: available ? parseFloat(available) : null
+                };
+                
+                // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Assignment parsed:`, result);
+                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] invoiceNumber.trim(): "${invoiceNumber.trim()}"`);
+                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] parseFloat(amount): ${parseFloat(amount)}`);
+                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] available: ${available ? parseFloat(available) : 'null'}`);
+                
+                return result;
+            } else {
+                // Formato legacy: FAC-XXX:amount
+                const [invoiceNumber, amount] = assignment.split(':');
+                const result = {
+                    invoiceNumber: invoiceNumber.trim(),
+                    amount: parseFloat(amount) || 0,
+                    available: null
+                };
+                
+                // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Assignment parsed (legacy):`, result);
+                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] invoiceNumber.trim(): "${invoiceNumber.trim()}"`);
+                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] parseFloat(amount): ${parseFloat(amount)}`);
+                
+                return result;
+            }
         }).filter(assignment => assignment.invoiceNumber && assignment.amount > 0);
         
         // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
@@ -844,10 +873,18 @@ function parseAssignedInvoices(assignedString) {
     }
 }
 
-function formatAssignedInvoices(assignments) {
+function formatAssignedInvoices(assignments, availableAmount = null) {
     if (!assignments || assignments.length === 0) return '';
 
-    // Formato: "FAC-001:15000;FAC-002:25000"
+    // Nuevo formato: "FAC-001:15000(13000);FAC-002:25000(0)" donde (13000) es el saldo disponible
+    if (availableAmount !== null) {
+        return assignments
+            .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
+            .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}(${availableAmount})`)
+            .join(';');
+    }
+    
+    // Formato original: "FAC-001:15000;FAC-002:25000"
     return assignments
         .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
         .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}`)
@@ -945,39 +982,35 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
         console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
         console.log(`   - Saldo disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
 
-        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-        if (payment.Referencia === '970873893') {
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] === TRANSACCIÓN 970873893 RAW ===');
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Payment object:', payment);
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Assignments:', assignments);
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Payment amount:', paymentAmount);
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Total assigned amount:', totalAssignedAmount);
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount:', availableAmount);
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount type:', typeof availableAmount);
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount > 0:', availableAmount > 0);
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount is NaN:', isNaN(availableAmount));
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount is null:', availableAmount === null);
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount is undefined:', availableAmount === undefined);
-        }
+        // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+        console.log('🔍 [DEBUG RAW] === TRANSACCIÓN RAW ===');
+        console.log('🔍 [DEBUG RAW] Payment object:', payment);
+        console.log('🔍 [DEBUG RAW] Assignments:', assignments);
+        console.log('🔍 [DEBUG RAW] Payment amount:', paymentAmount);
+        console.log('🔍 [DEBUG RAW] Total assigned amount:', totalAssignedAmount);
+        console.log('🔍 [DEBUG RAW] Available amount:', availableAmount);
+        console.log('🔍 [DEBUG RAW] Available amount type:', typeof availableAmount);
+        console.log('🔍 [DEBUG RAW] Available amount > 0:', availableAmount > 0);
+        console.log('🔍 [DEBUG RAW] Available amount is NaN:', isNaN(availableAmount));
+        console.log('🔍 [DEBUG RAW] Available amount is null:', availableAmount === null);
+        console.log('🔍 [DEBUG RAW] Available amount is undefined:', availableAmount === undefined);
 
         // Datos a actualizar
         const updateData = {
-            FacturasAsignadas: formattedAssignments,
+            FacturasAsignadas: formatAssignedInvoices(assignments, availableAmount), // Nuevo formato con disponible
             FechaAsignacion: assignments.length > 0 ? formatDateForStorage(new Date()) : '',
-            Disponible: availableAmount.toString() // Guardar saldo disponible (siempre, incluso si es 0)
+            Disponible: availableAmount.toString() // Mantener columna Disponible para compatibilidad
         };
         
-        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-        if (payment.Referencia === '970873893') {
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Update data:', updateData);
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Disponible value being sent:', updateData.Disponible);
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Disponible type:', typeof updateData.Disponible);
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Disponible length:', updateData.Disponible.length);
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Disponible === "":', updateData.Disponible === "");
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] Disponible === "0":', updateData.Disponible === "0");
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] JSON.stringify(updateData):', JSON.stringify(updateData));
-            console.log('🔍 [DEBUG ESPECÍFICO RAW] === FIN DEBUG RAW ===');
-        }
+        // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+        console.log('🔍 [DEBUG RAW] Update data:', updateData);
+        console.log('🔍 [DEBUG RAW] Disponible value being sent:', updateData.Disponible);
+        console.log('🔍 [DEBUG RAW] Disponible type:', typeof updateData.Disponible);
+        console.log('🔍 [DEBUG RAW] Disponible length:', updateData.Disponible.length);
+        console.log('🔍 [DEBUG RAW] Disponible === "":', updateData.Disponible === "");
+        console.log('🔍 [DEBUG RAW] Disponible === "0":', updateData.Disponible === "0");
+        console.log('🔍 [DEBUG RAW] JSON.stringify(updateData):', JSON.stringify(updateData));
+        console.log('🔍 [DEBUG RAW] === FIN DEBUG RAW ===');
 
         // URL oficial según documentación
         const updateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
@@ -997,26 +1030,22 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
             console.log(`✅ Saldo disponible guardado: ₡${availableAmount.toLocaleString('es-CR')}`);
             console.log('✅ Response from SheetDB:', responseText);
             
-            // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-            if (payment.Referencia === '970873893') {
-                console.log('🔍 [DEBUG ESPECÍFICO RAW] === RESPUESTA EXITOSA RAW 970873893 ===');
-                console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount saved:', availableAmount);
-                console.log('🔍 [DEBUG ESPECÍFICO RAW] Response text:', responseText);
-                console.log('🔍 [DEBUG ESPECÍFICO RAW] === FIN DEBUG RESPUESTA RAW ===');
-            }
+            // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+            console.log('🔍 [DEBUG RAW] === RESPUESTA EXITOSA RAW ===');
+            console.log('🔍 [DEBUG RAW] Available amount saved:', availableAmount);
+            console.log('🔍 [DEBUG RAW] Response text:', responseText);
+            console.log('🔍 [DEBUG RAW] === FIN DEBUG RESPUESTA RAW ===');
             
             return true;
         } else {
             const errorText = await response.text();
             console.error('❌ Error en actualización RAW:', response.status, errorText);
             
-            // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-            if (payment.Referencia === '970873893') {
-                console.log('🔍 [DEBUG ESPECÍFICO RAW] === ERROR RAW 970873893 ===');
-                console.log('🔍 [DEBUG ESPECÍFICO RAW] Response status:', response.status);
-                console.log('🔍 [DEBUG ESPECÍFICO RAW] Error text:', errorText);
-                console.log('🔍 [DEBUG ESPECÍFICO RAW] === FIN DEBUG ERROR RAW ===');
-            }
+            // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+            console.log('🔍 [DEBUG RAW] === ERROR RAW ===');
+            console.log('🔍 [DEBUG RAW] Response status:', response.status);
+            console.log('🔍 [DEBUG RAW] Error text:', errorText);
+            console.log('🔍 [DEBUG RAW] === FIN DEBUG ERROR RAW ===');
             
             throw new Error(`Actualización RAW fallida: HTTP ${response.status} - ${errorText}`);
         }
@@ -1480,15 +1509,14 @@ async function loadUnassignedPayments(clientId) {
                         }
                         
                         // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA 970873893
-                        if (payment.Referencia === '970873893') {
-                            console.log(`🔍 [DEBUG ESPECÍFICO] Pago 970873893 en ${sheet}:`);
-                            console.log(`   - Créditos: "${payment.Créditos}"`);
-                            console.log(`   - FacturasAsignadas: "${payment.FacturasAsignadas}"`);
-                            console.log(`   - Disponible (backend): "${payment.Disponible}"`);
-                            console.log(`   - availableAmount: ₡${availableAmount.toLocaleString('es-CR')}`);
-                            console.log(`   - Condición (monto disponible): ${availableAmount > 0.01}`);
-                            console.log(`   - Payment object completo:`, payment);
-                        }
+                        // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+                        console.log(`🔍 [DEBUG LOAD] Pago ${payment.Referencia} en ${sheet}:`);
+                        console.log(`   - Créditos: "${payment.Créditos}"`);
+                        console.log(`   - FacturasAsignadas: "${payment.FacturasAsignadas}"`);
+                        console.log(`   - Disponible (backend): "${payment.Disponible}"`);
+                        console.log(`   - availableAmount: ₡${availableAmount.toLocaleString('es-CR')}`);
+                        console.log(`   - Condición (monto disponible): ${availableAmount > 0.01}`);
+                        console.log(`   - Payment object completo:`, payment);
 
                         // Mostrar transacción si tiene saldo disponible
                         return availableAmount > 0.01;

@@ -291,14 +291,12 @@ function testClientIdDetection(clientId, observationsText) {
 function parsePaymentAmount(paymentAmount, bankSource) {
     if (!paymentAmount) return 0;
     
-    // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-    if (bankSource === 'BAC' && (paymentAmount === '60.000,00' || paymentAmount === 60000)) {
-        console.log(`🔍 [DEBUG PARSE] === PARSEO BAC 970873893 ===`);
-        console.log(`🔍 [DEBUG PARSE] Amount original: ${paymentAmount} (tipo: ${typeof paymentAmount})`);
-        console.log(`🔍 [DEBUG PARSE] BankSource: "${bankSource}"`);
-        console.log(`🔍 [DEBUG PARSE] paymentAmount === '60.000,00':`, paymentAmount === '60.000,00');
-        console.log(`🔍 [DEBUG PARSE] paymentAmount === 60000:`, paymentAmount === 60000);
-    }
+    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+    console.log(`🔍 [DEBUG PARSE] === PARSEO ${bankSource} ${paymentAmount} ===`);
+    console.log(`🔍 [DEBUG PARSE] Amount original: ${paymentAmount} (tipo: ${typeof paymentAmount})`);
+    console.log(`🔍 [DEBUG PARSE] BankSource: "${bankSource}"`);
+    console.log(`🔍 [DEBUG PARSE] paymentAmount === '60.000,00':`, paymentAmount === '60.000,00');
+    console.log(`🔍 [DEBUG PARSE] paymentAmount === 60000:`, paymentAmount === 60000);
     
     let result = 0;
     
@@ -312,12 +310,10 @@ function parsePaymentAmount(paymentAmount, bankSource) {
             const cleanAmount = paymentAmount.replace(/\./g, '').replace(',', '.');
             result = parseFloat(cleanAmount) || 0;
             
-            // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-            if (bankSource === 'BAC' && (paymentAmount === '60.000,00' || paymentAmount === 60000)) {
-                console.log(`🔍 [DEBUG PARSE] cleanAmount: "${cleanAmount}"`);
-                console.log(`🔍 [DEBUG PARSE] parseFloat(cleanAmount): ${parseFloat(cleanAmount)}`);
-                console.log(`🔍 [DEBUG PARSE] result: ${result}`);
-            }
+            // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+            console.log(`🔍 [DEBUG PARSE] cleanAmount: "${cleanAmount}"`);
+            console.log(`🔍 [DEBUG PARSE] parseFloat(cleanAmount): ${parseFloat(cleanAmount)}`);
+            console.log(`🔍 [DEBUG PARSE] result: ${result}`);
         } else {
             // Otros bancos: intentar parseFloat directo
             result = parseFloat(paymentAmount) || 0;
@@ -327,11 +323,9 @@ function parsePaymentAmount(paymentAmount, bankSource) {
         result = parseFloat(paymentAmount) || 0;
     }
     
-    // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-    if (bankSource === 'BAC' && (paymentAmount === '60.000,00' || paymentAmount === 60000)) {
-        console.log(`🔍 [DEBUG PARSE] Resultado final: ${result}`);
-        console.log(`🔍 [DEBUG PARSE] === FIN DEBUG PARSE ===`);
-    }
+    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+    console.log(`🔍 [DEBUG PARSE] Resultado final: ${result}`);
+    console.log(`🔍 [DEBUG PARSE] === FIN DEBUG PARSE ===`);
     
     return result;
 }
