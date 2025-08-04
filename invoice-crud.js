@@ -121,7 +121,7 @@ function editInvoice(invoiceNumber) {
     document.getElementById('editInvoiceDescription').value = description;
 
     // Monto base
-    document.getElementById('editInvoiceAmount').value = parseFloat(invoice.MontoBase || 0);
+            document.getElementById('editInvoiceAmount').value = parseAmount(invoice.MontoBase || 0);
 
     // Fecha de vencimiento
     document.getElementById('editInvoiceDueDate').value = formatDateForInput(invoice.FechaVencimiento);
@@ -200,7 +200,7 @@ function deleteInvoice(invoiceNumber) {
     // Llenar información de la factura a eliminar
     const deleteInfo = document.getElementById('deleteInvoiceInfo');
     const concept = invoice.ConceptoManual || invoice.SemanaDescripcion || 'N/A';
-    const amount = parseFloat(invoice.MontoBase || 0);
+            const amount = parseAmount(invoice.MontoBase || 0);
 
     deleteInfo.innerHTML = `
         <strong>${invoice.NumeroFactura}</strong><br>
@@ -388,7 +388,7 @@ async function loadClientAndInvoices(clientId) {
                             }
                         }
 
-                        const baseAmount = parseFloat(invoice.MontoBase || 0);
+                        const baseAmount = parseAmount(invoice.MontoBase || 0);
                         const newTotal = baseAmount + newFines;
 
                         invoice.DiasAtraso = newDaysOverdue;
@@ -624,12 +624,12 @@ function renderInvoicesSection(status, invoices) {
     };
 
     container.innerHTML = sortedInvoices.map(invoice => {
-        const baseAmount = parseFloat(invoice.MontoBase || 0);
-        const fines = parseFloat(invoice.MontoMultas || 0);
+        const baseAmount = parseAmount(invoice.MontoBase || 0);
+        const fines = parseAmount(invoice.MontoMultas || 0);
         // Calcular el monto total original (base + multas) para mostrar en el detalle
         const originalTotalAmount = baseAmount + fines;
         // El MontoTotal del backend ya refleja el saldo pendiente después de pagos
-        const currentTotalAmount = parseFloat(invoice.MontoTotal || originalTotalAmount);
+        const currentTotalAmount = parseAmount(invoice.MontoTotal || originalTotalAmount);
         const daysOverdue = parseInt(invoice.DiasAtraso || 0);
         const isDueToday = status === 'overdue' && daysOverdue === 0;
 

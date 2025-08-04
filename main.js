@@ -374,9 +374,9 @@ function renderAssignPaymentModal(payment) {
     }
 
     const invoiceOptionsHTML = eligibleInvoices.map(invoice => {
-        const baseAmount = parseFloat(invoice.MontoBase || 0);
-        const fines = parseFloat(invoice.MontoMultas || 0);
-        const totalAmount = parseFloat(invoice.MontoTotal || baseAmount);
+        const baseAmount = parseAmount(invoice.MontoBase || 0);
+        const fines = parseAmount(invoice.MontoMultas || 0);
+        const totalAmount = parseAmount(invoice.MontoTotal || baseAmount);
         const difference = Math.abs(totalAmount - availableAmount);
         const isExactMatch = difference < 0.01;
         const isCloseMatch = difference < 1000;
@@ -412,9 +412,9 @@ function renderAssignPaymentModal(payment) {
 }
 
 function renderAssignInvoiceModal(invoice) {
-    const baseAmount = parseFloat(invoice.MontoBase || 0);
-    const fines = parseFloat(invoice.MontoMultas || 0);
-    const totalAmount = parseFloat(invoice.MontoTotal || baseAmount);
+            const baseAmount = parseAmount(invoice.MontoBase || 0);
+        const fines = parseAmount(invoice.MontoMultas || 0);
+        const totalAmount = parseAmount(invoice.MontoTotal || baseAmount);
 
     // Información de la factura
     document.getElementById('invoiceInfoForAssignment').innerHTML = `
@@ -444,10 +444,8 @@ function renderAssignInvoiceModal(invoice) {
     }
 
     const paymentOptionsHTML = unassignedPayments.map(payment => {
-        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-        const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-        const availableAmount = paymentAmount - assignedAmount;
+        // ===== NUEVA LÓGICA: USAR COLUMNA DISPONIBLE DEL BACKEND =====
+        const availableAmount = calculateAvailableAmount(payment);
 
         if (availableAmount <= 0) return ''; // Skip pagos completamente asignados
 
@@ -472,7 +470,10 @@ function renderAssignInvoiceModal(invoice) {
                 </div>
                 <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">
                     ${getBankDisplayName(payment.BankSource)} | ${formatDateForDisplay(payment.Fecha)}
-                    ${assignedAmount > 0 ? ` | Total: ₡${paymentAmount.toLocaleString('es-CR')} (₡${assignedAmount.toLocaleString('es-CR')} asignado)` : ''}
+                    ${payment.Disponible && payment.Disponible.trim() !== '' ? 
+                        ` | Saldo disponible del backend` : 
+                        ` | Total: ₡${parsePaymentAmount(payment.Créditos, payment.BankSource).toLocaleString('es-CR')} (₡${parseAssignedInvoices(payment.FacturasAsignadas || '').reduce((sum, a) => sum + a.amount, 0).toLocaleString('es-CR')} asignado)`
+                    }
                 </div>
             </div>
         `;
@@ -812,6 +813,7 @@ async function loadTransactionsTab() {
         // Filtrar transacciones pendientes de conciliar
         // NO mostrar las que tienen ID_Cliente, Observaciones o están conciliadas
         // Solo mostrar desde el 10/07/2025
+        // NUEVO: NO mostrar las que tienen Disponible = 0 (ya no tienen saldo disponible)
         const cutoffDate = new Date('2025-07-10');
         cutoffDate.setHours(0, 0, 0, 0);
         
@@ -824,6 +826,15 @@ async function loadTransactionsTab() {
             // Si tiene Observaciones con contenido, está conciliada
             if (t.Observaciones && t.Observaciones.trim() !== '' && t.Observaciones !== 'undefined') {
                 return false;
+            }
+            
+            // NUEVO: Si tiene Disponible = 0, ya no tiene saldo disponible para asignar
+            if (t.Disponible !== undefined && t.Disponible !== null) {
+                const disponible = parseFloat(t.Disponible);
+                if (!isNaN(disponible) && disponible <= 0) {
+                    console.log(`🚫 Transacción ${t.Referencia} excluida: Disponible = ${t.Disponible} (sin saldo disponible)`);
+                    return false;
+                }
             }
             
             // Filtrar por fecha - solo desde 10/07/2025
@@ -842,7 +853,7 @@ async function loadTransactionsTab() {
                 }
             }
             
-            // Solo mostrar las que no están conciliadas y son desde la fecha límite
+            // Solo mostrar las que no están conciliadas, son desde la fecha límite y tienen saldo disponible
             return true;
         });
         
@@ -1209,6 +1220,16 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
             throw new Error('Monto de transacción inválido');
         }
 
+        // ===== NUEVO: VALIDAR QUE LA TRANSACCIÓN TENGA SALDO DISPONIBLE =====
+        if (transaction.Disponible !== undefined && transaction.Disponible !== null) {
+            const disponible = parseFloat(transaction.Disponible);
+            if (!isNaN(disponible) && disponible <= 0) {
+                console.error('❌ ERROR: Transacción sin saldo disponible');
+                console.error(`   - Disponible: ₡${disponible.toLocaleString('es-CR')}`);
+                throw new Error(`La transacción ${transactionReference} ya no tiene saldo disponible para asignar (₡${disponible.toLocaleString('es-CR')})`);
+            }
+        }
+
         // ===== NUEVO: VALIDAR QUE EL MONTO COINCIDA =====
         if (expectedAmount && Math.abs(amount - expectedAmount) > 0.01) {
             console.error('❌ ERROR: Monto no coincide');
@@ -1236,7 +1257,7 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
 
         // Calcular multas hasta la fecha de la transacción
         const transactionDate = transaction.Fecha;
-        const baseAmount = parseFloat(invoice.MontoBase || 0);
+        const baseAmount = parseAmount(invoice.MontoBase || 0);
         const finesUntilTransaction = calculateFinesUntilDate(invoice, transactionDate);
         const totalOwed = baseAmount + finesUntilTransaction;
         const remainingBalance = totalOwed - totalPreviousPayments;
@@ -1526,40 +1547,94 @@ async function updateTransactionAssignments(transactionReference, bank, formatte
         const today = new Date();
         const formattedDate = today.toLocaleDateString('es-CR'); // DD/MM/YYYY
         
-        const updateData = {
-            FacturasAsignadas: formattedAssignments,
-            ID_Cliente: client.ID || client.ID_Cliente,
-            FechaAsignacion: formattedDate,
-            Observaciones: `Conciliada con factura - ${formattedAssignments}`
-        };
+        console.log('📅 Fecha formateada:', formattedDate);
         
-        console.log('📝 Datos a enviar:', updateData);
-        console.log('📝 Body como URLSearchParams:', new URLSearchParams(updateData).toString());
+        // ===== NUEVO: CALCULAR SALDO DISPONIBLE =====
+        // Buscar la transacción para obtener el monto total
+        const searchUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/search?Referencia=${encodeURIComponent(transactionReference)}&sheet=${bank}`;
+        console.log('🔍 URL de búsqueda:', searchUrl);
         
-        const response = await fetch(updateUrl, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams(updateData).toString()
-        });
-        
-        console.log('📡 Respuesta del servidor:', {
-            status: response.status,
-            statusText: response.statusText,
-            ok: response.ok
-        });
-        
-        if (!response.ok) {
-            console.warn('⚠️ No se pudo actualizar la transacción en la API:', response.status);
-            const errorText = await response.text();
-            console.warn('Error detallado:', errorText);
-            console.warn('URL que falló:', updateUrl);
-            console.warn('Datos que se intentaron enviar:', updateData);
-        } else {
-            const responseText = await response.text();
-            console.log('✅ Transacción actualizada en la API');
-            console.log('📄 Respuesta del servidor:', responseText);
+        try {
+            const searchResponse = await fetch(searchUrl);
+            console.log('🔍 Respuesta de búsqueda:', {
+                status: searchResponse.status,
+                statusText: searchResponse.statusText,
+                ok: searchResponse.ok
+            });
+            
+            let paymentAmount = 0;
+            if (searchResponse.ok) {
+                const searchData = await searchResponse.json();
+                console.log('🔍 Datos encontrados:', searchData);
+                
+                if (searchData.length > 0) {
+                    const transaction = searchData[0];
+                    console.log('🔍 Transacción encontrada:', transaction);
+                    
+                    // Parsear el monto usando la lógica de utils.js
+                    paymentAmount = parseAmount(transaction.Créditos);
+                    console.log(`💰 Monto total de la transacción: ₡${paymentAmount.toLocaleString('es-CR')}`);
+                } else {
+                    console.warn('⚠️ No se encontró la transacción en la búsqueda');
+                }
+            } else {
+                console.warn('⚠️ Error en la búsqueda de la transacción:', searchResponse.status);
+                const errorText = await searchResponse.text();
+                console.warn('Error detallado:', errorText);
+            }
+            
+            // Calcular el total asignado
+            const assignments = parseTransactionAssignments(formattedAssignments);
+            console.log('📋 Asignaciones parseadas:', assignments);
+            
+            const totalAssignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+            const availableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
+            
+            console.log(`💰 Cálculo de saldo disponible:`);
+            console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
+            console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
+            console.log(`   - Saldo disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
+            
+            const updateData = {
+                FacturasAsignadas: formattedAssignments,
+                ID_Cliente: client.ID || client.ID_Cliente,
+                FechaAsignacion: formattedDate,
+                Observaciones: `Conciliada con factura - ${formattedAssignments}`,
+                Disponible: availableAmount.toString() // Guardar saldo disponible
+            };
+            
+            console.log('📝 Datos a enviar:', updateData);
+            console.log('📝 Campo "Disponible" a guardar:', updateData.Disponible);
+            
+            const response = await fetch(updateUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData)
+            });
+            
+            console.log('📡 Respuesta del servidor:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok
+            });
+            
+            if (!response.ok) {
+                console.warn('⚠️ No se pudo actualizar la transacción en la API:', response.status);
+                const errorText = await response.text();
+                console.warn('Error detallado:', errorText);
+                console.warn('URL que falló:', updateUrl);
+                console.warn('Datos que se intentaron enviar:', updateData);
+            } else {
+                const responseText = await response.text();
+                console.log('✅ Transacción actualizada en la API');
+                console.log('📄 Respuesta del servidor:', responseText);
+            }
+            
+        } catch (searchError) {
+            console.error('❌ Error en la búsqueda de la transacción:', searchError);
+            throw searchError;
         }
         
     } catch (error) {
