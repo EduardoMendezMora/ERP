@@ -1,7 +1,7 @@
 // ===== FUNCIÓN DE UTILIDAD PARA CALCULAR SALDO DISPONIBLE =====
 function calculateAvailableAmount(payment) {
     // Si la columna "Disponible" tiene contenido, usarla
-    if (payment.Disponible && payment.Disponible.trim() !== '') {
+    if (payment.Disponible && payment.Disponible.trim() !== '' && payment.Disponible !== '0') {
         const availableAmount = parseFloat(payment.Disponible) || 0;
         console.log(`💰 Pago ${payment.Referencia}: Usando saldo disponible del backend: ₡${availableAmount.toLocaleString('es-CR')}`);
         return availableAmount;
@@ -707,7 +707,7 @@ async function updatePaymentAssignments(payment, newAssignments) {
         const updateData = {
             FacturasAsignadas: formattedAssignments,
             FechaAsignacion: formatDateForStorage(new Date()),
-            Disponible: availableAmount > 0 ? availableAmount.toString() : '' // Guardar saldo disponible
+            Disponible: availableAmount.toString() // Guardar saldo disponible (siempre como string)
         };
 
         console.log('📦 Datos a actualizar:', updateData);
@@ -2302,3 +2302,223 @@ function demonstrateNewFormat() {
 
 // Ejecutar la demostración
 demonstrateNewFormat();
+
+// ===== FUNCIÓN DE PRUEBA PARA VERIFICAR GUARDADO EN CAMPO DISPONIBLE =====
+async function testDisponibleFieldSaving(paymentReference = '970873893', bankSource = 'BN') {
+    try {
+        console.log(`🧪 [TEST] Verificando guardado en campo "Disponible" para pago ${paymentReference}`);
+        
+        // 1. Buscar el pago actual
+        const searchUrl = `${API_CONFIG.PAYMENTS}/search?Referencia=${encodeURIComponent(paymentReference)}&sheet=${bankSource}`;
+        const searchResponse = await fetch(searchUrl);
+        
+        if (!searchResponse.ok) {
+            throw new Error(`Error al buscar pago: HTTP ${searchResponse.status}`);
+        }
+        
+        const searchData = await searchResponse.json();
+        if (searchData.length === 0) {
+            throw new Error(`Pago ${paymentReference} no encontrado en ${bankSource}`);
+        }
+        
+        const payment = searchData[0];
+        console.log(`🧪 [TEST] Pago encontrado:`, payment);
+        console.log(`🧪 [TEST] Campo "Disponible" actual: "${payment.Disponible}"`);
+        
+        // 2. Calcular nuevo valor disponible
+        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+        const currentAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+        const totalAssignedAmount = currentAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+        const newAvailableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
+        
+        console.log(`🧪 [TEST] Cálculo de disponible:`);
+        console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Nuevo disponible: ₡${newAvailableAmount.toLocaleString('es-CR')}`);
+        
+        // 3. Actualizar solo el campo "Disponible"
+        const updateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(paymentReference)}?sheet=${bankSource}`;
+        const updateData = {
+            Disponible: newAvailableAmount.toString()
+        };
+        
+        console.log(`🧪 [TEST] Enviando actualización:`, updateData);
+        
+        const updateResponse = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updateData)
+        });
+        
+        if (updateResponse.ok) {
+            const result = await updateResponse.json();
+            console.log(`✅ [TEST] Campo "Disponible" actualizado exitosamente:`, result);
+            
+            // 4. Verificar que se guardó correctamente
+            const verifyResponse = await fetch(searchUrl);
+            const verifyData = await verifyResponse.json();
+            const updatedPayment = verifyData[0];
+            
+            console.log(`🧪 [TEST] Verificación post-actualización:`);
+            console.log(`   - Campo "Disponible" guardado: "${updatedPayment.Disponible}"`);
+            console.log(`   - Valor esperado: "${newAvailableAmount.toString()}"`);
+            console.log(`   - ¿Coinciden?: ${updatedPayment.Disponible === newAvailableAmount.toString()}`);
+            
+            if (updatedPayment.Disponible === newAvailableAmount.toString()) {
+                console.log(`✅ [TEST] ¡ÉXITO! El campo "Disponible" se guardó correctamente`);
+                return true;
+            } else {
+                console.log(`❌ [TEST] ERROR: El campo "Disponible" no se guardó correctamente`);
+                return false;
+            }
+        } else {
+            const errorText = await updateResponse.text();
+            console.error(`❌ [TEST] Error al actualizar: HTTP ${updateResponse.status} - ${errorText}`);
+            return false;
+        }
+        
+    } catch (error) {
+        console.error(`❌ [TEST] Error en testDisponibleFieldSaving:`, error);
+        return false;
+    }
+}
+
+// ===== FUNCIÓN PARA ACTUALIZAR TODOS LOS PAGOS CON CAMPO DISPONIBLE =====
+async function updateAllPaymentsWithDisponible(sheet = 'BN') {
+    try {
+        console.log(`🔄 [BATCH UPDATE] Actualizando campo "Disponible" para todos los pagos en ${sheet}`);
+        
+        // 1. Obtener todos los pagos de la hoja
+        const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`Error al obtener pagos: HTTP ${response.status}`);
+        }
+        
+        const paymentsData = await response.json();
+        const payments = Array.isArray(paymentsData) ? paymentsData : [];
+        
+        console.log(`📊 [BATCH UPDATE] Total pagos encontrados en ${sheet}: ${payments.length}`);
+        
+        let successCount = 0;
+        let errorCount = 0;
+        
+        // 2. Procesar cada pago
+        for (const payment of payments) {
+            try {
+                console.log(`🔄 [BATCH UPDATE] Procesando pago ${payment.Referencia}...`);
+                
+                // Calcular disponible
+                const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+                const currentAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+                const totalAssignedAmount = currentAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+                const availableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
+                
+                // Verificar si necesita actualización
+                const currentDisponible = payment.Disponible || '';
+                const newDisponible = availableAmount.toString();
+                
+                if (currentDisponible !== newDisponible) {
+                    console.log(`📝 [BATCH UPDATE] Actualizando ${payment.Referencia}:`);
+                    console.log(`   - Disponible actual: "${currentDisponible}"`);
+                    console.log(`   - Disponible nuevo: "${newDisponible}"`);
+                    
+                    // Actualizar en el backend
+                    const updateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${sheet}`;
+                    const updateData = {
+                        Disponible: newDisponible
+                    };
+                    
+                    const updateResponse = await fetch(updateUrl, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    if (updateResponse.ok) {
+                        console.log(`✅ [BATCH UPDATE] Pago ${payment.Referencia} actualizado exitosamente`);
+                        successCount++;
+                    } else {
+                        const errorText = await updateResponse.text();
+                        console.error(`❌ [BATCH UPDATE] Error al actualizar ${payment.Referencia}: HTTP ${updateResponse.status} - ${errorText}`);
+                        errorCount++;
+                    }
+                } else {
+                    console.log(`✅ [BATCH UPDATE] Pago ${payment.Referencia} ya tiene el valor correcto: "${currentDisponible}"`);
+                    successCount++;
+                }
+                
+                // Pequeña pausa para no sobrecargar la API
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+            } catch (error) {
+                console.error(`❌ [BATCH UPDATE] Error procesando pago ${payment.Referencia}:`, error);
+                errorCount++;
+            }
+        }
+        
+        console.log(`📊 [BATCH UPDATE] Resumen de actualización en ${sheet}:`);
+        console.log(`   - Total procesados: ${payments.length}`);
+        console.log(`   - Exitosos: ${successCount}`);
+        console.log(`   - Errores: ${errorCount}`);
+        
+        return { total: payments.length, success: successCount, errors: errorCount };
+        
+    } catch (error) {
+        console.error(`❌ [BATCH UPDATE] Error en updateAllPaymentsWithDisponible:`, error);
+        throw error;
+    }
+}
+
+// ===== FUNCIÓN PARA ACTUALIZAR CAMPO DISPONIBLE EN TODOS LOS BANCOS =====
+async function updateDisponibleInAllBanks() {
+    try {
+        console.log(`🌐 [GLOBAL UPDATE] Iniciando actualización de campo "Disponible" en todos los bancos`);
+        
+        const banks = ['BAC', 'BN', 'HuberBN'];
+        const results = {};
+        
+        for (const bank of banks) {
+            try {
+                console.log(`🏦 [GLOBAL UPDATE] Procesando banco: ${bank}`);
+                const result = await updateAllPaymentsWithDisponible(bank);
+                results[bank] = result;
+                console.log(`✅ [GLOBAL UPDATE] Banco ${bank} completado:`, result);
+            } catch (error) {
+                console.error(`❌ [GLOBAL UPDATE] Error en banco ${bank}:`, error);
+                results[bank] = { error: error.message };
+            }
+        }
+        
+        // Resumen final
+        console.log(`📊 [GLOBAL UPDATE] Resumen final de actualización:`);
+        let totalProcessed = 0;
+        let totalSuccess = 0;
+        let totalErrors = 0;
+        
+        for (const [bank, result] of Object.entries(results)) {
+            if (result.error) {
+                console.log(`❌ ${bank}: Error - ${result.error}`);
+                totalErrors++;
+            } else {
+                console.log(`✅ ${bank}: ${result.success}/${result.total} exitosos, ${result.errors} errores`);
+                totalProcessed += result.total;
+                totalSuccess += result.success;
+                totalErrors += result.errors;
+            }
+        }
+        
+        console.log(`🎯 [GLOBAL UPDATE] Total general: ${totalSuccess}/${totalProcessed} exitosos, ${totalErrors} errores`);
+        
+        return results;
+        
+    } catch (error) {
+        console.error(`❌ [GLOBAL UPDATE] Error en updateDisponibleInAllBanks:`, error);
+        throw error;
+    }
+}
