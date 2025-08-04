@@ -34,6 +34,9 @@ async function initializeApp() {
         // Cargar preferencias de sección guardadas
         loadSectionPreferences();
 
+        // Asegurar que todas las secciones estén cerradas por defecto
+        showOnlyActive();
+
         // Mostrar loading
         showLoading(true);
 
@@ -652,6 +655,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Cargar preferencias de sección
     loadSectionPreferences();
+
+    // Asegurar que todas las secciones estén cerradas por defecto
+    showOnlyActive();
 
     // Inicializar aplicación
     initializeApp();
