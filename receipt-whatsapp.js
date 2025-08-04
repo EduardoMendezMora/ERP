@@ -27,18 +27,20 @@ function generateReceipt(paymentReference, bankSource) {
 
     const receiptHTML = `
         <div class="receipt-header">
-            <img src="${logoUrl}"
-                 alt="EasyCars Logo"
-                 class="company-logo"
-                 crossorigin="anonymous"
-                 onload="this.style.opacity='1'"
-                 onerror="console.warn('Logo no cargó, usando texto'); this.style.display='none'; this.nextElementSibling.style.fontWeight='bold';">
+            <div class="receipt-header-top">
+                <img src="${logoUrl}"
+                     alt="EasyCars Logo"
+                     class="company-logo"
+                     crossorigin="anonymous"
+                     onload="this.style.opacity='1'"
+                     onerror="console.warn('Logo no cargó, usando texto'); this.style.display='none'; this.nextElementSibling.style.fontWeight='bold';">
+                <div class="receipt-title">Recibo de Pago</div>
+            </div>
             <div class="company-name">EasyCars</div>
             <div class="company-details">
                 Sistema de Arrendamiento de Vehículos | Costa Rica<br>
                 Tel: (506) 8511-0601 | Email: info@easycars.cr
             </div>
-            <div class="receipt-title">Recibo de Pago</div>
         </div>
 
         <div class="receipt-info">
