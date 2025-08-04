@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ERP - Gestión de Clientes</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="utils.js"></script>
     <style>
         * {
             margin: 0;
@@ -1016,7 +1015,7 @@
                         }
                     }
                     
-                    const newTotal = parseAmount(invoice.MontoBase || 0) + newFines;
+                    const newTotal = parseFloat(invoice.MontoBase || 0) + newFines;
                     
                     // Solo actualizar si hay cambios
                     if (invoice.DiasAtraso != newDaysOverdue || 
@@ -1070,9 +1069,9 @@
             const overdue = clientInvoices.filter(inv => inv.Estado === 'Vencido');  
             const paid = clientInvoices.filter(inv => inv.Estado === 'Pagado');
             
-                    const totalPending = pending.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
-        const totalOverdue = overdue.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
-        const totalFines = clientInvoices.reduce((sum, inv) => sum + parseAmount(inv.MontoMultas || 0), 0);
+            const totalPending = pending.reduce((sum, inv) => sum + parseFloat(inv.MontoTotal || 0), 0);
+            const totalOverdue = overdue.reduce((sum, inv) => sum + parseFloat(inv.MontoTotal || 0), 0);
+            const totalFines = clientInvoices.reduce((sum, inv) => sum + parseFloat(inv.MontoMultas || 0), 0);
             
             return {
                 status: 'billed',
@@ -1193,7 +1192,7 @@
                                 ${hasContract ? `
                                     <div class="detail-row">
                                         <span class="detail-label">Monto Semanal</span>
-                                        <span class="detail-value amount-badge">₡${parseAmount(client.montoContrato || 0).toLocaleString('es-CR')}</span>
+                                        <span class="detail-value amount-badge">₡${parseFloat(client.montoContrato || 0).toLocaleString('es-CR')}</span>
                                     </div>
                                     <div class="detail-row">
                                         <span class="detail-label">Fecha Inicio</span>
@@ -1205,7 +1204,7 @@
                                     </div>
                                     <div class="detail-row">
                                         <span class="detail-label">Total Contrato</span>
-                                        <span class="detail-value amount-badge">₡${(parseAmount(client.montoContrato || 0) * parseInt(client.plazoContrato || 0)).toLocaleString('es-CR')}</span>
+                                        <span class="detail-value amount-badge">₡${(parseFloat(client.montoContrato || 0) * parseInt(client.plazoContrato || 0)).toLocaleString('es-CR')}</span>
                                     </div>
                                     <div class="detail-row" style="grid-column: 1 / -1;">
                                         <span class="detail-label">Estado Facturación</span>
@@ -1461,7 +1460,7 @@
             console.log(`Fecha de firma: ${client.fechaContrato}`);
             console.log(`Fecha de inicio contrato: ${formatDateForDB(contractStartDate)}`);
             
-            const weeklyAmount = parseAmount(client.montoContrato);
+            const weeklyAmount = parseFloat(client.montoContrato);
             const totalWeeks = parseInt(client.plazoContrato);
             const paymentDay = client.diaPago;
             

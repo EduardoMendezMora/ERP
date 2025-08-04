@@ -678,9 +678,7 @@ function renderUnassignedPaymentsSection() {
         const totalAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
         const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
         const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-        
-        // ===== NUEVA LÓGICA: USAR COLUMNA DISPONIBLE DEL BACKEND =====
-        const availableAmount = calculateAvailableAmount(payment);
+        const availableAmount = totalAmount - assignedAmount;
 
         const reference = payment.Referencia || 'Sin referencia';
         const description = payment.Descripción || 'Sin descripción';

@@ -1,50 +1,3 @@
-// ===== FUNCIÓN DE UTILIDAD PARA CALCULAR SALDO DISPONIBLE =====
-function calculateAvailableAmount(payment) {
-    // Si la columna "Disponible" tiene contenido, usarla
-    if (payment.Disponible && payment.Disponible.trim() !== '' && payment.Disponible !== '0') {
-        const availableAmount = parseFloat(payment.Disponible) || 0;
-        console.log(`💰 Pago ${payment.Referencia}: Usando saldo disponible del backend: ₡${availableAmount.toLocaleString('es-CR')}`);
-        return availableAmount;
-    } else {
-        // Si está vacía, calcular dinámicamente (comportamiento anterior)
-        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-        console.log(`🔍 [DEBUG CÁLCULO] Payment amount after parsing: ${paymentAmount}`);
-        
-        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-        console.log(`🔍 [DEBUG CÁLCULO] Assignments after parsing:`, assignments);
-        
-        // Verificar si hay disponible en el nuevo formato
-        const availableFromFormat = assignments.find(a => a.available !== null)?.available;
-        if (availableFromFormat !== undefined && availableFromFormat !== null) {
-            console.log(`🔍 [DEBUG CÁLCULO] Available amount from new format: ${availableFromFormat}`);
-            console.log(`💰 Pago ${payment.Referencia}: Usando saldo disponible del nuevo formato: ₡${availableFromFormat.toLocaleString('es-CR')}`);
-            return availableFromFormat;
-        }
-        
-        const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-        console.log(`🔍 [DEBUG CÁLCULO] Assigned amount calculated: ${assignedAmount}`);
-        
-        const availableAmount = Math.max(0, paymentAmount - assignedAmount);
-        console.log(`🔍 [DEBUG CÁLCULO] Available amount calculated: ${availableAmount}`);
-        
-        // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-        console.log(`🔍 [DEBUG CÁLCULO] === CÁLCULO SALDO DISPONIBLE ${payment.Referencia} ===`);
-        console.log(`🔍 [DEBUG CÁLCULO] Créditos original: ${payment.Créditos} (tipo: ${typeof payment.Créditos})`);
-        console.log(`🔍 [DEBUG CÁLCULO] BankSource: "${payment.BankSource}"`);
-        console.log(`🔍 [DEBUG CÁLCULO] Payment amount calculado: ₡${paymentAmount.toLocaleString('es-CR')}`);
-        console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas: "${payment.FacturasAsignadas}"`);
-        console.log(`🔍 [DEBUG CÁLCULO] Assignments parsed:`, assignments);
-        console.log(`🔍 [DEBUG CÁLCULO] Assigned amount: ₡${assignedAmount.toLocaleString('es-CR')}`);
-        console.log(`🔍 [DEBUG CÁLCULO] Available amount: ₡${availableAmount.toLocaleString('es-CR')}`);
-        console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas length: ${payment.FacturasAsignadas ? payment.FacturasAsignadas.length : 0}`);
-        console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas trim: "${payment.FacturasAsignadas ? payment.FacturasAsignadas.trim() : ''}"`);
-        console.log(`🔍 [DEBUG CÁLCULO] === FIN DEBUG CÁLCULO ===`);
-        
-        console.log(`💰 Pago ${payment.Referencia}: Calculando saldo disponible dinámicamente: ₡${availableAmount.toLocaleString('es-CR')}`);
-        return availableAmount;
-    }
-}
-
 // ===== VARIABLES PARA DISTRIBUCIÓN DE PAGOS =====
 let currentPaymentForDistribution = null;
 let paymentDistributionData = [];
@@ -63,9 +16,13 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
         }
 
         // Calcular el monto disponible del pago (descontando asignaciones previas)
-        const availableAmount = calculateAvailableAmount(payment);
+        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+        const previousAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+        const previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+        const availableAmount = paymentAmount - previouslyAssignedAmount;
 
-        console.log(`💰 Monto total del pago: ₡${parsePaymentAmount(payment.Créditos, payment.BankSource).toLocaleString('es-CR')}`);
+        console.log(`💰 Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
+        console.log(`💸 Previamente asignado: ₡${previouslyAssignedAmount.toLocaleString('es-CR')}`);
         console.log(`💵 Disponible para asignar: ₡${availableAmount.toLocaleString('es-CR')}`);
 
         if (availableAmount <= 0) {
@@ -81,7 +38,7 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
         // Si hay múltiples facturas vencidas y el pago puede cubrir más de una, mostrar modal de distribución
         if (overdueInvoices.length > 0) {
             const eligibleInvoices = [invoice, ...overdueInvoices].filter(inv => {
-                const baseAmount = parseAmount(inv.MontoBase || 0);
+                const baseAmount = parseFloat(inv.MontoBase || 0);
                 const finesUntilPayment = calculateFinesUntilDate(inv, payment.Fecha);
                 const totalOwed = baseAmount + finesUntilPayment;
                 return totalOwed <= availableAmount * 2; // Considerar facturas que se pueden pagar con el doble del disponible
@@ -106,7 +63,7 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
 // ===== FUNCIÓN PARA APLICAR PAGO A UNA SOLA FACTURA =====
 async function applySinglePayment(payment, invoice, availableAmount) {
     try {
-        const baseAmount = parseAmount(invoice.MontoBase || 0);
+        const baseAmount = parseFloat(invoice.MontoBase || 0);
         const paymentDate = payment.Fecha;
         const finesUntilPayment = calculateFinesUntilDate(invoice, paymentDate);
         const totalOwedUntilPayment = baseAmount + finesUntilPayment;
@@ -243,7 +200,7 @@ async function showPaymentDistributionModal(payment, eligibleInvoices, available
 
     // Preparar datos de distribución
     paymentDistributionData = eligibleInvoices.map(invoice => {
-        const baseAmount = parseAmount(invoice.MontoBase || 0);
+        const baseAmount = parseFloat(invoice.MontoBase || 0);
         const finesUntilPayment = calculateFinesUntilDate(invoice, payment.Fecha);
         const totalOwed = baseAmount + finesUntilPayment;
 
@@ -403,8 +360,10 @@ function updateDistributionCalculation(index) {
 }
 
 function updateDistributionSummary() {
-    // ===== NUEVA LÓGICA: USAR COLUMNA DISPONIBLE DEL BACKEND =====
-    const actualAvailable = calculateAvailableAmount(currentPaymentForDistribution);
+    const availableAmount = parsePaymentAmount(currentPaymentForDistribution.Créditos, currentPaymentForDistribution.BankSource);
+    const previousAssignments = parseAssignedInvoices(currentPaymentForDistribution.FacturasAsignadas || '');
+    const previouslyAssignedAmount = previousAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+    const actualAvailable = availableAmount - previouslyAssignedAmount;
 
     const totalAssigned = paymentDistributionData.reduce((sum, item) => sum + item.assignedAmount, 0);
     const remaining = actualAvailable - totalAssigned;
@@ -530,20 +489,6 @@ async function confirmPaymentDistribution() {
         // DEBUGGING ESPECÍFICO PARA EL PAGO PROBLEMÁTICO
         if (currentPaymentForDistribution.Referencia === '970430862') {
             console.log(`🔍 [DEBUG] Pago 970430862 - Verificando distribución completa:`);
-            console.log(`   - FacturasAsignadas actual: "${currentPaymentForDistribution.FacturasAsignadas}"`);
-            console.log(`   - previousAssignments:`, previousAssignments);
-            console.log(`   - previouslyAssignedAmount: ₡${previouslyAssignedAmount.toLocaleString('es-CR')}`);
-            console.log(`   - newAssignments:`, newAssignments);
-            console.log(`   - totalAssigned: ₡${totalAssigned.toLocaleString('es-CR')}`);
-            console.log(`   - totalAccumulatedAssignments: ₡${totalAccumulatedAssignments.toLocaleString('es-CR')}`);
-            console.log(`   - totalPayment: ₡${totalPayment.toLocaleString('es-CR')}`);
-            console.log(`   - Diferencia: ₡${(totalAccumulatedAssignments - totalPayment).toLocaleString('es-CR')}`);
-            console.log(`   - ¿Es completamente asignado?: ${Math.abs(totalAccumulatedAssignments - totalPayment) < 0.01}`);
-        }
-        
-        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA 970873893
-        if (currentPaymentForDistribution.Referencia === '970873893') {
-            console.log(`🔍 [DEBUG ESPECÍFICO] Pago 970873893 - Verificando distribución completa:`);
             console.log(`   - FacturasAsignadas actual: "${currentPaymentForDistribution.FacturasAsignadas}"`);
             console.log(`   - previousAssignments:`, previousAssignments);
             console.log(`   - previouslyAssignedAmount: ₡${previouslyAssignedAmount.toLocaleString('es-CR')}`);
@@ -687,16 +632,6 @@ async function updatePaymentAssignments(payment, newAssignments) {
 
         console.log('📝 Asignaciones formateadas para BD:', formattedAssignments);
 
-        // ===== NUEVO: CALCULAR SALDO DISPONIBLE =====
-        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-        const totalAssignedAmount = combinedAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
-        const availableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
-        
-        console.log(`💰 Cálculo de saldo disponible:`);
-        console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
-        console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
-        console.log(`   - Saldo disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
-
         // ✅ MÉTODO OFICIAL SEGÚN DOCUMENTACIÓN
         // URL: https://sheetdb.io/api/v1/{API_ID}/{COLUMN_NAME}/{VALUE}?sheet={SHEET}
         const officialUpdateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
@@ -706,26 +641,12 @@ async function updatePaymentAssignments(payment, newAssignments) {
         // Preparar datos como JSON (según documentación oficial)
         const updateData = {
             FacturasAsignadas: formattedAssignments,
-            FechaAsignacion: formatDateForStorage(new Date()),
-            Disponible: availableAmount.toString() // Guardar saldo disponible (siempre como string)
+            FechaAsignacion: formatDateForStorage(new Date())
         };
 
         console.log('📦 Datos a actualizar:', updateData);
 
         // DEBUGGING PROFUNDO: Mostrar toda la información relevante antes del PATCH
-        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-        if (payment.Referencia === '970873893') {
-            console.log('🔍 [DEBUG ESPECÍFICO] === TRANSACCIÓN 970873893 ===');
-            console.log('🔍 [DEBUG ESPECÍFICO] Payment object:', payment);
-            console.log('🔍 [DEBUG ESPECÍFICO] New assignments:', newAssignments);
-            console.log('🔍 [DEBUG ESPECÍFICO] Combined assignments:', combinedAssignments);
-            console.log('🔍 [DEBUG ESPECÍFICO] Payment amount:', paymentAmount);
-            console.log('🔍 [DEBUG ESPECÍFICO] Total assigned amount:', totalAssignedAmount);
-            console.log('🔍 [DEBUG ESPECÍFICO] Available amount:', availableAmount);
-            console.log('🔍 [DEBUG ESPECÍFICO] Update data:', updateData);
-            console.log('🔍 [DEBUG ESPECÍFICO] === FIN DEBUG ESPECÍFICO ===');
-        }
-
         console.log('🛠️ [DEBUG] --- INICIO DEBUG PROFUNDO PATCH SheetDB ---');
         console.log('🛠️ [DEBUG] URL PATCH:', officialUpdateUrl);
         console.log('🛠️ [DEBUG] Headers:', { 'Content-Type': 'application/json' });
@@ -759,30 +680,12 @@ async function updatePaymentAssignments(payment, newAssignments) {
         if (response.ok) {
             const result = await response.json();
             console.log('✅ Actualización oficial exitosa:', result);
-            console.log(`✅ Saldo disponible guardado: ₡${availableAmount.toLocaleString('es-CR')}`);
-            
-            // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-            if (payment.Referencia === '970873893') {
-                console.log('🔍 [DEBUG ESPECÍFICO] === RESPUESTA EXITOSA 970873893 ===');
-                console.log('🔍 [DEBUG ESPECÍFICO] Response result:', result);
-                console.log('🔍 [DEBUG ESPECÍFICO] Available amount saved:', availableAmount);
-                console.log('🔍 [DEBUG ESPECÍFICO] === FIN DEBUG RESPUESTA ===');
-            }
-            
             return combinedAssignments;
         }
 
         // Si el método oficial falla, obtener más información del error
         const errorText = await response.text();
         console.error('❌ Error en método oficial:', response.status, errorText);
-        
-        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
-        if (payment.Referencia === '970873893') {
-            console.log('🔍 [DEBUG ESPECÍFICO] === ERROR 970873893 ===');
-            console.log('🔍 [DEBUG ESPECÍFICO] Response status:', response.status);
-            console.log('🔍 [DEBUG ESPECÍFICO] Error text:', errorText);
-            console.log('🔍 [DEBUG ESPECÍFICO] === FIN DEBUG ERROR ===');
-        }
 
         // Verificar si el problema es que el registro no existe
         if (response.status === 404) {
@@ -812,79 +715,25 @@ async function updatePaymentAssignments(payment, newAssignments) {
 function parseAssignedInvoices(assignedString) {
     if (!assignedString || assignedString.trim() === '') return [];
 
-    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] === PARSEO ASIGNACIONES ===`);
-    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString: "${assignedString}"`);
-    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString type: ${typeof assignedString}`);
-    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString length: ${assignedString.length}`);
-    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString.trim(): "${assignedString.trim()}"`);
-    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] !assignedString: ${!assignedString}`);
-    console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString.trim() === '': ${assignedString.trim() === ''}`);
-
     try {
         // Formato esperado: "FAC-001:15000;FAC-002:25000"
-        const splitAssignments = assignedString.split(';');
-        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Split assignments:`, splitAssignments);
-        
-        const assignments = splitAssignments.map(assignment => {
-            // Buscar el patrón: FAC-XXX:amount(available) o FAC-XXX:amount
-            const match = assignment.match(/^([^:]+):(\d+)(?:\((\d+)\))?$/);
-            if (match) {
-                const [, invoiceNumber, amount, available] = match;
-                const result = {
-                    invoiceNumber: invoiceNumber.trim(),
-                    amount: parseFloat(amount) || 0,
-                    available: available ? parseFloat(available) : null
-                };
-                
-                // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Assignment parsed:`, result);
-                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] invoiceNumber.trim(): "${invoiceNumber.trim()}"`);
-                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] parseFloat(amount): ${parseFloat(amount)}`);
-                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] available: ${available ? parseFloat(available) : 'null'}`);
-                
-                return result;
-            } else {
-                // Formato legacy: FAC-XXX:amount
-                const [invoiceNumber, amount] = assignment.split(':');
-                const result = {
-                    invoiceNumber: invoiceNumber.trim(),
-                    amount: parseFloat(amount) || 0,
-                    available: null
-                };
-                
-                // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Assignment parsed (legacy):`, result);
-                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] invoiceNumber.trim(): "${invoiceNumber.trim()}"`);
-                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] parseFloat(amount): ${parseFloat(amount)}`);
-                
-                return result;
-            }
+        return assignedString.split(';').map(assignment => {
+            const [invoiceNumber, amount] = assignment.split(':');
+            return {
+                invoiceNumber: invoiceNumber.trim(),
+                amount: parseFloat(amount) || 0
+            };
         }).filter(assignment => assignment.invoiceNumber && assignment.amount > 0);
-        
-        // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Final assignments:`, assignments);
-        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] === FIN DEBUG PARSE ASSIGNMENTS ===`);
-        
-        return assignments;
     } catch (error) {
         console.error('Error al parsear asignaciones:', error);
         return [];
     }
 }
 
-function formatAssignedInvoices(assignments, availableAmount = null) {
+function formatAssignedInvoices(assignments) {
     if (!assignments || assignments.length === 0) return '';
 
-    // Nuevo formato: "FAC-001:15000(13000);FAC-002:25000(0)" donde (13000) es el saldo disponible
-    if (availableAmount !== null) {
-        return assignments
-            .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
-            .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}(${availableAmount})`)
-            .join(';');
-    }
-    
-    // Formato original: "FAC-001:15000;FAC-002:25000"
+    // Formato: "FAC-001:15000;FAC-002:25000"
     return assignments
         .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
         .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}`)
@@ -936,7 +785,7 @@ async function unassignPaymentFromInvoice(paymentReference, bankSource, invoiceN
                 }
             }
 
-            const baseAmount = parseAmount(invoice.MontoBase || 0);
+            const baseAmount = parseFloat(invoice.MontoBase || 0);
             const newTotal = baseAmount + currentFines;
 
             // Actualizar en la API
@@ -972,45 +821,11 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
         const formattedAssignments = formatAssignedInvoices(assignments);
         console.log('🔄 Actualización RAW para:', payment.Referencia, 'con asignaciones:', formattedAssignments);
 
-        // ===== NUEVO: CALCULAR SALDO DISPONIBLE =====
-        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-        const totalAssignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
-        const availableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
-        
-        console.log(`💰 Cálculo de saldo disponible (RAW):`);
-        console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
-        console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
-        console.log(`   - Saldo disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
-
-        // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-        console.log('🔍 [DEBUG RAW] === TRANSACCIÓN RAW ===');
-        console.log('🔍 [DEBUG RAW] Payment object:', payment);
-        console.log('🔍 [DEBUG RAW] Assignments:', assignments);
-        console.log('🔍 [DEBUG RAW] Payment amount:', paymentAmount);
-        console.log('🔍 [DEBUG RAW] Total assigned amount:', totalAssignedAmount);
-        console.log('🔍 [DEBUG RAW] Available amount:', availableAmount);
-        console.log('🔍 [DEBUG RAW] Available amount type:', typeof availableAmount);
-        console.log('🔍 [DEBUG RAW] Available amount > 0:', availableAmount > 0);
-        console.log('🔍 [DEBUG RAW] Available amount is NaN:', isNaN(availableAmount));
-        console.log('🔍 [DEBUG RAW] Available amount is null:', availableAmount === null);
-        console.log('🔍 [DEBUG RAW] Available amount is undefined:', availableAmount === undefined);
-
         // Datos a actualizar
         const updateData = {
-            FacturasAsignadas: formatAssignedInvoices(assignments, availableAmount), // Nuevo formato con disponible
-            FechaAsignacion: assignments.length > 0 ? formatDateForStorage(new Date()) : '',
-            Disponible: availableAmount.toString() // Mantener columna Disponible para compatibilidad
+            FacturasAsignadas: formattedAssignments,
+            FechaAsignacion: assignments.length > 0 ? formatDateForStorage(new Date()) : ''
         };
-        
-        // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-        console.log('🔍 [DEBUG RAW] Update data:', updateData);
-        console.log('🔍 [DEBUG RAW] Disponible value being sent:', updateData.Disponible);
-        console.log('🔍 [DEBUG RAW] Disponible type:', typeof updateData.Disponible);
-        console.log('🔍 [DEBUG RAW] Disponible length:', updateData.Disponible.length);
-        console.log('🔍 [DEBUG RAW] Disponible === "":', updateData.Disponible === "");
-        console.log('🔍 [DEBUG RAW] Disponible === "0":', updateData.Disponible === "0");
-        console.log('🔍 [DEBUG RAW] JSON.stringify(updateData):', JSON.stringify(updateData));
-        console.log('🔍 [DEBUG RAW] === FIN DEBUG RAW ===');
 
         // URL oficial según documentación
         const updateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
@@ -1019,420 +834,23 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
         const response = await fetch(updateUrl, {
             method: 'PATCH',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: JSON.stringify(updateData)
+            body: new URLSearchParams(updateData).toString()
         });
 
         if (response.ok) {
-            const responseText = await response.text();
             console.log('✅ Actualización RAW oficial exitosa');
-            console.log(`✅ Saldo disponible guardado: ₡${availableAmount.toLocaleString('es-CR')}`);
-            console.log('✅ Response from SheetDB:', responseText);
-            
-            // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-            console.log('🔍 [DEBUG RAW] === RESPUESTA EXITOSA RAW ===');
-            console.log('🔍 [DEBUG RAW] Available amount saved:', availableAmount);
-            console.log('🔍 [DEBUG RAW] Response text:', responseText);
-            console.log('🔍 [DEBUG RAW] === FIN DEBUG RESPUESTA RAW ===');
-            
-            return true;
-        } else {
-            const errorText = await response.text();
-            console.error('❌ Error en actualización RAW:', response.status, errorText);
-            
-            // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-            console.log('🔍 [DEBUG RAW] === ERROR RAW ===');
-            console.log('🔍 [DEBUG RAW] Response status:', response.status);
-            console.log('🔍 [DEBUG RAW] Error text:', errorText);
-            console.log('🔍 [DEBUG RAW] === FIN DEBUG ERROR RAW ===');
-            
-            throw new Error(`Actualización RAW fallida: HTTP ${response.status} - ${errorText}`);
+            return assignments;
         }
+
+        const errorText = await response.text();
+        throw new Error(`Actualización RAW fallida: HTTP ${response.status}: ${errorText}`);
 
     } catch (error) {
         console.error('❌ Error en updatePaymentAssignmentsRaw:', error);
         throw error;
     }
-}
-
-// ===== FUNCIÓN PARA VERIFICAR ESTRUCTURA DE LA HOJA Y CAMPOS =====
-async function verificarEstructuraHoja(sheet = 'BN') {
-    try {
-        console.log(`🔍 [VERIFICACIÓN] Verificando estructura de la hoja ${sheet}`);
-        
-        const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
-        const response = await fetch(url);
-        
-        if (response.ok) {
-            const paymentsData = await response.json();
-            const payments = Array.isArray(paymentsData) ? paymentsData : [];
-            
-            if (payments.length > 0) {
-                const firstPayment = payments[0];
-                console.log(`🔍 [VERIFICACIÓN] Campos disponibles en la hoja ${sheet}:`);
-                console.log('🔍 [VERIFICACIÓN] Objeto completo del primer pago:', firstPayment);
-                
-                // Verificar si existe el campo Disponible
-                if ('Disponible' in firstPayment) {
-                    console.log(`✅ [VERIFICACIÓN] Campo "Disponible" existe en la hoja ${sheet}`);
-                    console.log(`🔍 [VERIFICACIÓN] Valor actual: "${firstPayment.Disponible}"`);
-                } else {
-                    console.log(`❌ [VERIFICACIÓN] Campo "Disponible" NO existe en la hoja ${sheet}`);
-                    console.log(`🔍 [VERIFICACIÓN] Campos disponibles:`, Object.keys(firstPayment));
-                }
-                
-                // Buscar la transacción específica
-                const targetPayment = payments.find(p => p.Referencia === '970873893');
-                if (targetPayment) {
-                    console.log(`🔍 [VERIFICACIÓN] Transacción 970873893 encontrada en ${sheet}:`);
-                    console.log('🔍 [VERIFICACIÓN] Datos completos:', targetPayment);
-                    console.log(`🔍 [VERIFICACIÓN] Campo Disponible: "${targetPayment.Disponible}"`);
-                } else {
-                    console.log(`❌ [VERIFICACIÓN] Transacción 970873893 NO encontrada en ${sheet}`);
-                }
-            } else {
-                console.log(`⚠️ [VERIFICACIÓN] No hay pagos en la hoja ${sheet}`);
-            }
-        } else {
-            console.error(`❌ [VERIFICACIÓN] Error al consultar hoja ${sheet}:`, response.status);
-        }
-        
-    } catch (error) {
-        console.error(`❌ [VERIFICACIÓN] Error verificando hoja ${sheet}:`, error);
-    }
-}
-
-// ===== FUNCIÓN PARA CORREGIR SALDO DISPONIBLE DE TRANSACCIÓN ESPECÍFICA =====
-async function corregirSaldoDisponible(reference = '970873893') {
-    try {
-        console.log(`🔧 [CORRECCIÓN] Iniciando corrección de saldo para transacción ${reference}`);
-        
-        // Buscar la transacción en todas las hojas
-        const sheets = ['BAC', 'BN', 'HuberBN'];
-        let foundPayment = null;
-        let foundSheet = null;
-        
-        for (const sheet of sheets) {
-            try {
-                const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
-                const response = await fetch(url);
-                
-                if (response.ok) {
-                    const paymentsData = await response.json();
-                    const payments = Array.isArray(paymentsData) ? paymentsData : [];
-                    
-                    const payment = payments.find(p => p.Referencia === reference);
-                    if (payment) {
-                        foundPayment = payment;
-                        foundSheet = sheet;
-                        console.log(`🔧 [CORRECCIÓN] Transacción encontrada en hoja ${sheet}`);
-                        break;
-                    }
-                }
-            } catch (error) {
-                console.error(`🔧 [CORRECCIÓN] Error consultando hoja ${sheet}:`, error);
-            }
-        }
-        
-        if (!foundPayment) {
-            console.error(`🔧 [CORRECCIÓN] Transacción ${reference} no encontrada en ninguna hoja`);
-            return false;
-        }
-        
-        console.log(`🔧 [CORRECCIÓN] Datos actuales de la transacción:`, foundPayment);
-        
-        // Calcular el saldo disponible correcto (maneja tanto Float como String)
-        const paymentAmount = parsePaymentAmount(foundPayment.Créditos, foundPayment.BankSource);
-        const assignments = parseAssignedInvoices(foundPayment.FacturasAsignadas || '');
-        const totalAssignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-        const correctAvailableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
-        
-        console.log(`🔧 [CORRECCIÓN] Cálculo del saldo disponible:`);
-        console.log(`   - Créditos del backend: ${foundPayment.Créditos} (tipo: ${typeof foundPayment.Créditos})`);
-        console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
-        console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
-        console.log(`   - Saldo disponible correcto: ₡${correctAvailableAmount.toLocaleString('es-CR')}`);
-        console.log(`   - Saldo disponible actual: "${foundPayment.Disponible}"`);
-        
-        // Preparar datos para actualizar
-        const updateData = {
-            Disponible: correctAvailableAmount > 0 ? correctAvailableAmount.toString() : ''
-        };
-        
-        console.log(`🔧 [CORRECCIÓN] Datos a actualizar:`, updateData);
-        
-        // Actualizar usando el método oficial
-        const updateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(foundPayment.Referencia)}?sheet=${foundPayment.BankSource}`;
-        
-        const response = await fetch(updateUrl, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updateData)
-        });
-        
-        if (response.ok) {
-            const result = await response.json();
-            console.log(`✅ [CORRECCIÓN] Saldo disponible corregido exitosamente:`, result);
-            console.log(`✅ [CORRECCIÓN] Nuevo saldo disponible: ₡${correctAvailableAmount.toLocaleString('es-CR')}`);
-            return true;
-        } else {
-            const errorText = await response.text();
-            console.error(`❌ [CORRECCIÓN] Error al corregir saldo:`, response.status, errorText);
-            return false;
-        }
-        
-    } catch (error) {
-        console.error(`❌ [CORRECCIÓN] Error en la corrección:`, error);
-        return false;
-    }
-}
-
-// ===== FUNCIÓN DE PRUEBA PARA DEBUGGING DE TRANSACCIÓN ESPECÍFICA =====
-async function testDisponibleForTransaction(reference = '970873893') {
-    try {
-        console.log(`🧪 [TEST] Iniciando prueba para transacción ${reference}`);
-        
-        // Buscar la transacción en todas las hojas
-        const sheets = ['BAC', 'BN', 'HuberBN'];
-        let foundPayment = null;
-        let foundSheet = null;
-        
-        for (const sheet of sheets) {
-            try {
-                const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
-                const response = await fetch(url);
-                
-                if (response.ok) {
-                    const paymentsData = await response.json();
-                    const payments = Array.isArray(paymentsData) ? paymentsData : [];
-                    
-                    const payment = payments.find(p => p.Referencia === reference);
-                    if (payment) {
-                        foundPayment = payment;
-                        foundSheet = sheet;
-                        console.log(`🧪 [TEST] Transacción encontrada en hoja ${sheet}`);
-                        break;
-                    }
-                }
-            } catch (error) {
-                console.error(`🧪 [TEST] Error consultando hoja ${sheet}:`, error);
-            }
-        }
-        
-        if (!foundPayment) {
-            console.error(`🧪 [TEST] Transacción ${reference} no encontrada en ninguna hoja`);
-            return false;
-        }
-        
-        console.log(`🧪 [TEST] Datos de la transacción:`, foundPayment);
-        
-        // Simular una asignación de prueba
-        const testAssignments = [{
-            invoiceNumber: 'TEST-001',
-            amount: 1000
-        }];
-        
-        console.log(`🧪 [TEST] Aplicando asignación de prueba...`);
-        
-        // Usar updatePaymentAssignments para probar el guardado de Disponible
-        const result = await updatePaymentAssignments(foundPayment, testAssignments);
-        
-        console.log(`🧪 [TEST] Resultado de la prueba:`, result);
-        console.log(`🧪 [TEST] Prueba completada exitosamente`);
-        
-        return true;
-        
-    } catch (error) {
-        console.error(`🧪 [TEST] Error en la prueba:`, error);
-        return false;
-    }
-}
-
-// ===== FUNCIÓN PARA PROBAR DIFERENTES MÉTODOS DE ACTUALIZACIÓN =====
-async function probarMetodosActualizacion(reference = '970873893') {
-    try {
-        console.log(`🧪 [PRUEBA] Probando diferentes métodos de actualización para ${reference}`);
-        
-        // Buscar la transacción
-        const sheets = ['BAC', 'BN', 'HuberBN'];
-        let foundPayment = null;
-        
-        for (const sheet of sheets) {
-            try {
-                const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
-                const response = await fetch(url);
-                
-                if (response.ok) {
-                    const paymentsData = await response.json();
-                    const payments = Array.isArray(paymentsData) ? paymentsData : [];
-                    
-                    const payment = payments.find(p => p.Referencia === reference);
-                    if (payment) {
-                        foundPayment = payment;
-                        foundPayment.BankSource = sheet;
-                        console.log(`🧪 [PRUEBA] Transacción encontrada en hoja ${sheet}`);
-                        break;
-                    }
-                }
-            } catch (error) {
-                console.error(`🧪 [PRUEBA] Error consultando hoja ${sheet}:`, error);
-            }
-        }
-        
-        if (!foundPayment) {
-            console.error(`🧪 [PRUEBA] Transacción ${reference} no encontrada`);
-            return false;
-        }
-        
-        console.log(`🧪 [PRUEBA] Datos de la transacción:`, foundPayment);
-        
-        // Calcular el saldo correcto (BACKEND YA DEVUELVE FLOAT)
-        const paymentAmount = parsePaymentAmount(foundPayment.Créditos, foundPayment.BankSource);
-        const assignments = parseAssignedInvoices(foundPayment.FacturasAsignadas || '');
-        const totalAssignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-        const correctAvailableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
-        
-        console.log(`🧪 [PRUEBA] Saldo correcto (BACKEND FLOAT): ₡${correctAvailableAmount.toLocaleString('es-CR')}`);
-        console.log(`🧪 [PRUEBA] Créditos del backend: ${foundPayment.Créditos} (tipo: ${typeof foundPayment.Créditos})`);
-        
-        // MÉTODO 1: JSON con Content-Type application/json
-        console.log(`🧪 [PRUEBA] === MÉTODO 1: JSON ===`);
-        try {
-            const updateData1 = {
-                Disponible: correctAvailableAmount.toString()
-            };
-            
-            const url1 = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(foundPayment.Referencia)}?sheet=${foundPayment.BankSource}`;
-            
-            const response1 = await fetch(url1, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(updateData1)
-            });
-            
-            console.log(`🧪 [PRUEBA] Método 1 - Status: ${response1.status}`);
-            if (response1.ok) {
-                const result1 = await response1.json();
-                console.log(`✅ [PRUEBA] Método 1 exitoso:`, result1);
-            } else {
-                const error1 = await response1.text();
-                console.log(`❌ [PRUEBA] Método 1 falló:`, error1);
-            }
-        } catch (error) {
-            console.log(`❌ [PRUEBA] Método 1 error:`, error);
-        }
-        
-        // MÉTODO 2: Form data con Content-Type application/x-www-form-urlencoded
-        console.log(`🧪 [PRUEBA] === MÉTODO 2: FORM DATA ===`);
-        try {
-            const formData = new URLSearchParams();
-            formData.append('Disponible', correctAvailableAmount.toString());
-            
-            const url2 = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(foundPayment.Referencia)}?sheet=${foundPayment.BankSource}`;
-            
-            const response2 = await fetch(url2, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: formData.toString()
-            });
-            
-            console.log(`🧪 [PRUEBA] Método 2 - Status: ${response2.status}`);
-            if (response2.ok) {
-                const result2 = await response2.json();
-                console.log(`✅ [PRUEBA] Método 2 exitoso:`, result2);
-            } else {
-                const error2 = await response2.text();
-                console.log(`❌ [PRUEBA] Método 2 falló:`, error2);
-            }
-        } catch (error) {
-            console.log(`❌ [PRUEBA] Método 2 error:`, error);
-        }
-        
-        // MÉTODO 3: Solo el campo Disponible con diferentes formatos
-        console.log(`🧪 [PRUEBA] === MÉTODO 3: SOLO DISPONIBLE ===`);
-        try {
-            const updateData3 = {
-                Disponible: correctAvailableAmount.toString()
-            };
-            
-            const url3 = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(foundPayment.Referencia)}?sheet=${foundPayment.BankSource}`;
-            
-            const response3 = await fetch(url3, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(updateData3)
-            });
-            
-            console.log(`🧪 [PRUEBA] Método 3 - Status: ${response3.status}`);
-            if (response3.ok) {
-                const result3 = await response3.json();
-                console.log(`✅ [PRUEBA] Método 3 exitoso:`, result3);
-            } else {
-                const error3 = await response3.text();
-                console.log(`❌ [PRUEBA] Método 3 falló:`, error3);
-            }
-        } catch (error) {
-            console.log(`❌ [PRUEBA] Método 3 error:`, error);
-        }
-        
-        console.log(`🧪 [PRUEBA] === FIN DE PRUEBAS ===`);
-        return true;
-        
-    } catch (error) {
-        console.error(`❌ [PRUEBA] Error en pruebas:`, error);
-        return false;
-    }
-}
-
-// ===== FUNCIÓN PARA PROBAR EL PARSING DE MONTOS =====
-function probarParsingMontos() {
-    console.log(`🧪 [PRUEBA PARSING] === PRUEBA DE PARSING DE MONTOS ===`);
-    
-    // Probar con el monto problemático (string que viene del backend)
-    const montoProblematico = '60.000,00'; // String del backend
-    const bankSource = 'BAC';
-    
-    console.log(`🧪 [PRUEBA PARSING] Monto original: ${montoProblematico} (tipo: ${typeof montoProblematico})`);
-    console.log(`🧪 [PRUEBA PARSING] Banco: "${bankSource}"`);
-    
-    // Probar función actualizada
-    const resultado = parsePaymentAmount(montoProblematico, bankSource);
-    console.log(`🧪 [PRUEBA PARSING] Resultado: ${resultado}`);
-    
-    // Probar diferentes formatos posibles
-    const valoresPrueba = [
-        '60.000,00',  // String con formato BAC
-        '60000',      // String numérico
-        60000,        // Float
-        60000.0,      // Float con decimal
-        '47000',      // String numérico
-        47000,        // Float
-        '13.000,00',  // String con formato BAC
-        13000         // Float
-    ];
-    
-    console.log(`🧪 [PRUEBA PARSING] === PRUEBA DE DIFERENTES FORMATOS ===`);
-    valoresPrueba.forEach(valor => {
-        const resultado = parsePaymentAmount(valor, bankSource);
-        console.log(`🧪 [PRUEBA PARSING] ${valor} (${typeof valor}) -> ${resultado}`);
-    });
-    
-    console.log(`🧪 [PRUEBA PARSING] === FIN PRUEBA PARSING ===`);
-    
-    return {
-        montoOriginal: montoProblematico,
-        resultado: resultado,
-        valores: valoresPrueba.map(v => ({ valor: v, resultado: parsePaymentAmount(v, bankSource) }))
-    };
 }
 
 // ===== FUNCIÓN AUXILIAR PARA RECARGAR DATOS =====
@@ -1495,31 +913,27 @@ async function loadUnassignedPayments(clientId) {
 
                     // Filtrar solo los que NO están completamente asignados
                     const unassignedFromSheet = clientRelatedPayments.filter(payment => {
-                        // ===== NUEVA LÓGICA: USAR COLUMNA DISPONIBLE DEL BACKEND =====
-                        const availableAmount = calculateAvailableAmount(payment);
+                        const paymentAmount = parsePaymentAmount(payment.Créditos, sheet);
+                        const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+                        const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+                        const availableAmount = paymentAmount - assignedAmount;
 
                         // DEBUGGING ESPECÍFICO PARA EL PAGO PROBLEMÁTICO
                         if (payment.Referencia === '970430862') {
                             console.log(`🔍 [DEBUG] Pago 970430862 en ${sheet}:`);
                             console.log(`   - Créditos: "${payment.Créditos}"`);
                             console.log(`   - FacturasAsignadas: "${payment.FacturasAsignadas}"`);
-                            console.log(`   - Disponible (backend): "${payment.Disponible}"`);
+                            console.log(`   - paymentAmount: ₡${paymentAmount.toLocaleString('es-CR')}`);
+                            console.log(`   - assignedAmount: ₡${assignedAmount.toLocaleString('es-CR')}`);
                             console.log(`   - availableAmount: ₡${availableAmount.toLocaleString('es-CR')}`);
-                            console.log(`   - Condición (monto disponible): ${availableAmount > 0.01}`);
+                            console.log(`   - assignments.length: ${assignments.length}`);
+                            console.log(`   - Condición 1 (no asignaciones): ${assignments.length === 0}`);
+                            console.log(`   - Condición 2 (monto disponible): ${availableAmount > 0.01}`);
+                            console.log(`   - Resultado final: ${assignments.length === 0 || availableAmount > 0.01}`);
                         }
-                        
-                        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA 970873893
-                        // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-                        console.log(`🔍 [DEBUG LOAD] Pago ${payment.Referencia} en ${sheet}:`);
-                        console.log(`   - Créditos: "${payment.Créditos}"`);
-                        console.log(`   - FacturasAsignadas: "${payment.FacturasAsignadas}"`);
-                        console.log(`   - Disponible (backend): "${payment.Disponible}"`);
-                        console.log(`   - availableAmount: ₡${availableAmount.toLocaleString('es-CR')}`);
-                        console.log(`   - Condición (monto disponible): ${availableAmount > 0.01}`);
-                        console.log(`   - Payment object completo:`, payment);
 
-                        // Mostrar transacción si tiene saldo disponible
-                        return availableAmount > 0.01;
+                        // Si no tiene asignaciones O tiene monto disponible
+                        return assignments.length === 0 || availableAmount > 0.01;
                     });
 
                     // Agregar información de la fuente (banco)
@@ -1983,40 +1397,43 @@ function getCurrentUserName() {
     return 'Usuario Sistema';
 }
 
-// ===== EXPORTAR FUNCIONES GLOBALMENTE =====
-window.calculateAvailableAmount = calculateAvailableAmount;
+// ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
 window.assignPaymentToInvoice = assignPaymentToInvoice;
-window.applySinglePayment = applySinglePayment;
-window.showPaymentDistributionModal = showPaymentDistributionModal;
-window.closePaymentDistributionModal = closePaymentDistributionModal;
-window.updatePaymentAssignments = updatePaymentAssignments;
-window.updatePaymentAssignmentsRaw = updatePaymentAssignmentsRaw;
 window.unassignPaymentFromInvoice = unassignPaymentFromInvoice;
+window.showUnassignConfirmation = showUnassignConfirmation;
 window.loadUnassignedPayments = loadUnassignedPayments;
 window.loadAssignedPayments = loadAssignedPayments;
 window.updateInvoiceStatus = updateInvoiceStatus;
-window.showUnassignConfirmation = showUnassignConfirmation;
+window.reloadDataAndRender = reloadDataAndRender;
+
+// Funciones de distribución
+window.showPaymentDistributionModal = showPaymentDistributionModal;
+window.closePaymentDistributionModal = closePaymentDistributionModal;
+window.confirmPaymentDistribution = confirmPaymentDistribution;
+window.updateDistributionCalculation = updateDistributionCalculation;
+
+// Funciones de parseo
+window.parseAssignedInvoices = parseAssignedInvoices;
+window.formatAssignedInvoices = formatAssignedInvoices;
+
+// Funciones principales de actualización
+window.updatePaymentAssignments = updatePaymentAssignments;
+window.updatePaymentAssignmentsRaw = updatePaymentAssignmentsRaw;
+
+// ✅ FUNCIONES DE DEBUGGING EXPUESTAS (COMPLETAS)
 window.testSheetDBConnection = testSheetDBConnection;
-window.quickTestUpdate = quickTestUpdate;
 window.debugSheetDBInfo = debugSheetDBInfo;
+window.quickTestUpdate = quickTestUpdate;
+
+// ✅ FUNCIONES DE WHATSAPP EXPUESTAS
 window.sendPaymentAssignmentWhatsAppNotification = sendPaymentAssignmentWhatsAppNotification;
 window.getCurrentUserName = getCurrentUserName;
-window.testDisponibleForTransaction = testDisponibleForTransaction;
-window.corregirSaldoDisponible = corregirSaldoDisponible;
-window.verificarEstructuraHoja = verificarEstructuraHoja;
-window.probarMetodosActualizacion = probarMetodosActualizacion;
-window.probarParsingMontos = probarParsingMontos;
 
 console.log('✅ payment-management.js COMPLETO - Usando método oficial SheetDB + WhatsApp');
 console.log('🧪 Funciones de debugging disponibles:');
 console.log('  - debugSheetDBInfo() - Información de debugging');
 console.log('  - testSheetDBConnection(referencia, banco) - Prueba conexión oficial');
 console.log('  - quickTestUpdate(referencia, banco) - Prueba rápida oficial');
-console.log('  - testDisponibleForTransaction(referencia) - Prueba guardado de Disponible');
-console.log('  - corregirSaldoDisponible(referencia) - Corregir saldo disponible de transacción');
-console.log('  - verificarEstructuraHoja(hoja) - Verificar estructura y campos de la hoja');
-console.log('  - probarMetodosActualizacion(referencia) - Probar diferentes métodos de actualización');
-console.log('  - probarParsingMontos() - Probar parsing de montos BAC');
 console.log('');
 console.log('📱 NUEVA FUNCIONALIDAD WHATSAPP:');
 console.log('  ✅ Envío automático de notificaciones al asignar pagos');
@@ -2030,495 +1447,3 @@ console.log('  ✅ Con Content-Type: application/x-www-form-urlencoded');
 console.log('  ✅ Datos en body como URLSearchParams (según documentación)');
 console.log('');
 console.log('🎯 Para probar: testSheetDBConnection("18475172", "BN")');
-
-// ===== FUNCIÓN DE PRUEBA PARA VERIFICAR PARSING DE MONTOS =====
-function testParsingProblematicAmount() {
-    console.log(`🧪 [PRUEBA PARSING] === PRUEBA ESPECÍFICA PARA 970873893 ===`);
-    
-    // Simular el monto problemático que viene del backend
-    const montoProblematico = '60.000,00';
-    const bankSource = 'BAC';
-    
-    console.log(`🧪 [PRUEBA PARSING] Monto original: ${montoProblematico} (tipo: ${typeof montoProblematico})`);
-    console.log(`🧪 [PRUEBA PARSING] Banco: "${bankSource}"`);
-    
-    // Probar la función parsePaymentAmount
-    const resultado = parsePaymentAmount(montoProblematico, bankSource);
-    console.log(`🧪 [PRUEBA PARSING] Resultado parsePaymentAmount: ${resultado}`);
-    
-    // Simular el cálculo completo
-    const paymentAmount = resultado;
-    const assignedAmount = 47000; // FAC-19511:47000
-    const availableAmount = paymentAmount - assignedAmount;
-    
-    console.log(`🧪 [PRUEBA PARSING] Cálculo completo:`);
-    console.log(`   - Payment amount: ₡${paymentAmount.toLocaleString('es-CR')}`);
-    console.log(`   - Assigned amount: ₡${assignedAmount.toLocaleString('es-CR')}`);
-    console.log(`   - Available amount: ₡${availableAmount.toLocaleString('es-CR')}`);
-    
-    console.log(`🧪 [PRUEBA PARSING] === FIN PRUEBA ===`);
-    
-    return {
-        montoOriginal: montoProblematico,
-        resultado: resultado,
-        availableAmount: availableAmount
-    };
-}
-
-// ===== FUNCIÓN DE PRUEBA COMPLETA PARA LA TRANSACCIÓN PROBLEMÁTICA =====
-async function testCompletePaymentAssignment() {
-    console.log(`🧪 [PRUEBA COMPLETA] === PRUEBA COMPLETA PARA 970873893 ===`);
-    
-    // Simular el objeto de pago como viene del backend
-    const mockPayment = {
-        Fecha: '03/08/2025',
-        Referencia: '970873893',
-        Descripción: 'SINPE MOVIL Abono_Carro_CBY419',
-        Créditos: '60.000,00', // String del backend
-        BankSource: 'BAC',
-        Observaciones: 'Conciliada con factura - FAC-19511:47000',
-        FacturasAsignadas: 'FAC-19511:47000'
-    };
-    
-    console.log(`🧪 [PRUEBA COMPLETA] Mock payment object:`, mockPayment);
-    
-    // 1. Probar parsePaymentAmount
-    const paymentAmount = parsePaymentAmount(mockPayment.Créditos, mockPayment.BankSource);
-    console.log(`🧪 [PRUEBA COMPLETA] 1. Payment amount parsed: ${paymentAmount}`);
-    
-    // 2. Probar parseAssignedInvoices
-    const assignments = parseAssignedInvoices(mockPayment.FacturasAsignadas);
-    console.log(`🧪 [PRUEBA COMPLETA] 2. Assignments parsed:`, assignments);
-    
-    // 3. Calcular monto asignado
-    const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-    console.log(`🧪 [PRUEBA COMPLETA] 3. Assigned amount: ${assignedAmount}`);
-    
-    // 4. Calcular saldo disponible
-    const availableAmount = Math.max(0, paymentAmount - assignedAmount);
-    console.log(`🧪 [PRUEBA COMPLETA] 4. Available amount: ${availableAmount}`);
-    
-    // 5. Probar calculateAvailableAmount
-    const calculatedAvailable = calculateAvailableAmount(mockPayment);
-    console.log(`🧪 [PRUEBA COMPLETA] 5. calculateAvailableAmount result: ${calculatedAvailable}`);
-    
-    // 6. Simular datos de actualización
-    const updateData = {
-        FacturasAsignadas: mockPayment.FacturasAsignadas,
-        FechaAsignacion: formatDateForStorage(new Date()),
-        Disponible: availableAmount > 0 ? availableAmount.toString() : ''
-    };
-    
-    console.log(`🧪 [PRUEBA COMPLETA] 6. Update data que se enviaría:`, updateData);
-    
-    console.log(`🧪 [PRUEBA COMPLETA] === RESUMEN ===`);
-    console.log(`   - Monto original: ${mockPayment.Créditos} (${typeof mockPayment.Créditos})`);
-    console.log(`   - Monto parseado: ${paymentAmount}`);
-    console.log(`   - Monto asignado: ${assignedAmount}`);
-    console.log(`   - Saldo disponible: ${availableAmount}`);
-    console.log(`   - Disponible a guardar: "${updateData.Disponible}"`);
-    console.log(`🧪 [PRUEBA COMPLETA] === FIN PRUEBA COMPLETA ===`);
-    
-    return {
-        paymentAmount,
-        assignedAmount,
-        availableAmount,
-        updateData
-    };
-}
-
-// ===== FUNCIÓN DE PRUEBA PARA VERIFICAR CÁLCULO 970873893 =====
-function testCalculation970873893() {
-    console.log('🧪 [PRUEBA CÁLCULO] === PRUEBA ESPECÍFICA PARA 970873893 ===');
-    
-    // Simular los datos del pago problemático
-    const payment = {
-        Referencia: '970873893',
-        Créditos: '60.000,00',
-        BankSource: 'BAC',
-        FacturasAsignadas: 'FAC-19511:47000'
-    };
-    
-    // Simular las asignaciones
-    const assignments = [
-        { invoiceNumber: 'FAC-19511', amount: 47000 }
-    ];
-    
-    console.log('🧪 [PRUEBA CÁLCULO] Payment object:', payment);
-    console.log('🧪 [PRUEBA CÁLCULO] Assignments:', assignments);
-    
-    // Calcular usando la misma lógica que updatePaymentAssignmentsRaw
-    const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-    const totalAssignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
-    const availableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
-    
-    console.log('🧪 [PRUEBA CÁLCULO] Payment amount:', paymentAmount);
-    console.log('🧪 [PRUEBA CÁLCULO] Total assigned amount:', totalAssignedAmount);
-    console.log('🧪 [PRUEBA CÁLCULO] Available amount:', availableAmount);
-    console.log('🧪 [PRUEBA CÁLCULO] Available amount type:', typeof availableAmount);
-    console.log('🧪 [PRUEBA CÁLCULO] Available amount > 0:', availableAmount > 0);
-    console.log('🧪 [PRUEBA CÁLCULO] Disponible value:', availableAmount.toString());
-    console.log('🧪 [PRUEBA CÁLCULO] Disponible type:', typeof availableAmount.toString());
-    console.log('🧪 [PRUEBA CÁLCULO] Disponible length:', availableAmount.toString().length);
-    console.log('🧪 [PRUEBA CÁLCULO] Disponible === "":', availableAmount.toString() === "");
-    console.log('🧪 [PRUEBA CÁLCULO] Disponible === "0":', availableAmount.toString() === "0");
-    
-    // Simular el updateData
-    const updateData = {
-        FacturasAsignadas: 'FAC-19511:47000',
-        FechaAsignacion: formatDateForStorage(new Date()),
-        Disponible: availableAmount.toString()
-    };
-    
-    console.log('🧪 [PRUEBA CÁLCULO] Update data:', updateData);
-    console.log('🧪 [PRUEBA CÁLCULO] JSON.stringify(updateData):', JSON.stringify(updateData));
-    console.log('🧪 [PRUEBA CÁLCULO] === FIN PRUEBA CÁLCULO ===');
-    
-    return {
-        paymentAmount,
-        totalAssignedAmount,
-        availableAmount,
-        updateData
-    };
-}
-
-// Función disponible para pruebas manuales
-// testCalculation970873893();
-
-// ===== FUNCIÓN DE PRUEBA PARA DIAGNOSTICAR 970873893 =====
-function test970873893Calculation() {
-    console.log('🧪 [PRUEBA DIAGNÓSTICO] === PRUEBA ESPECÍFICA PARA 970873893 ===');
-    
-    // Simular los datos exactos del problema
-    const testPayment = {
-        Referencia: '970873893',
-        Créditos: '60.000,00',
-        BankSource: 'BAC',
-        FacturasAsignadas: 'FAC-19511:47000'
-    };
-    
-    console.log('🧪 [PRUEBA DIAGNÓSTICO] Datos de prueba:', testPayment);
-    
-    // Probar parsePaymentAmount
-    const paymentAmount = parsePaymentAmount(testPayment.Créditos, testPayment.BankSource);
-    console.log('🧪 [PRUEBA DIAGNÓSTICO] Payment amount parsed:', paymentAmount);
-    
-    // Probar parseAssignedInvoices
-    const assignments = parseAssignedInvoices(testPayment.FacturasAsignadas);
-    console.log('🧪 [PRUEBA DIAGNÓSTICO] Assignments parsed:', assignments);
-    
-    // Probar cálculo manual
-    const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-    console.log('🧪 [PRUEBA DIAGNÓSTICO] Assigned amount:', assignedAmount);
-    
-    const availableAmount = Math.max(0, paymentAmount - assignedAmount);
-    console.log('🧪 [PRUEBA DIAGNÓSTICO] Available amount calculated:', availableAmount);
-    
-    // Probar calculateAvailableAmount
-    const result = calculateAvailableAmount(testPayment);
-    console.log('🧪 [PRUEBA DIAGNÓSTICO] calculateAvailableAmount result:', result);
-    
-    console.log('🧪 [PRUEBA DIAGNÓSTICO] === FIN PRUEBA DIAGNÓSTICO ===');
-    
-    return {
-        paymentAmount,
-        assignments,
-        assignedAmount,
-        availableAmount,
-        result
-    };
-}
-
-// Ejecutar la prueba automáticamente
-test970873893Calculation();
-
-// ===== FUNCIÓN PARA DEMOSTRAR EL NUEVO FORMATO SUGERIDO =====
-function demonstrateNewFormat() {
-    console.log('💡 [NUEVO FORMATO] === DEMOSTRACIÓN DEL FORMATO SUGERIDO ===');
-    
-    // Formato actual: "FAC-19511:47000"
-    // Formato sugerido: "FAC-19511:47000(13000)" donde (13000) es el saldo disponible
-    
-    const currentFormat = 'FAC-19511:47000';
-    const newFormat = 'FAC-19511:47000(13000)';
-    
-    console.log('💡 [NUEVO FORMATO] Formato actual:', currentFormat);
-    console.log('💡 [NUEVO FORMATO] Formato sugerido:', newFormat);
-    console.log('💡 [NUEVO FORMATO] Ventajas del nuevo formato:');
-    console.log('   - El saldo disponible está integrado en la asignación');
-    console.log('   - Fácil de interpretar: FAC-19511:47000(13000)');
-    console.log('   - No necesita columna separada "Disponible"');
-    console.log('   - Más compacto y legible');
-    
-    // Función para parsear el nuevo formato
-    function parseNewFormat(assignedString) {
-        if (!assignedString || assignedString.trim() === '') return [];
-        
-        const assignments = [];
-        const parts = assignedString.split(';');
-        
-        for (const part of parts) {
-            // Buscar el patrón: FAC-XXX:amount(available)
-            const match = part.match(/^([^:]+):(\d+)(?:\((\d+)\))?$/);
-            if (match) {
-                const [, invoiceNumber, amount, available] = match;
-                assignments.push({
-                    invoiceNumber: invoiceNumber.trim(),
-                    amount: parseFloat(amount) || 0,
-                    available: available ? parseFloat(available) : 0
-                });
-            }
-        }
-        
-        return assignments;
-    }
-    
-    // Probar el nuevo formato
-    const parsedNew = parseNewFormat(newFormat);
-    console.log('💡 [NUEVO FORMATO] Parseado del nuevo formato:', parsedNew);
-    
-    // Función para formatear el nuevo formato
-    function formatNewFormat(assignments, availableAmount) {
-        if (!assignments || assignments.length === 0) return '';
-        
-        return assignments
-            .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
-            .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}(${availableAmount})`)
-            .join(';');
-    }
-    
-    const formattedNew = formatNewFormat(parsedNew, 13000);
-    console.log('💡 [NUEVO FORMATO] Formateado del nuevo formato:', formattedNew);
-    
-    console.log('💡 [NUEVO FORMATO] === FIN DEMOSTRACIÓN ===');
-    
-    return {
-        currentFormat,
-        newFormat,
-        parsedNew,
-        formattedNew
-    };
-}
-
-// Ejecutar la demostración
-demonstrateNewFormat();
-
-// ===== FUNCIÓN DE PRUEBA PARA VERIFICAR GUARDADO EN CAMPO DISPONIBLE =====
-async function testDisponibleFieldSaving(paymentReference = '970873893', bankSource = 'BN') {
-    try {
-        console.log(`🧪 [TEST] Verificando guardado en campo "Disponible" para pago ${paymentReference}`);
-        
-        // 1. Buscar el pago actual
-        const searchUrl = `${API_CONFIG.PAYMENTS}/search?Referencia=${encodeURIComponent(paymentReference)}&sheet=${bankSource}`;
-        const searchResponse = await fetch(searchUrl);
-        
-        if (!searchResponse.ok) {
-            throw new Error(`Error al buscar pago: HTTP ${searchResponse.status}`);
-        }
-        
-        const searchData = await searchResponse.json();
-        if (searchData.length === 0) {
-            throw new Error(`Pago ${paymentReference} no encontrado en ${bankSource}`);
-        }
-        
-        const payment = searchData[0];
-        console.log(`🧪 [TEST] Pago encontrado:`, payment);
-        console.log(`🧪 [TEST] Campo "Disponible" actual: "${payment.Disponible}"`);
-        
-        // 2. Calcular nuevo valor disponible
-        const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-        const currentAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-        const totalAssignedAmount = currentAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
-        const newAvailableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
-        
-        console.log(`🧪 [TEST] Cálculo de disponible:`);
-        console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
-        console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
-        console.log(`   - Nuevo disponible: ₡${newAvailableAmount.toLocaleString('es-CR')}`);
-        
-        // 3. Actualizar solo el campo "Disponible"
-        const updateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(paymentReference)}?sheet=${bankSource}`;
-        const updateData = {
-            Disponible: newAvailableAmount.toString()
-        };
-        
-        console.log(`🧪 [TEST] Enviando actualización:`, updateData);
-        
-        const updateResponse = await fetch(updateUrl, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updateData)
-        });
-        
-        if (updateResponse.ok) {
-            const result = await updateResponse.json();
-            console.log(`✅ [TEST] Campo "Disponible" actualizado exitosamente:`, result);
-            
-            // 4. Verificar que se guardó correctamente
-            const verifyResponse = await fetch(searchUrl);
-            const verifyData = await verifyResponse.json();
-            const updatedPayment = verifyData[0];
-            
-            console.log(`🧪 [TEST] Verificación post-actualización:`);
-            console.log(`   - Campo "Disponible" guardado: "${updatedPayment.Disponible}"`);
-            console.log(`   - Valor esperado: "${newAvailableAmount.toString()}"`);
-            console.log(`   - ¿Coinciden?: ${updatedPayment.Disponible === newAvailableAmount.toString()}`);
-            
-            if (updatedPayment.Disponible === newAvailableAmount.toString()) {
-                console.log(`✅ [TEST] ¡ÉXITO! El campo "Disponible" se guardó correctamente`);
-                return true;
-            } else {
-                console.log(`❌ [TEST] ERROR: El campo "Disponible" no se guardó correctamente`);
-                return false;
-            }
-        } else {
-            const errorText = await updateResponse.text();
-            console.error(`❌ [TEST] Error al actualizar: HTTP ${updateResponse.status} - ${errorText}`);
-            return false;
-        }
-        
-    } catch (error) {
-        console.error(`❌ [TEST] Error en testDisponibleFieldSaving:`, error);
-        return false;
-    }
-}
-
-// ===== FUNCIÓN PARA ACTUALIZAR TODOS LOS PAGOS CON CAMPO DISPONIBLE =====
-async function updateAllPaymentsWithDisponible(sheet = 'BN') {
-    try {
-        console.log(`🔄 [BATCH UPDATE] Actualizando campo "Disponible" para todos los pagos en ${sheet}`);
-        
-        // 1. Obtener todos los pagos de la hoja
-        const url = `${API_CONFIG.PAYMENTS}?sheet=${sheet}`;
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            throw new Error(`Error al obtener pagos: HTTP ${response.status}`);
-        }
-        
-        const paymentsData = await response.json();
-        const payments = Array.isArray(paymentsData) ? paymentsData : [];
-        
-        console.log(`📊 [BATCH UPDATE] Total pagos encontrados en ${sheet}: ${payments.length}`);
-        
-        let successCount = 0;
-        let errorCount = 0;
-        
-        // 2. Procesar cada pago
-        for (const payment of payments) {
-            try {
-                console.log(`🔄 [BATCH UPDATE] Procesando pago ${payment.Referencia}...`);
-                
-                // Calcular disponible
-                const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
-                const currentAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
-                const totalAssignedAmount = currentAssignments.reduce((sum, assignment) => sum + assignment.amount, 0);
-                const availableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
-                
-                // Verificar si necesita actualización
-                const currentDisponible = payment.Disponible || '';
-                const newDisponible = availableAmount.toString();
-                
-                if (currentDisponible !== newDisponible) {
-                    console.log(`📝 [BATCH UPDATE] Actualizando ${payment.Referencia}:`);
-                    console.log(`   - Disponible actual: "${currentDisponible}"`);
-                    console.log(`   - Disponible nuevo: "${newDisponible}"`);
-                    
-                    // Actualizar en el backend
-                    const updateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${sheet}`;
-                    const updateData = {
-                        Disponible: newDisponible
-                    };
-                    
-                    const updateResponse = await fetch(updateUrl, {
-                        method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(updateData)
-                    });
-                    
-                    if (updateResponse.ok) {
-                        console.log(`✅ [BATCH UPDATE] Pago ${payment.Referencia} actualizado exitosamente`);
-                        successCount++;
-                    } else {
-                        const errorText = await updateResponse.text();
-                        console.error(`❌ [BATCH UPDATE] Error al actualizar ${payment.Referencia}: HTTP ${updateResponse.status} - ${errorText}`);
-                        errorCount++;
-                    }
-                } else {
-                    console.log(`✅ [BATCH UPDATE] Pago ${payment.Referencia} ya tiene el valor correcto: "${currentDisponible}"`);
-                    successCount++;
-                }
-                
-                // Pequeña pausa para no sobrecargar la API
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
-            } catch (error) {
-                console.error(`❌ [BATCH UPDATE] Error procesando pago ${payment.Referencia}:`, error);
-                errorCount++;
-            }
-        }
-        
-        console.log(`📊 [BATCH UPDATE] Resumen de actualización en ${sheet}:`);
-        console.log(`   - Total procesados: ${payments.length}`);
-        console.log(`   - Exitosos: ${successCount}`);
-        console.log(`   - Errores: ${errorCount}`);
-        
-        return { total: payments.length, success: successCount, errors: errorCount };
-        
-    } catch (error) {
-        console.error(`❌ [BATCH UPDATE] Error en updateAllPaymentsWithDisponible:`, error);
-        throw error;
-    }
-}
-
-// ===== FUNCIÓN PARA ACTUALIZAR CAMPO DISPONIBLE EN TODOS LOS BANCOS =====
-async function updateDisponibleInAllBanks() {
-    try {
-        console.log(`🌐 [GLOBAL UPDATE] Iniciando actualización de campo "Disponible" en todos los bancos`);
-        
-        const banks = ['BAC', 'BN', 'HuberBN'];
-        const results = {};
-        
-        for (const bank of banks) {
-            try {
-                console.log(`🏦 [GLOBAL UPDATE] Procesando banco: ${bank}`);
-                const result = await updateAllPaymentsWithDisponible(bank);
-                results[bank] = result;
-                console.log(`✅ [GLOBAL UPDATE] Banco ${bank} completado:`, result);
-            } catch (error) {
-                console.error(`❌ [GLOBAL UPDATE] Error en banco ${bank}:`, error);
-                results[bank] = { error: error.message };
-            }
-        }
-        
-        // Resumen final
-        console.log(`📊 [GLOBAL UPDATE] Resumen final de actualización:`);
-        let totalProcessed = 0;
-        let totalSuccess = 0;
-        let totalErrors = 0;
-        
-        for (const [bank, result] of Object.entries(results)) {
-            if (result.error) {
-                console.log(`❌ ${bank}: Error - ${result.error}`);
-                totalErrors++;
-            } else {
-                console.log(`✅ ${bank}: ${result.success}/${result.total} exitosos, ${result.errors} errores`);
-                totalProcessed += result.total;
-                totalSuccess += result.success;
-                totalErrors += result.errors;
-            }
-        }
-        
-        console.log(`🎯 [GLOBAL UPDATE] Total general: ${totalSuccess}/${totalProcessed} exitosos, ${totalErrors} errores`);
-        
-        return results;
-        
-    } catch (error) {
-        console.error(`❌ [GLOBAL UPDATE] Error en updateDisponibleInAllBanks:`, error);
-        throw error;
-    }
-}
