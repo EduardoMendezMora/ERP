@@ -1039,24 +1039,28 @@ body {
 }
 
 .receipt-header {
-    text-align: center;
     margin-bottom: 20px;
     border-bottom: 2px solid #34c759;
     padding-bottom: 15px;
 }
 
-.receipt-header-top {
+.receipt-header-content {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    gap: 20px;
-    margin-bottom: 10px;
+    gap: 24px;
 }
 
 .company-logo {
-    max-width: 120px;
+    max-width: 140px;
     height: auto;
     flex-shrink: 0;
+    align-self: flex-start;
+}
+
+.receipt-header-text {
+    flex: 1;
+    text-align: left;
 }
 
 .company-name {
@@ -1079,7 +1083,7 @@ body {
     color: #34c759;
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin: 0;
+    margin: 0 0 8px 0;
 }
 
 .receipt-info {
@@ -1423,18 +1427,23 @@ body {
         display: none !important;
     }
 
-    .receipt-header-top {
+    .receipt-header-content {
         display: flex !important;
-        align-items: center !important;
+        align-items: flex-start !important;
         justify-content: center !important;
-        gap: 15px !important;
-        margin-bottom: 8px !important;
+        gap: 20px !important;
     }
     
     .company-logo {
-        max-width: 100px !important;
+        max-width: 120px !important;
         height: auto !important;
         flex-shrink: 0 !important;
+        align-self: flex-start !important;
+    }
+
+    .receipt-header-text {
+        flex: 1 !important;
+        text-align: left !important;
     }
 
     .company-name {
@@ -1627,15 +1636,21 @@ body {
         gap: 20px;
     }
 
-    .receipt-header-top {
+    .receipt-header-content {
         flex-direction: column;
-        gap: 10px;
-        margin-bottom: 8px;
+        align-items: center;
+        gap: 12px;
+        text-align: center;
     }
     
     .company-logo {
         max-width: 100px;
         height: auto;
+        align-self: center;
+    }
+
+    .receipt-header-text {
+        text-align: center;
     }
 
     .company-name {
