@@ -81,7 +81,7 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
         // Si hay múltiples facturas vencidas y el pago puede cubrir más de una, mostrar modal de distribución
         if (overdueInvoices.length > 0) {
             const eligibleInvoices = [invoice, ...overdueInvoices].filter(inv => {
-                const baseAmount = parseFloat(inv.MontoBase || 0);
+                const baseAmount = parseAmount(inv.MontoBase || 0);
                 const finesUntilPayment = calculateFinesUntilDate(inv, payment.Fecha);
                 const totalOwed = baseAmount + finesUntilPayment;
                 return totalOwed <= availableAmount * 2; // Considerar facturas que se pueden pagar con el doble del disponible
@@ -106,7 +106,7 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
 // ===== FUNCIÓN PARA APLICAR PAGO A UNA SOLA FACTURA =====
 async function applySinglePayment(payment, invoice, availableAmount) {
     try {
-        const baseAmount = parseFloat(invoice.MontoBase || 0);
+        const baseAmount = parseAmount(invoice.MontoBase || 0);
         const paymentDate = payment.Fecha;
         const finesUntilPayment = calculateFinesUntilDate(invoice, paymentDate);
         const totalOwedUntilPayment = baseAmount + finesUntilPayment;
@@ -243,7 +243,7 @@ async function showPaymentDistributionModal(payment, eligibleInvoices, available
 
     // Preparar datos de distribución
     paymentDistributionData = eligibleInvoices.map(invoice => {
-        const baseAmount = parseFloat(invoice.MontoBase || 0);
+        const baseAmount = parseAmount(invoice.MontoBase || 0);
         const finesUntilPayment = calculateFinesUntilDate(invoice, payment.Fecha);
         const totalOwed = baseAmount + finesUntilPayment;
 
@@ -936,7 +936,7 @@ async function unassignPaymentFromInvoice(paymentReference, bankSource, invoiceN
                 }
             }
 
-            const baseAmount = parseFloat(invoice.MontoBase || 0);
+            const baseAmount = parseAmount(invoice.MontoBase || 0);
             const newTotal = baseAmount + currentFines;
 
             // Actualizar en la API

@@ -287,6 +287,49 @@ function testClientIdDetection(clientId, observationsText) {
     console.log(`   Resultado: ${isClientIdInObservations(observationsText, clientId) ? '✅ DETECTADO' : '❌ NO DETECTADO'}`);
 }
 
+// ===== FUNCIÓN UNIVERSAL PARA PARSEAR MONTOS (MANEJA FORMATO 1.000.000,00) =====
+function parseAmount(amount) {
+    if (!amount) return 0;
+    
+    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+    console.log(`🔍 [DEBUG PARSE AMOUNT] === PARSEO UNIVERSAL ${amount} ===`);
+    console.log(`🔍 [DEBUG PARSE AMOUNT] Amount original: ${amount} (tipo: ${typeof amount})`);
+    
+    let result = 0;
+    
+    // Si es un número, usarlo directamente
+    if (typeof amount === 'number') {
+        result = amount;
+        console.log(`🔍 [DEBUG PARSE AMOUNT] Es número, usando directamente: ${result}`);
+    } else if (typeof amount === 'string') {
+        // Limpiar el string de caracteres no numéricos excepto punto y coma
+        const cleanAmount = amount.toString().trim().replace(/[^\d.,]/g, '');
+        console.log(`🔍 [DEBUG PARSE AMOUNT] String limpio: "${cleanAmount}"`);
+        
+        if (cleanAmount.includes(',')) {
+            // Formato: "1.000.000,00" -> 1000000.00
+            const normalizedValue = cleanAmount.replace(/\./g, '').replace(',', '.');
+            result = parseFloat(normalizedValue) || 0;
+            console.log(`🔍 [DEBUG PARSE AMOUNT] Con coma decimal: "${cleanAmount}" -> "${normalizedValue}" -> ${result}`);
+        } else {
+            // Formato: "1000000" o "1.000.000" -> 1000000
+            const normalizedValue = cleanAmount.replace(/\./g, '');
+            result = parseFloat(normalizedValue) || 0;
+            console.log(`🔍 [DEBUG PARSE AMOUNT] Sin coma decimal: "${cleanAmount}" -> "${normalizedValue}" -> ${result}`);
+        }
+    } else {
+        // Otros tipos: intentar conversión directa
+        result = parseFloat(amount) || 0;
+        console.log(`🔍 [DEBUG PARSE AMOUNT] Otro tipo, conversión directa: ${result}`);
+    }
+    
+    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+    console.log(`🔍 [DEBUG PARSE AMOUNT] Resultado final: ${result}`);
+    console.log(`🔍 [DEBUG PARSE AMOUNT] === FIN DEBUG PARSE AMOUNT ===`);
+    
+    return result;
+}
+
 // ===== FUNCIÓN PARA PARSEAR MONTOS (MANEJA TANTO FLOAT COMO STRING) =====
 function parsePaymentAmount(paymentAmount, bankSource) {
     if (!paymentAmount) return 0;
@@ -295,33 +338,9 @@ function parsePaymentAmount(paymentAmount, bankSource) {
     console.log(`🔍 [DEBUG PARSE] === PARSEO ${bankSource} ${paymentAmount} ===`);
     console.log(`🔍 [DEBUG PARSE] Amount original: ${paymentAmount} (tipo: ${typeof paymentAmount})`);
     console.log(`🔍 [DEBUG PARSE] BankSource: "${bankSource}"`);
-    console.log(`🔍 [DEBUG PARSE] paymentAmount === '60.000,00':`, paymentAmount === '60.000,00');
-    console.log(`🔍 [DEBUG PARSE] paymentAmount === 60000:`, paymentAmount === 60000);
     
-    let result = 0;
-    
-    // Si es un número, usarlo directamente
-    if (typeof paymentAmount === 'number') {
-        result = paymentAmount;
-    } else if (typeof paymentAmount === 'string') {
-        // Si es string, procesar según el formato
-        if (bankSource === 'BAC' || bankSource === 'BN') {
-            // Formato: "60.000,00" -> 60000
-            const cleanAmount = paymentAmount.replace(/\./g, '').replace(',', '.');
-            result = parseFloat(cleanAmount) || 0;
-            
-            // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-            console.log(`🔍 [DEBUG PARSE] cleanAmount: "${cleanAmount}"`);
-            console.log(`🔍 [DEBUG PARSE] parseFloat(cleanAmount): ${parseFloat(cleanAmount)}`);
-            console.log(`🔍 [DEBUG PARSE] result: ${result}`);
-        } else {
-            // Otros bancos: intentar parseFloat directo
-            result = parseFloat(paymentAmount) || 0;
-        }
-    } else {
-        // Otros tipos: intentar conversión
-        result = parseFloat(paymentAmount) || 0;
-    }
+    // Usar la nueva función universal
+    const result = parseAmount(paymentAmount);
     
     // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
     console.log(`🔍 [DEBUG PARSE] Resultado final: ${result}`);

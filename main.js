@@ -374,9 +374,9 @@ function renderAssignPaymentModal(payment) {
     }
 
     const invoiceOptionsHTML = eligibleInvoices.map(invoice => {
-        const baseAmount = parseFloat(invoice.MontoBase || 0);
-        const fines = parseFloat(invoice.MontoMultas || 0);
-        const totalAmount = parseFloat(invoice.MontoTotal || baseAmount);
+        const baseAmount = parseAmount(invoice.MontoBase || 0);
+        const fines = parseAmount(invoice.MontoMultas || 0);
+        const totalAmount = parseAmount(invoice.MontoTotal || baseAmount);
         const difference = Math.abs(totalAmount - availableAmount);
         const isExactMatch = difference < 0.01;
         const isCloseMatch = difference < 1000;
@@ -412,9 +412,9 @@ function renderAssignPaymentModal(payment) {
 }
 
 function renderAssignInvoiceModal(invoice) {
-    const baseAmount = parseFloat(invoice.MontoBase || 0);
-    const fines = parseFloat(invoice.MontoMultas || 0);
-    const totalAmount = parseFloat(invoice.MontoTotal || baseAmount);
+            const baseAmount = parseAmount(invoice.MontoBase || 0);
+        const fines = parseAmount(invoice.MontoMultas || 0);
+        const totalAmount = parseAmount(invoice.MontoTotal || baseAmount);
 
     // Información de la factura
     document.getElementById('invoiceInfoForAssignment').innerHTML = `
@@ -1237,7 +1237,7 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
 
         // Calcular multas hasta la fecha de la transacción
         const transactionDate = transaction.Fecha;
-        const baseAmount = parseFloat(invoice.MontoBase || 0);
+        const baseAmount = parseAmount(invoice.MontoBase || 0);
         const finesUntilTransaction = calculateFinesUntilDate(invoice, transactionDate);
         const totalOwed = baseAmount + finesUntilTransaction;
         const remainingBalance = totalOwed - totalPreviousPayments;
