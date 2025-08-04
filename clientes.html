@@ -5,7 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ERP - Gestión de Clientes</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="utils.js"></script>
+    <script>
+        // Función parseAmount específica para clientes.html
+        function parseAmount(amount) {
+            if (!amount) return 0;
+            
+            // Si ya es un número, devolverlo
+            if (typeof amount === 'number') return amount;
+            
+            // Convertir a string y limpiar
+            const cleanAmount = amount.toString().trim();
+            
+            // Si está vacío, devolver 0
+            if (!cleanAmount) return 0;
+            
+            // Remover caracteres no numéricos excepto punto y coma
+            const numericOnly = cleanAmount.replace(/[^\d.,]/g, '');
+            
+            // Si no hay números, devolver 0
+            if (!numericOnly) return 0;
+            
+            // Detectar formato (punto como separador decimal o coma como separador decimal)
+            const hasComma = numericOnly.includes(',');
+            const hasDot = numericOnly.includes('.');
+            
+            let result;
+            
+            if (hasComma && hasDot) {
+                // Formato: 1.234,56 (punto como separador de miles, coma como decimal)
+                result = numericOnly.replace('.', '').replace(',', '.');
+            } else if (hasComma && !hasDot) {
+                // Formato: 1234,56 (coma como decimal)
+                result = numericOnly.replace(',', '.');
+            } else if (!hasComma && hasDot) {
+                // Formato: 1234.56 (punto como decimal)
+                result = numericOnly;
+            } else {
+                // Solo números sin separadores
+                result = numericOnly;
+            }
+            
+            const parsed = parseFloat(result);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+    </script>
     <style>
         * {
             margin: 0;
