@@ -10,7 +10,7 @@ function calculateAvailableAmount(payment) {
         const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
         const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
         const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
-        const availableAmount = paymentAmount - assignedAmount;
+        const availableAmount = Math.max(0, paymentAmount - assignedAmount);
         
                          // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
                  if (payment.Referencia === '970873893') {
@@ -923,6 +923,9 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
             console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount:', availableAmount);
             console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount type:', typeof availableAmount);
             console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount > 0:', availableAmount > 0);
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount is NaN:', isNaN(availableAmount));
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount is null:', availableAmount === null);
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount is undefined:', availableAmount === undefined);
         }
 
         // Datos a actualizar
@@ -937,6 +940,10 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
             console.log('🔍 [DEBUG ESPECÍFICO RAW] Update data:', updateData);
             console.log('🔍 [DEBUG ESPECÍFICO RAW] Disponible value being sent:', updateData.Disponible);
             console.log('🔍 [DEBUG ESPECÍFICO RAW] Disponible type:', typeof updateData.Disponible);
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Disponible length:', updateData.Disponible.length);
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Disponible === "":', updateData.Disponible === "");
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] Disponible === "0":', updateData.Disponible === "0");
+            console.log('🔍 [DEBUG ESPECÍFICO RAW] JSON.stringify(updateData):', JSON.stringify(updateData));
             console.log('🔍 [DEBUG ESPECÍFICO RAW] === FIN DEBUG RAW ===');
         }
 
@@ -953,13 +960,16 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
         });
 
         if (response.ok) {
+            const responseText = await response.text();
             console.log('✅ Actualización RAW oficial exitosa');
             console.log(`✅ Saldo disponible guardado: ₡${availableAmount.toLocaleString('es-CR')}`);
+            console.log('✅ Response from SheetDB:', responseText);
             
             // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
             if (payment.Referencia === '970873893') {
                 console.log('🔍 [DEBUG ESPECÍFICO RAW] === RESPUESTA EXITOSA RAW 970873893 ===');
                 console.log('🔍 [DEBUG ESPECÍFICO RAW] Available amount saved:', availableAmount);
+                console.log('🔍 [DEBUG ESPECÍFICO RAW] Response text:', responseText);
                 console.log('🔍 [DEBUG ESPECÍFICO RAW] === FIN DEBUG RESPUESTA RAW ===');
             }
             
@@ -2088,6 +2098,10 @@ function testCalculation970873893() {
     console.log('🧪 [PRUEBA CÁLCULO] Available amount type:', typeof availableAmount);
     console.log('🧪 [PRUEBA CÁLCULO] Available amount > 0:', availableAmount > 0);
     console.log('🧪 [PRUEBA CÁLCULO] Disponible value:', availableAmount.toString());
+    console.log('🧪 [PRUEBA CÁLCULO] Disponible type:', typeof availableAmount.toString());
+    console.log('🧪 [PRUEBA CÁLCULO] Disponible length:', availableAmount.toString().length);
+    console.log('🧪 [PRUEBA CÁLCULO] Disponible === "":', availableAmount.toString() === "");
+    console.log('🧪 [PRUEBA CÁLCULO] Disponible === "0":', availableAmount.toString() === "0");
     
     // Simular el updateData
     const updateData = {
@@ -2097,6 +2111,7 @@ function testCalculation970873893() {
     };
     
     console.log('🧪 [PRUEBA CÁLCULO] Update data:', updateData);
+    console.log('🧪 [PRUEBA CÁLCULO] JSON.stringify(updateData):', JSON.stringify(updateData));
     console.log('🧪 [PRUEBA CÁLCULO] === FIN PRUEBA CÁLCULO ===');
     
     return {
@@ -2108,4 +2123,4 @@ function testCalculation970873893() {
 }
 
 // Función disponible para pruebas manuales
-// testCalculation970873893();
+testCalculation970873893();

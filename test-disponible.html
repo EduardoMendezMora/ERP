@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Disponible Field</title>
+</head>
+<body>
+    <h1>Test Disponible Field</h1>
+    <div id="output"></div>
+
+    <script>
+        // Mock functions that are needed
+        function formatDateForStorage(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${day}/${month}/${year}`;
+        }
+
+        // Mock parsePaymentAmount function
+        function parsePaymentAmount(paymentAmount, bankSource) {
+            if (!paymentAmount) return 0;
+            
+            console.log(`🔍 [DEBUG PARSE] === PARSEO BAC 970873893 ===`);
+            console.log(`🔍 [DEBUG PARSE] Amount original: ${paymentAmount} (tipo: ${typeof paymentAmount})`);
+            console.log(`🔍 [DEBUG PARSE] BankSource: "${bankSource}"`);
+            console.log(`🔍 [DEBUG PARSE] paymentAmount === '60.000,00':`, paymentAmount === '60.000,00');
+            console.log(`🔍 [DEBUG PARSE] paymentAmount === 60000:`, paymentAmount === 60000);
+            
+            let result = 0;
+            
+            // Si es un número, usarlo directamente
+            if (typeof paymentAmount === 'number') {
+                result = paymentAmount;
+            } else if (typeof paymentAmount === 'string') {
+                // Si es string, procesar según el formato
+                if (bankSource === 'BAC' || bankSource === 'BN') {
+                    // Formato: "60.000,00" -> 60000
+                    const cleanAmount = paymentAmount.replace(/\./g, '').replace(',', '.');
+                    result = parseFloat(cleanAmount) || 0;
+                    
+                    console.log(`🔍 [DEBUG PARSE] cleanAmount: "${cleanAmount}"`);
+                    console.log(`🔍 [DEBUG PARSE] parseFloat(cleanAmount): ${parseFloat(cleanAmount)}`);
+                    console.log(`🔍 [DEBUG PARSE] result: ${result}`);
+                } else {
+                    // Otros bancos: intentar parseFloat directo
+                    result = parseFloat(paymentAmount) || 0;
+                }
+            } else {
+                // Otros tipos: intentar conversión
+                result = parseFloat(paymentAmount) || 0;
+            }
+            
+            console.log(`🔍 [DEBUG PARSE] Resultado final: ${result}`);
+            console.log(`🔍 [DEBUG PARSE] === FIN DEBUG PARSE ===`);
+            
+            return result;
+        }
+
+        // Test function
+        function testCalculation970873893() {
+            console.log('🧪 [PRUEBA CÁLCULO] === PRUEBA ESPECÍFICA PARA 970873893 ===');
+            
+            // Simular los datos del pago problemático
+            const payment = {
+                Referencia: '970873893',
+                Créditos: '60.000,00',
+                BankSource: 'BAC',
+                FacturasAsignadas: 'FAC-19511:47000'
+            };
+            
+            // Simular las asignaciones
+            const assignments = [
+                { invoiceNumber: 'FAC-19511', amount: 47000 }
+            ];
+            
+            console.log('🧪 [PRUEBA CÁLCULO] Payment object:', payment);
+            console.log('🧪 [PRUEBA CÁLCULO] Assignments:', assignments);
+            
+            // Calcular usando la misma lógica que updatePaymentAssignmentsRaw
+            const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+            const totalAssignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+            const availableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
+            
+            console.log('🧪 [PRUEBA CÁLCULO] Payment amount:', paymentAmount);
+            console.log('🧪 [PRUEBA CÁLCULO] Total assigned amount:', totalAssignedAmount);
+            console.log('🧪 [PRUEBA CÁLCULO] Available amount:', availableAmount);
+            console.log('🧪 [PRUEBA CÁLCULO] Available amount type:', typeof availableAmount);
+            console.log('🧪 [PRUEBA CÁLCULO] Available amount > 0:', availableAmount > 0);
+            console.log('🧪 [PRUEBA CÁLCULO] Disponible value:', availableAmount.toString());
+            console.log('🧪 [PRUEBA CÁLCULO] Disponible type:', typeof availableAmount.toString());
+            console.log('🧪 [PRUEBA CÁLCULO] Disponible length:', availableAmount.toString().length);
+            console.log('🧪 [PRUEBA CÁLCULO] Disponible === "":', availableAmount.toString() === "");
+            console.log('🧪 [PRUEBA CÁLCULO] Disponible === "0":', availableAmount.toString() === "0");
+            
+            // Simular el updateData
+            const updateData = {
+                FacturasAsignadas: 'FAC-19511:47000',
+                FechaAsignacion: formatDateForStorage(new Date()),
+                Disponible: availableAmount.toString()
+            };
+            
+            console.log('🧪 [PRUEBA CÁLCULO] Update data:', updateData);
+            console.log('🧪 [PRUEBA CÁLCULO] JSON.stringify(updateData):', JSON.stringify(updateData));
+            console.log('🧪 [PRUEBA CÁLCULO] === FIN PRUEBA CÁLCULO ===');
+            
+            // Display results in the page
+            const output = document.getElementById('output');
+            output.innerHTML = `
+                <h2>Resultados del Test</h2>
+                <p><strong>Payment amount:</strong> ${paymentAmount}</p>
+                <p><strong>Total assigned amount:</strong> ${totalAssignedAmount}</p>
+                <p><strong>Available amount:</strong> ${availableAmount}</p>
+                <p><strong>Available amount type:</strong> ${typeof availableAmount}</p>
+                <p><strong>Disponible value:</strong> "${availableAmount.toString()}"</p>
+                <p><strong>Disponible type:</strong> ${typeof availableAmount.toString()}</p>
+                <p><strong>Disponible length:</strong> ${availableAmount.toString().length}</p>
+                <p><strong>Disponible === "":</strong> ${availableAmount.toString() === ""}</p>
+                <p><strong>Disponible === "0":</strong> ${availableAmount.toString() === "0"}</p>
+                <p><strong>Update data:</strong> <pre>${JSON.stringify(updateData, null, 2)}</pre></p>
+            `;
+            
+            return {
+                paymentAmount,
+                totalAssignedAmount,
+                availableAmount,
+                updateData
+            };
+        }
+
+        // Run the test when page loads
+        window.onload = function() {
+            testCalculation970873893();
+        };
+    </script>
+</body>
+</html> 
