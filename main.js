@@ -1527,14 +1527,42 @@ async function updateTransactionAssignments(transactionReference, bank, formatte
         const today = new Date();
         const formattedDate = today.toLocaleDateString('es-CR'); // DD/MM/YYYY
         
+        // ===== NUEVO: CALCULAR SALDO DISPONIBLE =====
+        // Buscar la transacción para obtener el monto total
+        const searchUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/search?Referencia=${encodeURIComponent(transactionReference)}&sheet=${bank}`;
+        const searchResponse = await fetch(searchUrl);
+        
+        let paymentAmount = 0;
+        if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            if (searchData.length > 0) {
+                const transaction = searchData[0];
+                // Parsear el monto usando la lógica de utils.js
+                paymentAmount = parseAmount(transaction.Créditos);
+                console.log(`💰 Monto total de la transacción: ₡${paymentAmount.toLocaleString('es-CR')}`);
+            }
+        }
+        
+        // Calcular el total asignado
+        const assignments = parseTransactionAssignments(formattedAssignments);
+        const totalAssignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+        const availableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
+        
+        console.log(`💰 Cálculo de saldo disponible:`);
+        console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Saldo disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
+        
         const updateData = {
             FacturasAsignadas: formattedAssignments,
             ID_Cliente: client.ID || client.ID_Cliente,
             FechaAsignacion: formattedDate,
-            Observaciones: `Conciliada con factura - ${formattedAssignments}`
+            Observaciones: `Conciliada con factura - ${formattedAssignments}`,
+            Disponible: availableAmount.toString() // Guardar saldo disponible
         };
         
         console.log('📝 Datos a enviar:', updateData);
+        console.log('📝 Campo "Disponible" a guardar:', updateData.Disponible);
         console.log('📝 Body como URLSearchParams:', new URLSearchParams(updateData).toString());
         
         const response = await fetch(updateUrl, {
@@ -1561,6 +1589,7 @@ async function updateTransactionAssignments(transactionReference, bank, formatte
             const responseText = await response.text();
             console.log('✅ Transacción actualizada en la API');
             console.log('📄 Respuesta del servidor:', responseText);
+            console.log(`✅ Campo "Disponible" guardado: ${availableAmount.toString()}`);
         }
         
     } catch (error) {
