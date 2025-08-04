@@ -1527,69 +1527,94 @@ async function updateTransactionAssignments(transactionReference, bank, formatte
         const today = new Date();
         const formattedDate = today.toLocaleDateString('es-CR'); // DD/MM/YYYY
         
+        console.log('📅 Fecha formateada:', formattedDate);
+        
         // ===== NUEVO: CALCULAR SALDO DISPONIBLE =====
         // Buscar la transacción para obtener el monto total
         const searchUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/search?Referencia=${encodeURIComponent(transactionReference)}&sheet=${bank}`;
-        const searchResponse = await fetch(searchUrl);
+        console.log('🔍 URL de búsqueda:', searchUrl);
         
-        let paymentAmount = 0;
-        if (searchResponse.ok) {
-            const searchData = await searchResponse.json();
-            if (searchData.length > 0) {
-                const transaction = searchData[0];
-                // Parsear el monto usando la lógica de utils.js
-                paymentAmount = parseAmount(transaction.Créditos);
-                console.log(`💰 Monto total de la transacción: ₡${paymentAmount.toLocaleString('es-CR')}`);
+        try {
+            const searchResponse = await fetch(searchUrl);
+            console.log('🔍 Respuesta de búsqueda:', {
+                status: searchResponse.status,
+                statusText: searchResponse.statusText,
+                ok: searchResponse.ok
+            });
+            
+            let paymentAmount = 0;
+            if (searchResponse.ok) {
+                const searchData = await searchResponse.json();
+                console.log('🔍 Datos encontrados:', searchData);
+                
+                if (searchData.length > 0) {
+                    const transaction = searchData[0];
+                    console.log('🔍 Transacción encontrada:', transaction);
+                    
+                    // Parsear el monto usando la lógica de utils.js
+                    paymentAmount = parseAmount(transaction.Créditos);
+                    console.log(`💰 Monto total de la transacción: ₡${paymentAmount.toLocaleString('es-CR')}`);
+                } else {
+                    console.warn('⚠️ No se encontró la transacción en la búsqueda');
+                }
+            } else {
+                console.warn('⚠️ Error en la búsqueda de la transacción:', searchResponse.status);
+                const errorText = await searchResponse.text();
+                console.warn('Error detallado:', errorText);
             }
-        }
-        
-        // Calcular el total asignado
-        const assignments = parseTransactionAssignments(formattedAssignments);
-        const totalAssignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
-        const availableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
-        
-        console.log(`💰 Cálculo de saldo disponible:`);
-        console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
-        console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
-        console.log(`   - Saldo disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
-        
-        const updateData = {
-            FacturasAsignadas: formattedAssignments,
-            ID_Cliente: client.ID || client.ID_Cliente,
-            FechaAsignacion: formattedDate,
-            Observaciones: `Conciliada con factura - ${formattedAssignments}`,
-            Disponible: availableAmount.toString() // Guardar saldo disponible
-        };
-        
-        console.log('📝 Datos a enviar:', updateData);
-        console.log('📝 Campo "Disponible" a guardar:', updateData.Disponible);
-        console.log('📝 Body como URLSearchParams:', new URLSearchParams(updateData).toString());
-        
-        const response = await fetch(updateUrl, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams(updateData).toString()
-        });
-        
-        console.log('📡 Respuesta del servidor:', {
-            status: response.status,
-            statusText: response.statusText,
-            ok: response.ok
-        });
-        
-        if (!response.ok) {
-            console.warn('⚠️ No se pudo actualizar la transacción en la API:', response.status);
-            const errorText = await response.text();
-            console.warn('Error detallado:', errorText);
-            console.warn('URL que falló:', updateUrl);
-            console.warn('Datos que se intentaron enviar:', updateData);
-        } else {
-            const responseText = await response.text();
-            console.log('✅ Transacción actualizada en la API');
-            console.log('📄 Respuesta del servidor:', responseText);
-            console.log(`✅ Campo "Disponible" guardado: ${availableAmount.toString()}`);
+            
+            // Calcular el total asignado
+            const assignments = parseTransactionAssignments(formattedAssignments);
+            console.log('📋 Asignaciones parseadas:', assignments);
+            
+            const totalAssignedAmount = assignments.reduce((sum, assignment) => sum + assignment.amount, 0);
+            const availableAmount = Math.max(0, paymentAmount - totalAssignedAmount);
+            
+            console.log(`💰 Cálculo de saldo disponible:`);
+            console.log(`   - Monto total del pago: ₡${paymentAmount.toLocaleString('es-CR')}`);
+            console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
+            console.log(`   - Saldo disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
+            
+            const updateData = {
+                FacturasAsignadas: formattedAssignments,
+                ID_Cliente: client.ID || client.ID_Cliente,
+                FechaAsignacion: formattedDate,
+                Observaciones: `Conciliada con factura - ${formattedAssignments}`,
+                Disponible: availableAmount.toString() // Guardar saldo disponible
+            };
+            
+            console.log('📝 Datos a enviar:', updateData);
+            console.log('📝 Campo "Disponible" a guardar:', updateData.Disponible);
+            
+            const response = await fetch(updateUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData)
+            });
+            
+            console.log('📡 Respuesta del servidor:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok
+            });
+            
+            if (!response.ok) {
+                console.warn('⚠️ No se pudo actualizar la transacción en la API:', response.status);
+                const errorText = await response.text();
+                console.warn('Error detallado:', errorText);
+                console.warn('URL que falló:', updateUrl);
+                console.warn('Datos que se intentaron enviar:', updateData);
+            } else {
+                const responseText = await response.text();
+                console.log('✅ Transacción actualizada en la API');
+                console.log('📄 Respuesta del servidor:', responseText);
+            }
+            
+        } catch (searchError) {
+            console.error('❌ Error en la búsqueda de la transacción:', searchError);
+            throw searchError;
         }
         
     } catch (error) {
