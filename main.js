@@ -813,6 +813,7 @@ async function loadTransactionsTab() {
         // Filtrar transacciones pendientes de conciliar
         // NO mostrar las que tienen ID_Cliente, Observaciones o están conciliadas
         // Solo mostrar desde el 10/07/2025
+        // NUEVO: NO mostrar las que tienen Disponible = 0 (ya no tienen saldo disponible)
         const cutoffDate = new Date('2025-07-10');
         cutoffDate.setHours(0, 0, 0, 0);
         
@@ -825,6 +826,15 @@ async function loadTransactionsTab() {
             // Si tiene Observaciones con contenido, está conciliada
             if (t.Observaciones && t.Observaciones.trim() !== '' && t.Observaciones !== 'undefined') {
                 return false;
+            }
+            
+            // NUEVO: Si tiene Disponible = 0, ya no tiene saldo disponible para asignar
+            if (t.Disponible !== undefined && t.Disponible !== null) {
+                const disponible = parseFloat(t.Disponible);
+                if (!isNaN(disponible) && disponible <= 0) {
+                    console.log(`🚫 Transacción ${t.Referencia} excluida: Disponible = ${t.Disponible} (sin saldo disponible)`);
+                    return false;
+                }
             }
             
             // Filtrar por fecha - solo desde 10/07/2025
@@ -843,7 +853,7 @@ async function loadTransactionsTab() {
                 }
             }
             
-            // Solo mostrar las que no están conciliadas y son desde la fecha límite
+            // Solo mostrar las que no están conciliadas, son desde la fecha límite y tienen saldo disponible
             return true;
         });
         
@@ -1208,6 +1218,16 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         
         if (isNaN(amount) || amount <= 0) {
             throw new Error('Monto de transacción inválido');
+        }
+
+        // ===== NUEVO: VALIDAR QUE LA TRANSACCIÓN TENGA SALDO DISPONIBLE =====
+        if (transaction.Disponible !== undefined && transaction.Disponible !== null) {
+            const disponible = parseFloat(transaction.Disponible);
+            if (!isNaN(disponible) && disponible <= 0) {
+                console.error('❌ ERROR: Transacción sin saldo disponible');
+                console.error(`   - Disponible: ₡${disponible.toLocaleString('es-CR')}`);
+                throw new Error(`La transacción ${transactionReference} ya no tiene saldo disponible para asignar (₡${disponible.toLocaleString('es-CR')})`);
+            }
         }
 
         // ===== NUEVO: VALIDAR QUE EL MONTO COINCIDA =====
