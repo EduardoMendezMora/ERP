@@ -22,6 +22,8 @@ function calculateAvailableAmount(payment) {
                      console.log(`🔍 [DEBUG CÁLCULO] Assignments parsed:`, assignments);
                      console.log(`🔍 [DEBUG CÁLCULO] Assigned amount: ₡${assignedAmount.toLocaleString('es-CR')}`);
                      console.log(`🔍 [DEBUG CÁLCULO] Available amount: ₡${availableAmount.toLocaleString('es-CR')}`);
+                     console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas length: ${payment.FacturasAsignadas ? payment.FacturasAsignadas.length : 0}`);
+                     console.log(`🔍 [DEBUG CÁLCULO] FacturasAsignadas trim: "${payment.FacturasAsignadas ? payment.FacturasAsignadas.trim() : ''}"`);
                      console.log(`🔍 [DEBUG CÁLCULO] === FIN DEBUG CÁLCULO ===`);
                  }
         
@@ -797,15 +799,39 @@ async function updatePaymentAssignments(payment, newAssignments) {
 function parseAssignedInvoices(assignedString) {
     if (!assignedString || assignedString.trim() === '') return [];
 
+    // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
+    if (assignedString.includes('970873893') || assignedString.includes('FAC-19511')) {
+        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] === PARSEO ASIGNACIONES 970873893 ===`);
+        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString: "${assignedString}"`);
+        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString type: ${typeof assignedString}`);
+        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString length: ${assignedString.length}`);
+        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString.trim(): "${assignedString.trim()}"`);
+    }
+
     try {
         // Formato esperado: "FAC-001:15000;FAC-002:25000"
-        return assignedString.split(';').map(assignment => {
+        const assignments = assignedString.split(';').map(assignment => {
             const [invoiceNumber, amount] = assignment.split(':');
-            return {
+            const result = {
                 invoiceNumber: invoiceNumber.trim(),
                 amount: parseFloat(amount) || 0
             };
+            
+            // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
+            if (assignedString.includes('970873893') || assignedString.includes('FAC-19511')) {
+                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Assignment parsed:`, result);
+            }
+            
+            return result;
         }).filter(assignment => assignment.invoiceNumber && assignment.amount > 0);
+        
+        // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
+        if (assignedString.includes('970873893') || assignedString.includes('FAC-19511')) {
+            console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Final assignments:`, assignments);
+            console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] === FIN DEBUG PARSE ASSIGNMENTS ===`);
+        }
+        
+        return assignments;
     } catch (error) {
         console.error('Error al parsear asignaciones:', error);
         return [];
@@ -2123,4 +2149,4 @@ function testCalculation970873893() {
 }
 
 // Función disponible para pruebas manuales
-testCalculation970873893();
+// testCalculation970873893();
