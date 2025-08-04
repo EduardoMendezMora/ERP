@@ -8,9 +8,16 @@ function calculateAvailableAmount(payment) {
     } else {
         // Si está vacía, calcular dinámicamente (comportamiento anterior)
         const paymentAmount = parsePaymentAmount(payment.Créditos, payment.BankSource);
+        console.log(`🔍 [DEBUG CÁLCULO] Payment amount after parsing: ${paymentAmount}`);
+        
         const assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+        console.log(`🔍 [DEBUG CÁLCULO] Assignments after parsing:`, assignments);
+        
         const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+        console.log(`🔍 [DEBUG CÁLCULO] Assigned amount calculated: ${assignedAmount}`);
+        
         const availableAmount = Math.max(0, paymentAmount - assignedAmount);
+        console.log(`🔍 [DEBUG CÁLCULO] Available amount calculated: ${availableAmount}`);
         
                          // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
                  if (payment.Referencia === '970873893') {
@@ -806,11 +813,16 @@ function parseAssignedInvoices(assignedString) {
         console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString type: ${typeof assignedString}`);
         console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString length: ${assignedString.length}`);
         console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString.trim(): "${assignedString.trim()}"`);
+        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] !assignedString: ${!assignedString}`);
+        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] assignedString.trim() === '': ${assignedString.trim() === ''}`);
     }
 
     try {
         // Formato esperado: "FAC-001:15000;FAC-002:25000"
-        const assignments = assignedString.split(';').map(assignment => {
+        const splitAssignments = assignedString.split(';');
+        console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Split assignments:`, splitAssignments);
+        
+        const assignments = splitAssignments.map(assignment => {
             const [invoiceNumber, amount] = assignment.split(':');
             const result = {
                 invoiceNumber: invoiceNumber.trim(),
@@ -820,6 +832,8 @@ function parseAssignedInvoices(assignedString) {
             // DEBUGGING ESPECÍFICO PARA LA TRANSACCIÓN PROBLEMÁTICA
             if (assignedString.includes('970873893') || assignedString.includes('FAC-19511')) {
                 console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] Assignment parsed:`, result);
+                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] invoiceNumber.trim(): "${invoiceNumber.trim()}"`);
+                console.log(`🔍 [DEBUG PARSE ASSIGNMENTS] parseFloat(amount): ${parseFloat(amount)}`);
             }
             
             return result;
