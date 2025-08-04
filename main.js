@@ -824,6 +824,25 @@ async function loadTransactionsTab() {
         cutoffDate.setHours(0, 0, 0, 0);
         
         const pendingTransactions = allTransactions.filter(t => {
+            // NUEVO: Si tiene Disponible = 0, ya no tiene saldo disponible para asignar
+            if (t.Disponible !== undefined && t.Disponible !== null) {
+                const disponible = parseFloat(t.Disponible);
+                if (!isNaN(disponible) && disponible <= 0) {
+                    console.log(`🚫 Transacción ${t.Referencia} excluida: Disponible = ${t.Disponible} (sin saldo disponible)`);
+                    return false;
+                }
+            }
+            
+            // Si tiene Disponible > 0, mostrar la transacción (puede tener asignaciones previas pero aún tiene saldo)
+            if (t.Disponible !== undefined && t.Disponible !== null) {
+                const disponible = parseFloat(t.Disponible);
+                if (!isNaN(disponible) && disponible > 0) {
+                    console.log(`✅ Transacción ${t.Referencia} incluida: Disponible = ${t.Disponible} (tiene saldo disponible)`);
+                    return true;
+                }
+            }
+            
+            // Si no tiene Disponible definido, usar la lógica anterior
             // Si tiene ID_Cliente asignado, está conciliada
             if (t.ID_Cliente && t.ID_Cliente.trim() !== '' && t.ID_Cliente !== 'undefined') {
                 return false;
@@ -832,15 +851,6 @@ async function loadTransactionsTab() {
             // Si tiene Observaciones con contenido, está conciliada
             if (t.Observaciones && t.Observaciones.trim() !== '' && t.Observaciones !== 'undefined') {
                 return false;
-            }
-            
-            // NUEVO: Si tiene Disponible = 0, ya no tiene saldo disponible para asignar
-            if (t.Disponible !== undefined && t.Disponible !== null) {
-                const disponible = parseFloat(t.Disponible);
-                if (!isNaN(disponible) && disponible <= 0) {
-                    console.log(`🚫 Transacción ${t.Referencia} excluida: Disponible = ${t.Disponible} (sin saldo disponible)`);
-                    return false;
-                }
             }
             
             // Filtrar por fecha - solo desde 10/07/2025
