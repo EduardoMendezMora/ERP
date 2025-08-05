@@ -50,7 +50,7 @@ function sendAccountStatement() {
         );
     }).join('\n');
 
-    const mensaje = `📝 Estado de cuenta - Arrendamiento\n` +
+    const mensaje = `📱 Estado de cuenta - Arrendamiento\n` +
         `📅 Fecha: ${fechaHoy}\n\n` +
         `👤 ${cliente.Nombre || ''} / ${cliente.Placa || ''} / ${cliente.Cedula || cliente.cedula || ''}\n\n` +
         `${detalleFacturas}\n` +

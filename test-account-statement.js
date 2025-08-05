@@ -107,7 +107,7 @@ function testAccountStatementCalculation() {
 const resultado = testAccountStatementCalculation();
 
 console.log('\n📝 === MENSAJE GENERADO ===');
-console.log(`📝 Estado de cuenta - Arrendamiento
+console.log(`📱 Estado de cuenta - Arrendamiento
 📅 Fecha: ${new Date().toLocaleDateString('es-CR')}
 
 👤 ANTHONY ALFARO BADILLA / BYV982 / 
