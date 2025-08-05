@@ -718,7 +718,7 @@ function renderUnassignedPaymentsSection() {
         const matchingInvoices = clientInvoices.filter(inv => {
             if (inv.Estado !== 'Pendiente' && inv.Estado !== 'Vencido') return false;
 
-            const invoiceTotal = parseFloat(inv.MontoTotal || inv.MontoBase || 0);
+            const invoiceTotal = parseAmount(inv.MontoTotal || inv.MontoBase || 0);
             const difference = Math.abs(invoiceTotal - availableAmount);
 
             return difference < 1000;
@@ -727,14 +727,14 @@ function renderUnassignedPaymentsSection() {
         let matchInfo = '';
         if (matchingInvoices.length > 0) {
             const matchType = matchingInvoices.some(inv =>
-                Math.abs(parseFloat(inv.MontoTotal || inv.MontoBase || 0) - availableAmount) < 0.01
+                Math.abs(parseAmount(inv.MontoTotal || inv.MontoBase || 0) - availableAmount) < 0.01
             ) ? 'exacta' : 'aproximada';
 
             matchInfo = `
                 <div style="background: #e6ffe6; padding: 8px; border-radius: 6px; margin: 12px 0; font-size: 0.85rem;">
                     <strong>✅ Coincidencia ${matchType} (disponible):</strong><br>
                     ${matchingInvoices.map(inv => {
-                const invTotal = parseFloat(inv.MontoTotal || inv.MontoBase || 0);
+                const invTotal = parseAmount(inv.MontoTotal || inv.MontoBase || 0);
                 const diff = availableAmount - invTotal;
                 let diffText = '';
                 if (Math.abs(diff) > 0.01) {

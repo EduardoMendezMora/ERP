@@ -390,8 +390,8 @@ function updateOverdueStats(overdueInvoices) {
     let totalDays = 0;
 
     overdueInvoices.forEach(invoice => {
-        const fines = parseFloat(invoice.MontoMultas || 0);
-        const baseAmount = parseFloat(invoice.MontoBase || 0);
+        const fines = parseAmount(invoice.MontoMultas || 0);
+        const baseAmount = parseAmount(invoice.MontoBase || 0);
         const daysOverdue = parseInt(invoice.DiasAtraso || 0);
 
         totalFines += fines;

@@ -21,26 +21,31 @@ function sendAccountStatement() {
     let totalPendiente = 0;
     let detalleFacturas = vencidas.map(f => {
         const diasAtraso = f.DiasAtraso || 0;
-        const saldo = parseFloat(f.MontoBase || 0);
-        const multa = parseFloat(f.MontoMultas || 0);
+        // CORREGIDO: Usar parseAmount en lugar de parseFloat
+        const saldo = parseAmount(f.MontoBase || 0);
+        const multa = parseAmount(f.MontoMultas || 0);
+        
         // Buscar pagos aplicados a esta factura
         const pagosAplicados = assignedPayments.reduce((sum, p) => {
             if (p.Assignments && Array.isArray(p.Assignments)) {
                 return sum + p.Assignments
                     .filter(a => a.invoiceNumber == f.NumeroFactura)
-                    .reduce((aSum, a) => aSum + parseFloat(a.amount || 0), 0);
+                    .reduce((aSum, a) => aSum + parseAmount(a.amount || 0), 0);
             }
             return sum;
         }, 0);
+        
+        // CORREGIDO: Calcular total correctamente (saldo + multa - pagos aplicados)
         const total = saldo + multa - pagosAplicados;
         totalPendiente += total;
+        
         return (
             `* ${f.NumeroFactura} (${f.SemanaDescripcion || ''})\n` +
-            `▶ Fecha: ${f.FechaVencimiento}\n` +
-            `▶ Días vencido: ${diasAtraso}\n` +
-            `▶ Saldo: ₡ ${saldo.toLocaleString('es-CR')}\n` +
-            `▶ Multa: ₡ ${multa.toLocaleString('es-CR')}\n` +
-            `▶ Pagos aplicados: ₡ ${pagosAplicados.toLocaleString('es-CR')}\n` +
+            `▶️ Fecha: ${f.FechaVencimiento}\n` +
+            `▶️ Días vencido: ${diasAtraso}\n` +
+            `▶️ Saldo: ₡ ${saldo.toLocaleString('es-CR')}\n` +
+            `▶️ Multa: ₡ ${multa.toLocaleString('es-CR')}\n` +
+            `▶️ Pagos aplicados: ₡ ${pagosAplicados.toLocaleString('es-CR')}\n` +
             `✅ Total con Multa y Pagos: ₡ ${total.toLocaleString('es-CR')}\n`
         );
     }).join('\n');

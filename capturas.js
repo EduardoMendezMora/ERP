@@ -149,8 +149,8 @@ function calculateTotalDebt(invoices, payments) {
     for (const invoice of invoices) {
         if (invoice.Estado === 'Pagado') continue;
         
-        const baseAmount = parseFloat(invoice.MontoBase || 0);
-        const fines = parseFloat(invoice.MontoMultas || 0);
+        const baseAmount = parseAmount(invoice.MontoBase || 0);
+        const fines = parseAmount(invoice.MontoMultas || 0);
         const invoiceTotal = baseAmount + fines;
         
         totalDebt += invoiceTotal;
