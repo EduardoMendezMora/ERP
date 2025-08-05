@@ -33,13 +33,13 @@ let currentInvoiceForAssignment = null;
 let selectedInvoiceForPayment = null;
 let selectedPaymentForInvoice = null;
 
-// Estado de control de secciones - TODAS OCULTAS POR DEFECTO
+// Estado de control de secciones - TODAS VISIBLES POR DEFECTO
 let sectionVisibility = {
-    unassigned: false,   // Inicialmente oculta
-    overdue: false,      // Inicialmente oculta
-    upcoming: false,     // Inicialmente oculta
-    assigned: false,     // Inicialmente oculta
-    paid: false          // Inicialmente oculta
+    unassigned: true,    // Inicialmente visible
+    overdue: true,       // Inicialmente visible
+    upcoming: true,      // Inicialmente visible
+    assigned: true,      // Inicialmente visible
+    paid: true           // Inicialmente visible
 };
 
 // ===== FUNCIONES DE DEBUGGING =====
@@ -747,10 +747,12 @@ function saveSectionPreferences() {
 
 function loadSectionPreferences() {
     try {
-        const saved = localStorage.getItem('invoices_section_visibility');
-        if (saved) {
-            sectionVisibility = { ...sectionVisibility, ...JSON.parse(saved) };
-        }
+        // Limpiar preferencias existentes para usar el nuevo comportamiento por defecto
+        // (todas las secciones visibles)
+        localStorage.removeItem('invoices_section_visibility');
+        
+        // Usar el estado por defecto (todas las secciones visibles)
+        console.log('🎛️ Usando estado por defecto: todas las secciones visibles');
     } catch (error) {
         console.warn('No se pudieron cargar preferencias de sección:', error);
     }

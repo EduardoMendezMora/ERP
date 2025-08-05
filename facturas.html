@@ -591,10 +591,23 @@
 </a>
 
 <script>
-    // Efecto sticky para la información del cliente
+    // Efecto sticky para la información del cliente (solo en desktop)
     function handleStickyEffect() {
         const clientInfo = document.querySelector('.client-info');
         if (!clientInfo) return;
+        
+        // Solo aplicar efecto sticky en desktop (ancho >= 769px)
+        function isDesktop() {
+            return window.innerWidth >= 769;
+        }
+        
+        // Si no es desktop, no aplicar el efecto
+        if (!isDesktop()) {
+            console.log('📱 Dispositivo móvil detectado - efecto sticky deshabilitado');
+            return;
+        }
+        
+        console.log('🖥️ Desktop detectado - aplicando efecto sticky');
         
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -621,6 +634,22 @@
         
         clientInfo.parentNode.insertBefore(referenceElement, clientInfo);
         observer.observe(referenceElement);
+        
+        // Escuchar cambios de tamaño de ventana para habilitar/deshabilitar el efecto
+        window.addEventListener('resize', function() {
+            if (isDesktop()) {
+                // Si cambió a desktop, aplicar el efecto
+                if (!observer.root) {
+                    console.log('🖥️ Cambio a desktop - habilitando efecto sticky');
+                    observer.observe(referenceElement);
+                }
+            } else {
+                // Si cambió a móvil, deshabilitar el efecto
+                console.log('📱 Cambio a móvil - deshabilitando efecto sticky');
+                observer.unobserve(referenceElement);
+                clientInfo.classList.remove('sticky');
+            }
+        });
     }
     
     // Ejecutar cuando el DOM esté listo
