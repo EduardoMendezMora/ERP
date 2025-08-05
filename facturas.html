@@ -22,9 +22,44 @@
     </div>
 
     <!-- Header -->
-    <div class="header">
+    <div class="header fixed-header">
         <h1>Facturas y Pagos del Cliente</h1>
         <p id="clientName">Cargando información del cliente...</p>
+    </div>
+
+    <!-- Client Information -->
+    <div class="client-info fixed-client-info">
+        <div class="client-header">
+            <div>
+                <h2 id="clientNameDetail">Cliente</h2>
+                <p id="clientIdDetail" style="color: #86868b;">ID: </p>
+            </div>
+        </div>
+        <div class="client-details" id="clientDetails">
+            <!-- Se llenará dinámicamente -->
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="stats-summary fixed-stats-summary">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value stat-paid" id="statPaid">0</div>
+                <div class="stat-label">Pagadas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value stat-pending" id="statPending">0</div>
+                <div class="stat-label">Pendientes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value stat-overdue" id="statOverdue">0</div>
+                <div class="stat-label">Vencidas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value stat-fines" id="statFines">₡0</div>
+                <div class="stat-label">Total Multas</div>
+            </div>
+        </div>
     </div>
 
     <!-- Section Controls -->
@@ -126,41 +161,6 @@
 
     <!-- Main Content -->
     <div id="mainContent" style="display: none;">
-        <!-- Client Information -->
-        <div class="client-info">
-            <div class="client-header">
-                <div>
-                    <h2 id="clientNameDetail">Cliente</h2>
-                    <p id="clientIdDetail" style="color: #86868b;">ID: </p>
-                </div>
-            </div>
-            <div class="client-details" id="clientDetails">
-                <!-- Se llenará dinámicamente -->
-            </div>
-        </div>
-
-        <!-- Summary Statistics -->
-        <div class="stats-summary">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value stat-paid" id="statPaid">0</div>
-                    <div class="stat-label">Pagadas</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value stat-pending" id="statPending">0</div>
-                    <div class="stat-label">Pendientes</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value stat-overdue" id="statOverdue">0</div>
-                    <div class="stat-label">Vencidas</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value stat-fines" id="statFines">₡0</div>
-                    <div class="stat-label">Total Multas</div>
-                </div>
-            </div>
-        </div>
-
         <!-- Quick Actions -->
         <div class="actions-section">
             <button class="btn btn-primary btn-large" onclick="openManualInvoiceModal()">
