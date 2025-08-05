@@ -171,7 +171,7 @@ function updateClientHeader() {
     // Actualizar nombre en header
     const clientNameElement = document.getElementById('clientName');
     if (clientNameElement) {
-        clientNameElement.textContent = `Cliente: ${client.Nombre}`;
+        clientNameElement.textContent = client.Nombre;
     }
 
     // Actualizar detalles del cliente
