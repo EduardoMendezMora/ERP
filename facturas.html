@@ -27,6 +27,19 @@
                     <p id="clientName">Cargando información del cliente...</p>
                 </div>
 
+                <!-- Client Information (Fixed) -->
+                <div class="client-info fixed-client-info">
+                    <div class="client-header">
+                        <div>
+                            <h2 id="clientNameDetail">Cliente</h2>
+                            <p id="clientIdDetail" style="color: #86868b;">ID: </p>
+                        </div>
+                    </div>
+                    <div class="client-details" id="clientDetails">
+                        <!-- Se llenará dinámicamente -->
+                    </div>
+                </div>
+
                 <!-- Section Controls -->
                 <div class="section-controls">
         <div class="controls-header">
@@ -131,23 +144,9 @@
             <button class="btn btn-primary btn-large" onclick="openManualInvoiceModal()">
                 ➕ Crear Factura Manual
             </button>
-            <button class="btn btn-warning btn-large" style="margin-left: 12px;" onclick="sendAccountStatement()">
-                📝 Estado de Cuenta - Arrendamiento
+            <button class="btn btn-whatsapp btn-large" onclick="sendAccountStatement()">
+                📝 Estado de Cuenta
             </button>
-
-        </div>
-
-        <!-- Client Information -->
-        <div class="client-info">
-            <div class="client-header">
-                <div>
-                    <h2 id="clientNameDetail">Cliente</h2>
-                    <p id="clientIdDetail" style="color: #86868b;">ID: </p>
-                </div>
-            </div>
-            <div class="client-details" id="clientDetails">
-                <!-- Se llenará dinámicamente -->
-            </div>
         </div>
 
         <!-- Summary Statistics -->
