@@ -598,11 +598,11 @@
             try {
                 console.log('📊 Cargando datos del CRM...');
                 
-                // Cargar clientes, invoices y usuarios en paralelo
+                // Cargar clientes, invoices y vendedores en paralelo
                 const [clientsResponse, invoicesResponse, vendorsResponse] = await Promise.all([
                     fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy'),
                     fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Facturas'),
-                    fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Usuarios')
+                    fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Vendedores')
                 ]);
                 
                 if (!clientsResponse.ok || !invoicesResponse.ok || !vendorsResponse.ok) {
@@ -739,7 +739,7 @@
         function getVendorName(vendorId) {
             if (!vendorId) return null;
             
-            // Buscar en la lista de usuarios cargados
+            // Buscar en la lista de vendedores cargados
             const vendor = allVendors.find(v => v.id === vendorId);
             return vendor ? vendor.nombre : null;
         }
