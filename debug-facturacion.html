@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico de Facturación - ERP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #007aff, #5856d6);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #1d1d1f;
+            border-bottom: 2px solid #007aff;
+            padding-bottom: 10px;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn:hover {
+            background: #0056cc;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn.danger {
+            background: #ff3b30;
+        }
+
+        .btn.danger:hover {
+            background: #d70015;
+            box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
+        }
+
+        .btn.warning {
+            background: #ff9500;
+        }
+
+        .btn.warning:hover {
+            background: #cc7700;
+            box-shadow: 0 4px 12px rgba(255, 149, 0, 0.3);
+        }
+
+        .btn.success {
+            background: #34c759;
+        }
+
+        .btn.success:hover {
+            background: #28a745;
+            box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e5e7;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #007aff;
+        }
+
+        .console {
+            background: #1d1d1f;
+            color: #f5f5f7;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .console-title {
+            font-weight: 600;
+            color: #f5f5f7;
+        }
+
+        .console-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .console-btn {
+            background: #333;
+            color: #f5f5f7;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .console-btn:hover {
+            background: #555;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .info-box h3 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .info-box ul {
+            margin-left: 20px;
+        }
+
+        .info-box li {
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .button-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Diagnóstico de Facturación</h1>
+            <p>Herramienta para identificar y resolver problemas con el botón de facturar</p>
+        </div>
+
+        <div class="content">
+            <div class="info-box">
+                <h3>📋 Instrucciones de Uso</h3>
+                <ul>
+                    <li><strong>1.</strong> Abre la página de clientes en otra pestaña</li>
+                    <li><strong>2.</strong> Abre la consola del navegador (F12)</li>
+                    <li><strong>3.</strong> Ejecuta el diagnóstico desde esta página</li>
+                    <li><strong>4.</strong> Revisa los resultados en la consola</li>
+                    <li><strong>5.</strong> Identifica y corrige los problemas encontrados</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>🚀 Diagnósticos Principales</h2>
+                <div class="button-grid">
+                    <button class="btn success" onclick="ejecutarDiagnosticoCompleto()">
+                        🔍 Diagnóstico Completo
+                    </button>
+                    <button class="btn" onclick="verificarConectividadAPI()">
+                        🌐 Verificar API
+                    </button>
+                    <button class="btn" onclick="diagnosticarFacturacion()">
+                        📋 Verificar Variables
+                    </button>
+                    <button class="btn warning" onclick="verificarErroresConsola()">
+                        🚨 Monitorear Errores
+                    </button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🎯 Pruebas Específicas</h2>
+                <div class="input-group">
+                    <label for="clientId">ID del Cliente a Probar:</label>
+                    <input type="text" id="clientId" placeholder="Ej: 123456" value="">
+                </div>
+                <div class="button-grid">
+                    <button class="btn" onclick="probarClienteEspecifico(document.getElementById('clientId').value)">
+                        🧪 Probar Cliente Específico
+                    </button>
+                    <button class="btn" onclick="probarGeneracionFacturas(document.getElementById('clientId').value)">
+                        📄 Probar Generación de Facturas
+                    </button>
+                    <button class="btn" onclick="simularFacturacion(document.getElementById('clientId').value)">
+                        🚀 Simular Facturación Completa
+                    </button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>📊 Estado del Sistema</h2>
+                <div id="systemStatus" class="status warning">
+                    ⏳ Ejecuta un diagnóstico para ver el estado del sistema
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>📝 Consola de Resultados</h2>
+                <div class="console-header">
+                    <div class="console-title">Resultados del Diagnóstico</div>
+                    <div class="console-controls">
+                        <button class="console-btn" onclick="limpiarConsola()">Limpiar</button>
+                        <button class="console-btn" onclick="copiarConsola()">Copiar</button>
+                    </div>
+                </div>
+                <div id="consoleOutput" class="console">
+                    Ejecuta un diagnóstico para ver los resultados aquí...
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🔧 Soluciones Comunes</h2>
+                <div class="info-box">
+                    <h3>Problemas Frecuentes y Soluciones</h3>
+                    <ul>
+                        <li><strong>Error de API:</strong> Verificar conectividad y URL de la API</li>
+                        <li><strong>Contrato incompleto:</strong> Asegurar que el cliente tenga fecha, monto y plazo</li>
+                        <li><strong>Cliente ya facturado:</strong> Verificar si ya existen facturas para el cliente</li>
+                        <li><strong>Error de JavaScript:</strong> Revisar la consola para errores específicos</li>
+                        <li><strong>Variables no definidas:</strong> Verificar que la página esté completamente cargada</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="debug-facturacion.js"></script>
+    <script>
+        // Función para actualizar la consola local
+        function actualizarConsola(mensaje) {
+            const consoleOutput = document.getElementById('consoleOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            consoleOutput.textContent += `[${timestamp}] ${mensaje}\n`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        // Función para limpiar la consola
+        function limpiarConsola() {
+            document.getElementById('consoleOutput').textContent = '';
+        }
+
+        // Función para copiar la consola
+        function copiarConsola() {
+            const consoleOutput = document.getElementById('consoleOutput');
+            navigator.clipboard.writeText(consoleOutput.textContent).then(() => {
+                alert('Contenido de la consola copiado al portapapeles');
+            });
+        }
+
+        // Interceptar console.log para mostrar en la consola local
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const mensaje = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            actualizarConsola(mensaje);
+        };
+
+        // Interceptar console.error para mostrar en la consola local
+        const originalError = console.error;
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            const mensaje = '❌ ERROR: ' + args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            actualizarConsola(mensaje);
+        };
+
+        // Función para actualizar el estado del sistema
+        function actualizarEstadoSistema(mensaje, tipo = 'warning') {
+            const statusElement = document.getElementById('systemStatus');
+            statusElement.className = `status ${tipo}`;
+            statusElement.textContent = mensaje;
+        }
+
+        // Verificar si las funciones están disponibles
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                if (typeof ejecutarDiagnosticoCompleto === 'function') {
+                    actualizarEstadoSistema('✅ Script de diagnóstico cargado correctamente', 'success');
+                } else {
+                    actualizarEstadoSistema('❌ Script de diagnóstico no disponible', 'error');
+                }
+            }, 1000);
+        });
+
+        // Mensaje inicial
+        actualizarConsola('🔍 Herramienta de diagnóstico de facturación iniciada');
+        actualizarConsola('💡 Ejecuta un diagnóstico para comenzar');
+    </script>
+</body>
+</html> 
