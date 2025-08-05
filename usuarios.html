@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Usuarios - EasyCars ERP</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* ===== USUARIOS STYLES ===== */
+        .usuarios-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .usuarios-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        }
+        
+        .usuarios-title {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .usuarios-subtitle {
+            font-size: 1.3rem;
+            opacity: 0.95;
+            margin-bottom: 25px;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn-primary-action {
+            background: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+        
+        .btn-primary-action:hover {
+            background: #388E3C;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+        
+        .btn-secondary-action {
+            background: #2196F3;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+        }
+        
+        .btn-secondary-action:hover {
+            background: #1976D2;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+        }
+        
+        /* ===== STATS GRID ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+            border: 1px solid #f0f0f0;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+        }
+        
+        .stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #007aff;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        
+        /* ===== USUARIOS SECTION ===== */
+        .usuarios-section {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            overflow: hidden;
+            border: 1px solid #f0f0f0;
+        }
+        
+        .section-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 25px 30px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #333;
+            margin: 0;
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .search-input {
+            padding: 12px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 1rem;
+            min-width: 300px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #007aff;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+        
+        .filter-select {
+            padding: 12px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: #007aff;
+        }
+        
+        /* ===== TABLE STYLES ===== */
+        .usuarios-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .usuarios-table th,
+        .usuarios-table td {
+            padding: 16px 20px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .usuarios-table th {
+            background: #f8f9fa;
+            font-weight: 700;
+            color: #333;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .usuarios-table tr:hover {
+            background: #f8f9fa;
+            transition: background 0.2s ease;
+        }
+        
+        .usuario-id {
+            font-weight: 700;
+            color: #007aff;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .usuario-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-superadmin {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-admin {
+            background: #cce5ff;
+            color: #004085;
+        }
+        
+        .status-vendor {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-user {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn-edit,
+        .btn-delete,
+        .btn-view {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-view {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-view:hover {
+            background: #138496;
+            transform: translateY(-1px);
+        }
+        
+        .btn-edit {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-edit:hover {
+            background: #e0a800;
+            transform: translateY(-1px);
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+        
+        /* ===== MODAL STYLES ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 3% auto;
+            padding: 0;
+            border-radius: 20px;
+            width: 95%;
+            max-width: 600px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+            animation: modalSlideIn 0.4s ease-out;
+            overflow: hidden;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-100px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .close-modal {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 8px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+        
+        .close-modal:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+        
+        .modal-body {
+            padding: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1rem;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #007aff;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            padding: 25px 30px;
+            border-top: 1px solid #e9ecef;
+            background: #f8f9fa;
+        }
+        
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-cancel:hover {
+            background: #545b62;
+            transform: translateY(-1px);
+        }
+        
+        .btn-save {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-save:hover {
+            background: #0056cc;
+            transform: translateY(-1px);
+        }
+        
+        .btn-save:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* ===== TOAST STYLES ===== */
+        .toast {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            padding: 20px 30px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            z-index: 3000;
+            animation: toastSlideIn 0.4s ease-out;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+        
+        .toast.success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+        
+        .toast.error {
+            background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+        }
+        
+        .toast.warning {
+            background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+            color: #212529;
+        }
+        
+        @keyframes toastSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0) translateY(0);
+            }
+        }
+        
+        /* ===== RESPONSIVE STYLES ===== */
+        @media (max-width: 768px) {
+            .usuarios-container { 
+                padding: 10px; 
+            }
+            
+            .usuarios-title {
+                font-size: 2rem;
+            }
+            
+            .usuarios-subtitle {
+                font-size: 1.1rem;
+            }
+            
+            .header-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn-primary-action,
+            .btn-secondary-action {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .section-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-box {
+                flex-direction: column;
+            }
+            
+            .search-input,
+            .filter-select {
+                min-width: unset;
+                width: 100%;
+            }
+            
+            .usuarios-table {
+                font-size: 0.9rem;
+            }
+            
+            .usuarios-table th,
+            .usuarios-table td {
+                padding: 12px 8px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-content {
+                width: 98%;
+                margin: 5% auto;
+            }
+            
+            .modal-actions {
+                flex-direction: column;
+            }
+            
+            .btn-cancel,
+            .btn-save {
+                width: 100%;
+            }
+        }
+        
+        /* ===== BACK BUTTON ===== */
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
+        }
+        
+        .back-btn:hover {
+            background: #0056cc;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 122, 255, 0.4);
+        }
+        
+        /* ===== HOME BUTTON ===== */
+        .home-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+        
+        .home-button:hover {
+            transform: translateY(-3px) scale(1.1);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // Verificar autenticación al cargar la página
+        function checkAuthentication() {
+            const session = localStorage.getItem('vendorSession');
+            
+            if (!session) {
+                console.log('❌ No hay sesión activa');
+                window.location.href = '/login.html';
+                return;
+            }
+            
+            try {
+                const sessionData = JSON.parse(session);
+                const now = new Date();
+                const expiresAt = new Date(sessionData.expiresAt);
+                
+                if (now >= expiresAt) {
+                    console.log('❌ Sesión expirada');
+                    localStorage.removeItem('vendorSession');
+                    window.location.href = '/login.html';
+                    return;
+                }
+                
+                // Verificar si el usuario tiene acceso a este módulo
+                if (sessionData.userRole !== 'SuperAdmin' && 
+                    (!sessionData.userModules || !sessionData.userModules.includes('usuarios'))) {
+                    console.log('❌ Usuario sin permisos para este módulo');
+                    alert('No tienes permisos para acceder a este módulo.');
+                    window.location.href = '/index.html';
+                    return;
+                }
+                
+                console.log('✅ Usuario autenticado:', sessionData.userName);
+                
+                // Mostrar información del usuario
+                const userInfo = document.createElement('div');
+                userInfo.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: white;
+                    padding: 15px 20px;
+                    border-radius: 12px;
+                    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+                    z-index: 1000;
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                    border: 1px solid #f0f0f0;
+                `;
+                userInfo.innerHTML = `
+                    <div>
+                        <div style="font-weight: 700; color: #333; font-size: 1rem;">${sessionData.userName}</div>
+                        <div style="font-size: 0.85rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">${sessionData.userRole}</div>
+                    </div>
+                    <button onclick="logout()" style="
+                        background: #dc3545;
+                        color: white;
+                        border: none;
+                        padding: 10px 18px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 0.9rem;
+                        font-weight: 600;
+                        transition: all 0.3s ease;
+                    " onmouseover="this.style.background='#c82333'" onmouseout="this.style.background='#dc3545'">Cerrar Sesión</button>
+                `;
+                document.body.appendChild(userInfo);
+                
+            } catch (error) {
+                console.error('❌ Error verificando sesión:', error);
+                localStorage.removeItem('vendorSession');
+                window.location.href = '/login.html';
+            }
+        }
+        
+        // Función de logout
+        function logout() {
+            localStorage.removeItem('vendorSession');
+            window.location.href = '/login.html';
+        }
+        
+        // Ejecutar verificación al cargar - DESHABILITADO TEMPORALMENTE
+        // checkAuthentication();
+    </script>
+    
+    <button class="back-btn" onclick="window.location.href='/'">← Volver</button>
+    
+    <div class="usuarios-container">
+        <div class="usuarios-header">
+            <h1 class="usuarios-title">👥 Gestión de Usuarios</h1>
+            <p class="usuarios-subtitle">Administra usuarios, roles y permisos del sistema ERP</p>
+            <div class="header-actions">
+                <button class="btn-primary-action" onclick="openAddUsuarioModal()">
+                    ➕ Agregar Usuario
+                </button>
+                <button class="btn-secondary-action" onclick="exportUsuarios()">
+                    📊 Exportar Datos
+                </button>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-number" id="totalUsuarios">-</div>
+                <div class="stat-label">Total Usuarios</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-number" id="usuariosActivos">-</div>
+                <div class="stat-label">Usuarios Activos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👤</div>
+                <div class="stat-number" id="totalClientes">-</div>
+                <div class="stat-label">Total Clientes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-number" id="promedioClientes">-</div>
+                <div class="stat-label">Promedio Clientes/Usuario</div>
+            </div>
+        </div>
+        
+        <div class="usuarios-section">
+            <div class="section-header">
+                <h2 class="section-title">📋 Lista de Usuarios</h2>
+                <div class="search-box">
+                    <input type="text" id="searchUsuarios" class="search-input" 
+                           placeholder="🔍 Buscar por ID, nombre, teléfono..." oninput="filterUsuarios()">
+                    <select id="filterRol" class="filter-select" onchange="filterUsuarios()">
+                        <option value="">Todos los roles</option>
+                        <option value="SuperAdmin">Super Administrador</option>
+                        <option value="Admin">Administrador</option>
+                        <option value="Vendedor">Vendedor</option>
+                        <option value="Usuario">Usuario</option>
+                    </select>
+                    <select id="filterEstado" class="filter-select" onchange="filterUsuarios()">
+                        <option value="">Todos los estados</option>
+                        <option value="Activo">Activo</option>
+                        <option value="Inactivo">Inactivo</option>
+                    </select>
+                </div>
+            </div>
+            <div id="usuariosTableContainer">
+                <div style="text-align: center; padding: 60px 20px; color: #666;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">⏳</div>
+                    <h3>Cargando usuarios...</h3>
+                    <p>Obteniendo datos del servidor</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para agregar/editar usuario -->
+    <div id="usuarioModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Agregar Usuario</h3>
+                <button class="close-modal" onclick="closeUsuarioModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="usuarioForm">
+                    <div class="form-group">
+                        <label class="form-label">ID de Usuario *</label>
+                        <input type="text" id="usuarioId" class="form-input" required 
+                               placeholder="112220831" maxlength="9" 
+                               oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                        <small style="color: #666; font-size: 0.85rem;">Solo números, máximo 9 dígitos</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Nombre Completo *</label>
+                        <input type="text" id="usuarioNombre" class="form-input" required 
+                               placeholder="Nombre Apellido" maxlength="100">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Teléfono *</label>
+                            <input type="tel" id="usuarioTelefono" class="form-input" required 
+                                   placeholder="8888-8888" maxlength="15">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" id="usuarioEmail" class="form-input" 
+                                   placeholder="usuario@easycars.cr" maxlength="100">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Rol *</label>
+                            <select id="usuarioRol" class="form-input" required onchange="updateModulesByRole()">
+                                <option value="">-- Seleccionar rol --</option>
+                                <option value="SuperAdmin">Super Administrador</option>
+                                <option value="Admin">Administrador</option>
+                                <option value="Vendedor">Vendedor</option>
+                                <option value="Usuario">Usuario</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Estado</label>
+                            <select id="usuarioEstado" class="form-input">
+                                <option value="Activo">Activo</option>
+                                <option value="Inactivo">Inactivo</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Módulos Permitidos</label>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 10px;">
+                            <label style="display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; background: #f8f9fa; cursor: pointer;">
+                                <input type="checkbox" value="clientes" onchange="updateModules()"> 
+                                <span>👥 Clientes</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; background: #f8f9fa; cursor: pointer;">
+                                <input type="checkbox" value="facturas" onchange="updateModules()"> 
+                                <span>📄 Facturas</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; background: #f8f9fa; cursor: pointer;">
+                                <input type="checkbox" value="transacciones" onchange="updateModules()"> 
+                                <span>💰 Transacciones</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; background: #f8f9fa; cursor: pointer;">
+                                <input type="checkbox" value="crm" onchange="updateModules()"> 
+                                <span>📊 CRM</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; background: #f8f9fa; cursor: pointer;">
+                                <input type="checkbox" value="usuarios" onchange="updateModules()"> 
+                                <span>👤 Usuarios</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; background: #f8f9fa; cursor: pointer;">
+                                <input type="checkbox" value="reportes" onchange="updateModules()"> 
+                                <span>📈 Reportes</span>
+                            </label>
+                        </div>
+                        <input type="hidden" id="usuarioModulos" class="form-input">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Instancia Ultra MSG *</label>
+                            <input type="text" id="usuarioInstancia" class="form-input" required 
+                                   placeholder="112220831" maxlength="20">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Token Ultra MSG *</label>
+                            <input type="text" id="usuarioToken" class="form-input" required 
+                                   placeholder="token_ultra_msg" maxlength="100">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Observaciones</label>
+                        <textarea id="usuarioObservaciones" class="form-input" rows="3" 
+                                  placeholder="Información adicional sobre el usuario..." maxlength="500"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeUsuarioModal()">Cancelar</button>
+                <button class="btn-save" onclick="saveUsuario()" id="saveUsuarioBtn">
+                    <span class="loading-spinner" style="display: none;"></span>
+                    Guardar Usuario
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmación para eliminar -->
+    <div id="deleteConfirmModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3 class="modal-title">🗑️ Confirmar Eliminación</h3>
+                <button class="close-modal" onclick="closeDeleteConfirmModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; margin-bottom: 25px;">
+                    <div style="font-size: 4rem; margin-bottom: 20px;">⚠️</div>
+                    <h4 style="margin-bottom: 15px; color: #dc3545;">¿Estás seguro?</h4>
+                    <p style="color: #666; margin-bottom: 20px; line-height: 1.5;">
+                        Esta acción eliminará permanentemente al usuario:
+                    </p>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border: 2px solid #e9ecef;" id="deleteUsuarioInfo">
+                        <!-- Se llenará dinámicamente -->
+                    </div>
+                    <p style="color: #dc3545; font-weight: 600; margin-top: 15px; font-size: 0.9rem;">
+                        ⚠️ Esta acción no se puede deshacer
+                    </p>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeDeleteConfirmModal()">Cancelar</button>
+                <button class="btn-delete" onclick="confirmDeleteUsuario()" id="confirmDeleteBtn">
+                    🗑️ Eliminar Usuario
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== VARIABLES GLOBALES =====
+        let allUsuarios = [];
+        let allClientes = [];
+        let editingUsuario = null;
+        let usuarioToDelete = null;
+        
+        // ===== INICIALIZACIÓN =====
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Inicializando gestión de usuarios...');
+            
+            // Verificar acceso de administrador
+            checkAdminAccess();
+            
+            // Cargar datos
+            loadUsuariosData();
+            
+            // Configurar eventos
+            setupEventListeners();
+        });
+        
+        // ===== VERIFICACIÓN DE ACCESO =====
+        function checkAdminAccess() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isAdmin = urlParams.get('admin') === 'true';
+            
+            if (isAdmin) {
+                console.log('✅ Acceso de super administrador confirmado');
+                return;
+            }
+            
+            // Si no hay parámetro admin, verificar sesión
+            const session = localStorage.getItem('vendorSession');
+            
+            if (session) {
+                const sessionData = JSON.parse(session);
+                const now = new Date();
+                const expiresAt = new Date(sessionData.expiresAt);
+                
+                if (now < expiresAt && sessionData.vendorId === '112220831') {
+                    console.log('✅ Sesión de super administrador válida');
+                    // Redirigir con parámetro admin
+                    window.location.href = '/usuarios.html?admin=true';
+                    return;
+                } else {
+                    console.log('❌ Sesión inválida o no es super administrador');
+                    localStorage.removeItem('vendorSession');
+                }
+            }
+            
+            // No hay acceso válido, redirigir al login
+            console.log('❌ Acceso denegado - No es super administrador');
+            window.location.href = '/login.html';
+        }
+        
+        // ===== CARGA DE DATOS =====
+        async function loadUsuariosData() {
+            try {
+                console.log('📊 Cargando datos de usuarios...');
+                
+                // Mostrar loading
+                showLoading();
+                
+                // Cargar usuarios y clientes en paralelo
+                const [usuariosResponse, clientesResponse] = await Promise.all([
+                    fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Usuarios'),
+                    fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy')
+                ]);
+                
+                if (!usuariosResponse.ok || !clientesResponse.ok) {
+                    throw new Error('Error al cargar datos del servidor');
+                }
+                
+                allUsuarios = await usuariosResponse.json();
+                allClientes = await clientesResponse.json();
+                
+                console.log('✅ Datos cargados:', {
+                    usuarios: allUsuarios.length,
+                    clientes: allClientes.length
+                });
+                
+                // Procesar y mostrar datos
+                processUsuariosData();
+                
+            } catch (error) {
+                console.error('❌ Error cargando datos:', error);
+                showToast('Error al cargar los datos. Por favor, intenta de nuevo.', 'error');
+                showError();
+            }
+        }
+        
+        // ===== PROCESAMIENTO DE DATOS =====
+        function processUsuariosData() {
+            console.log('🔍 Procesando datos de usuarios...');
+            
+            // Calcular estadísticas
+            const totalUsuarios = allUsuarios.length;
+            const usuariosActivos = allUsuarios.filter(u => u.estado === 'Activo').length;
+            const totalClientes = allClientes.length;
+            const promedioClientes = totalUsuarios > 0 ? Math.round(totalClientes / totalUsuarios) : 0;
+            
+            // Actualizar estadísticas
+            updateStats({
+                totalUsuarios,
+                usuariosActivos,
+                totalClientes,
+                promedioClientes
+            });
+            
+            // Mostrar tabla de usuarios
+            displayUsuariosTable(allUsuarios);
+        }
+        
+        // ===== ACTUALIZACIÓN DE ESTADÍSTICAS =====
+        function updateStats(stats) {
+            document.getElementById('totalUsuarios').textContent = stats.totalUsuarios;
+            document.getElementById('usuariosActivos').textContent = stats.usuariosActivos;
+            document.getElementById('totalClientes').textContent = stats.totalClientes;
+            document.getElementById('promedioClientes').textContent = stats.promedioClientes;
+        }
+        
+        // ===== MOSTRAR TABLA DE USUARIOS =====
+        function displayUsuariosTable(usuarios) {
+            const container = document.getElementById('usuariosTableContainer');
+            
+            if (usuarios.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 80px 20px; color: #666;">
+                        <div style="font-size: 4rem; margin-bottom: 20px;">👥</div>
+                        <h3>No hay usuarios registrados</h3>
+                        <p>Agrega el primer usuario para comenzar a gestionar el sistema.</p>
+                        <button class="btn-primary-action" onclick="openAddUsuarioModal()" style="margin-top: 20px;">
+                            ➕ Agregar Primer Usuario
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            const tableHTML = `
+                <table class="usuarios-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Teléfono</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Módulos</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${usuarios.map(usuario => {
+                            const modulos = usuario.modulos ? usuario.modulos.split(',').length : 0;
+                            return `
+                                <tr>
+                                    <td class="usuario-id">${usuario.id || usuario.ID}</td>
+                                    <td><strong>${usuario.nombre || usuario.Nombre || 'Sin nombre'}</strong></td>
+                                    <td>${usuario.telefono || usuario.Telefono || 'No especificado'}</td>
+                                    <td>${usuario.email || usuario.Email || 'No especificado'}</td>
+                                    <td>
+                                        <span class="usuario-status ${getRoleColor(usuario.rol || usuario.Rol)}">
+                                            ${usuario.rol || usuario.Rol || 'Sin rol'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span style="background: #e9ecef; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;">
+                                            ${modulos} módulos
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="usuario-status ${(usuario.estado || usuario.Estado) === 'Activo' ? 'status-active' : 'status-inactive'}">
+                                            ${usuario.estado || usuario.Estado || 'Activo'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-view" onclick="viewUsuario('${usuario.id || usuario.ID}')" title="Ver detalles">
+                                                👁️
+                                            </button>
+                                            <button class="btn-edit" onclick="editUsuario('${usuario.id || usuario.ID}')" title="Editar">
+                                                ✏️
+                                            </button>
+                                            <button class="btn-delete" onclick="deleteUsuario('${usuario.id || usuario.ID}')" title="Eliminar">
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = tableHTML;
+        }
+        
+        // ===== FUNCIONES DE COLORES =====
+        function getRoleColor(rol) {
+            switch(rol) {
+                case 'SuperAdmin': return 'status-superadmin';
+                case 'Admin': return 'status-admin';
+                case 'Vendedor': return 'status-vendor';
+                case 'Usuario': return 'status-user';
+                default: return 'status-inactive';
+            }
+        }
+        
+        // ===== FILTRADO =====
+        function filterUsuarios() {
+            const searchTerm = document.getElementById('searchUsuarios').value.toLowerCase();
+            const filterRol = document.getElementById('filterRol').value;
+            const filterEstado = document.getElementById('filterEstado').value;
+            
+            const filteredUsuarios = allUsuarios.filter(usuario => {
+                const matchesSearch = 
+                    (usuario.id || usuario.ID || '').toLowerCase().includes(searchTerm) ||
+                    (usuario.nombre || usuario.Nombre || '').toLowerCase().includes(searchTerm) ||
+                    (usuario.telefono || usuario.Telefono || '').includes(searchTerm) ||
+                    (usuario.email || usuario.Email || '').toLowerCase().includes(searchTerm);
+                
+                const matchesRol = !filterRol || (usuario.rol || usuario.Rol) === filterRol;
+                const matchesEstado = !filterEstado || (usuario.estado || usuario.Estado) === filterEstado;
+                
+                return matchesSearch && matchesRol && matchesEstado;
+            });
+            
+            displayUsuariosTable(filteredUsuarios);
+        }
+        
+        // ===== FUNCIONES DE MÓDULOS =====
+        function updateModules() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+            const modules = Array.from(checkboxes).map(cb => cb.value).join(',');
+            document.getElementById('usuarioModulos').value = modules;
+        }
+        
+        function updateModulesByRole() {
+            const rol = document.getElementById('usuarioRol').value;
+            
+            // Desmarcar todos los checkboxes
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+            
+            // Marcar módulos según el rol
+            switch(rol) {
+                case 'SuperAdmin':
+                    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                        cb.checked = true;
+                    });
+                    break;
+                case 'Admin':
+                    ['clientes', 'facturas', 'transacciones', 'crm', 'usuarios', 'reportes'].forEach(module => {
+                        const checkbox = document.querySelector(`input[value="${module}"]`);
+                        if (checkbox) checkbox.checked = true;
+                    });
+                    break;
+                case 'Vendedor':
+                    ['clientes', 'facturas', 'transacciones'].forEach(module => {
+                        const checkbox = document.querySelector(`input[value="${module}"]`);
+                        if (checkbox) checkbox.checked = true;
+                    });
+                    break;
+                case 'Usuario':
+                    ['clientes', 'facturas'].forEach(module => {
+                        const checkbox = document.querySelector(`input[value="${module}"]`);
+                        if (checkbox) checkbox.checked = true;
+                    });
+                    break;
+            }
+            
+            updateModules();
+        }
+        
+        // ===== FUNCIONES DE MODAL =====
+        function openAddUsuarioModal() {
+            console.log('📝 Abriendo modal para agregar usuario...');
+            editingUsuario = null;
+            
+            document.getElementById('modalTitle').textContent = 'Agregar Usuario';
+            document.getElementById('usuarioForm').reset();
+            document.getElementById('usuarioId').disabled = false;
+            document.getElementById('usuarioModal').style.display = 'block';
+            
+            // Enfocar el primer campo
+            setTimeout(() => {
+                document.getElementById('usuarioId').focus();
+            }, 100);
+        }
+        
+        function closeUsuarioModal() {
+            console.log('❌ Cerrando modal de usuario...');
+            document.getElementById('usuarioModal').style.display = 'none';
+            editingUsuario = null;
+        }
+        
+        function closeDeleteConfirmModal() {
+            document.getElementById('deleteConfirmModal').style.display = 'none';
+            usuarioToDelete = null;
+        }
+        
+        // ===== FUNCIONES CRUD =====
+        function viewUsuario(usuarioId) {
+            console.log('👁️ Viendo usuario:', usuarioId);
+            
+            const usuario = allUsuarios.find(u => (u.id || u.ID) === usuarioId);
+            if (!usuario) {
+                showToast('Usuario no encontrado.', 'error');
+                return;
+            }
+            
+            // Mostrar información en un modal o alert
+            const info = `
+                ID: ${usuario.id || usuario.ID}
+                Nombre: ${usuario.nombre || usuario.Nombre}
+                Teléfono: ${usuario.telefono || usuario.Telefono}
+                Email: ${usuario.email || usuario.Email}
+                Rol: ${usuario.rol || usuario.Rol}
+                Estado: ${usuario.estado || usuario.Estado}
+                Módulos: ${usuario.modulos || usuario.Modulos || 'Sin módulos'}
+                Instancia: ${usuario.instancia || usuario.Instancia}
+                Observaciones: ${usuario.observaciones || usuario.Observaciones || 'Sin observaciones'}
+            `;
+            
+            alert(info);
+        }
+        
+        function editUsuario(usuarioId) {
+            console.log('✏️ Editando usuario:', usuarioId);
+            
+            const usuario = allUsuarios.find(u => (u.id || u.ID) === usuarioId);
+            if (!usuario) {
+                showToast('Usuario no encontrado.', 'error');
+                return;
+            }
+            
+            editingUsuario = usuario;
+            
+            // Llenar formulario
+            document.getElementById('modalTitle').textContent = 'Editar Usuario';
+            document.getElementById('usuarioId').value = usuario.id || usuario.ID;
+            document.getElementById('usuarioId').disabled = true; // No permitir cambiar ID
+            document.getElementById('usuarioNombre').value = usuario.nombre || usuario.Nombre || '';
+            document.getElementById('usuarioTelefono').value = usuario.telefono || usuario.Telefono || '';
+            document.getElementById('usuarioEmail').value = usuario.email || usuario.Email || '';
+            document.getElementById('usuarioRol').value = usuario.rol || usuario.Rol || '';
+            document.getElementById('usuarioEstado').value = usuario.estado || usuario.Estado || 'Activo';
+            document.getElementById('usuarioInstancia').value = usuario.instancia || usuario.Instancia || '';
+            document.getElementById('usuarioToken').value = usuario.token || usuario.Token || '';
+            document.getElementById('usuarioObservaciones').value = usuario.observaciones || usuario.Observaciones || '';
+            
+            // Configurar módulos
+            const modulos = (usuario.modulos || usuario.Modulos || '').split(',');
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.checked = modulos.includes(cb.value);
+            });
+            updateModules();
+            
+            document.getElementById('usuarioModal').style.display = 'block';
+        }
+        
+        async function saveUsuario() {
+            const saveBtn = document.getElementById('saveUsuarioBtn');
+            const spinner = saveBtn.querySelector('.loading-spinner');
+            
+            // Validar formulario
+            const form = document.getElementById('usuarioForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            // Obtener datos del formulario
+            const usuarioData = {
+                id: document.getElementById('usuarioId').value.trim(),
+                nombre: document.getElementById('usuarioNombre').value.trim(),
+                telefono: document.getElementById('usuarioTelefono').value.trim(),
+                email: document.getElementById('usuarioEmail').value.trim(),
+                rol: document.getElementById('usuarioRol').value,
+                modulos: document.getElementById('usuarioModulos').value.trim(),
+                instancia: document.getElementById('usuarioInstancia').value.trim(),
+                token: document.getElementById('usuarioToken').value.trim(),
+                estado: document.getElementById('usuarioEstado').value,
+                observaciones: document.getElementById('usuarioObservaciones').value.trim(),
+                fechaRegistro: editingUsuario ? (editingUsuario.fechaRegistro || editingUsuario.FechaRegistro) : new Date().toLocaleDateString('es-CR')
+            };
+            
+            console.log('💾 Guardando usuario:', usuarioData);
+            
+            // Mostrar loading
+            saveBtn.disabled = true;
+            spinner.style.display = 'inline-block';
+            saveBtn.innerHTML = '<span class="loading-spinner"></span>Guardando...';
+            
+            try {
+                let response;
+                
+                if (editingUsuario) {
+                    // Actualizar usuario existente
+                    response = await fetch(`https://sheetdb.io/api/v1/qu62bagiwlgqy/ID/${usuarioData.id}?sheet=Usuarios`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(usuarioData)
+                    });
+                } else {
+                    // Crear nuevo usuario
+                    response = await fetch('https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Usuarios', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(usuarioData)
+                    });
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                console.log('✅ Usuario guardado exitosamente:', result);
+                
+                // Mostrar mensaje de éxito
+                showToast(`Usuario ${editingUsuario ? 'actualizado' : 'agregado'} exitosamente!`, 'success');
+                
+                // Cerrar modal
+                closeUsuarioModal();
+                
+                // Recargar datos
+                await loadUsuariosData();
+                
+            } catch (error) {
+                console.error('❌ Error guardando usuario:', error);
+                showToast('Error al guardar el usuario. Intenta de nuevo.', 'error');
+            } finally {
+                // Restaurar botón
+                saveBtn.disabled = false;
+                spinner.style.display = 'none';
+                saveBtn.innerHTML = 'Guardar Usuario';
+            }
+        }
+        
+        function deleteUsuario(usuarioId) {
+            console.log('🗑️ Solicitando eliminación de usuario:', usuarioId);
+            
+            const usuario = allUsuarios.find(u => (u.id || u.ID) === usuarioId);
+            if (!usuario) {
+                showToast('Usuario no encontrado.', 'error');
+                return;
+            }
+            
+            usuarioToDelete = usuario;
+            
+            // Mostrar información en el modal de confirmación
+            document.getElementById('deleteUsuarioInfo').innerHTML = `
+                <div style="text-align: left;">
+                    <div><strong>ID:</strong> ${usuario.id || usuario.ID}</div>
+                    <div><strong>Nombre:</strong> ${usuario.nombre || usuario.Nombre}</div>
+                    <div><strong>Teléfono:</strong> ${usuario.telefono || usuario.Telefono}</div>
+                    <div><strong>Rol:</strong> ${usuario.rol || usuario.Rol}</div>
+                </div>
+            `;
+            
+            document.getElementById('deleteConfirmModal').style.display = 'block';
+        }
+        
+        async function confirmDeleteUsuario() {
+            if (!usuarioToDelete) return;
+            
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
+            const originalText = confirmBtn.innerHTML;
+            
+            // Mostrar loading
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<span class="loading-spinner"></span>Eliminando...';
+            
+            try {
+                console.log('🗑️ Eliminando usuario:', usuarioToDelete.id || usuarioToDelete.ID);
+                
+                const response = await fetch(`https://sheetdb.io/api/v1/qu62bagiwlgqy/ID/${usuarioToDelete.id || usuarioToDelete.ID}?sheet=Usuarios`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                
+                console.log('✅ Usuario eliminado exitosamente');
+                showToast('Usuario eliminado exitosamente!', 'success');
+                
+                // Cerrar modal
+                closeDeleteConfirmModal();
+                
+                // Recargar datos
+                await loadUsuariosData();
+                
+            } catch (error) {
+                console.error('❌ Error eliminando usuario:', error);
+                showToast('Error al eliminar el usuario. Intenta de nuevo.', 'error');
+            } finally {
+                // Restaurar botón
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = originalText;
+            }
+        }
+        
+        // ===== FUNCIONES DE EXPORTACIÓN =====
+        function exportUsuarios() {
+            console.log('📊 Exportando datos de usuarios...');
+            
+            const csvContent = generateCSV();
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `usuarios_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            
+            showToast('Datos exportados exitosamente!', 'success');
+        }
+        
+        function generateCSV() {
+            const headers = ['ID', 'Nombre', 'Teléfono', 'Email', 'Rol', 'Módulos', 'Estado', 'Instancia', 'Observaciones', 'Fecha Registro'];
+            const rows = allUsuarios.map(usuario => [
+                usuario.id || usuario.ID,
+                usuario.nombre || usuario.Nombre,
+                usuario.telefono || usuario.Telefono,
+                usuario.email || usuario.Email,
+                usuario.rol || usuario.Rol,
+                usuario.modulos || usuario.Modulos,
+                usuario.estado || usuario.Estado,
+                usuario.instancia || usuario.Instancia,
+                usuario.observaciones || usuario.Observaciones,
+                usuario.fechaRegistro || usuario.FechaRegistro
+            ]);
+            
+            return [headers, ...rows].map(row => row.map(cell => `"${cell || ''}"`).join(',')).join('\n');
+        }
+        
+        // ===== FUNCIONES DE UI =====
+        function showLoading() {
+            const container = document.getElementById('usuariosTableContainer');
+            container.innerHTML = `
+                <div style="text-align: center; padding: 60px 20px; color: #666;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">⏳</div>
+                    <h3>Cargando usuarios...</h3>
+                    <p>Obteniendo datos del servidor</p>
+                </div>
+            `;
+        }
+        
+        function showError() {
+            const container = document.getElementById('usuariosTableContainer');
+            container.innerHTML = `
+                <div style="text-align: center; padding: 60px 20px; color: #dc3545;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">❌</div>
+                    <h3>Error al cargar datos</h3>
+                    <p>No se pudieron cargar los usuarios. Intenta de nuevo.</p>
+                    <button class="btn-primary-action" onclick="loadUsuariosData()" style="margin-top: 20px;">
+                        🔄 Reintentar
+                    </button>
+                </div>
+            `;
+        }
+        
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            // Remover después de 4 segundos
+            setTimeout(() => {
+                toast.remove();
+            }, 4000);
+        }
+        
+        // ===== CONFIGURACIÓN DE EVENTOS =====
+        function setupEventListeners() {
+            // Cerrar modales al hacer clic fuera
+            window.onclick = function(event) {
+                const usuarioModal = document.getElementById('usuarioModal');
+                const deleteModal = document.getElementById('deleteConfirmModal');
+                
+                if (event.target === usuarioModal) {
+                    closeUsuarioModal();
+                }
+                if (event.target === deleteModal) {
+                    closeDeleteConfirmModal();
+                }
+            }
+            
+            // Cerrar modales con Escape
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    closeUsuarioModal();
+                    closeDeleteConfirmModal();
+                }
+            });
+        }
+        
+        // ===== EXPORTAR FUNCIONES =====
+        window.openAddUsuarioModal = openAddUsuarioModal;
+        window.closeUsuarioModal = closeUsuarioModal;
+        window.closeDeleteConfirmModal = closeDeleteConfirmModal;
+        window.saveUsuario = saveUsuario;
+        window.editUsuario = editUsuario;
+        window.viewUsuario = viewUsuario;
+        window.deleteUsuario = deleteUsuario;
+        window.confirmDeleteUsuario = confirmDeleteUsuario;
+        window.filterUsuarios = filterUsuarios;
+        window.updateModules = updateModules;
+        window.updateModulesByRole = updateModulesByRole;
+        window.exportUsuarios = exportUsuarios;
+    </script>
+
+    <!-- Botón Volver al Inicio -->
+    <a href="index.html" class="home-button" title="Volver al Inicio">
+        🏠
+    </a>
+</body>
+</html> 

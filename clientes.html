@@ -824,8 +824,8 @@
             showLoading(true);
             
             try {
-                // Cargar clientes, facturas y vendedores EN PARALELO
-                console.log('Cargando clientes, facturas y vendedores...');
+                // Cargar clientes, facturas y usuarios EN PARALELO
+                console.log('Cargando clientes, facturas y usuarios...');
                 await Promise.all([
                     loadClientsData(),
                     loadInvoicesData(),
@@ -835,7 +835,7 @@
                 console.log('✅ Todas las cargas completadas');
                 console.log('Clientes cargados:', clients.length);
                 console.log('Facturas cargadas:', invoices.length);
-                console.log('Vendedores cargados:', vendors.length);
+                console.log('Usuarios cargados:', vendors.length);
                 
                 // AHORA renderizar la interfaz con todos los datos
                 renderClients(clients);
@@ -844,7 +844,7 @@
                 console.log('✅ Después de llamar updateStats()');
                 populateVendorSelect();
                 
-                showToast(`Sistema cargado: ${clients.length} clientes, ${invoices.length} facturas, ${vendors.length} vendedores`, 'success');
+                showToast(`Sistema cargado: ${clients.length} clientes, ${invoices.length} facturas, ${vendors.length} usuarios`, 'success');
                 
             } catch (error) {
                 console.error('Error al inicializar:', error);
@@ -892,7 +892,7 @@
         
         async function loadVendorsData() {
             const apiUrl = `${API_URL_CLIENTS}?sheet=Usuarios`;
-            console.log('Cargando vendedores desde:', apiUrl);
+            console.log('Cargando usuarios desde:', apiUrl);
             
             try {
                 const response = await fetch(apiUrl);
@@ -901,11 +901,11 @@
                 }
                 
                 vendors = await response.json();
-                console.log('✅ Vendedores cargados:', vendors.length);
+                console.log('✅ Usuarios cargados:', vendors.length);
                 
             } catch (error) {
-                console.error('❌ Error cargando vendedores:', error);
-                showToast('Error al cargar vendedores', 'error');
+                console.error('❌ Error cargando usuarios:', error);
+                showToast('Error al cargar usuarios', 'error');
                 vendors = [];
             }
         }
@@ -917,7 +917,7 @@
             // Limpiar opciones existentes excepto la primera
             vendorSelect.innerHTML = '<option value="">-- Seleccionar vendedor --</option>';
             
-            // Agregar vendedores activos
+            // Agregar usuarios activos
             vendors.filter(vendor => vendor.estado === 'Activo').forEach(vendor => {
                 const option = document.createElement('option');
                 option.value = vendor.id;
@@ -978,7 +978,7 @@
             try {
                 await loadClientsData();
                 await loadInvoicesData(); // También recargar facturas por si cambiaron
-                await loadVendorsData(); // Recargar vendedores por si cambiaron
+                await loadVendorsData(); // Recargar usuarios por si cambiaron
                 renderClients(clients);
                 updateStats();
             } catch (error) {
