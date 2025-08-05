@@ -168,77 +168,56 @@ function disableDebugMode() {
 
 // ===== FUNCIÓN PARA AGREGAR CONTROLES DE DEBUG =====
 function addDebugControls() {
-    // Crear panel de control
     const debugPanel = document.createElement('div');
     debugPanel.id = 'debugPanel';
-    debugPanel.style.cssText = `
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: #2c3e50;
-        color: white;
-        padding: 15px;
-        border-radius: 8px;
-        z-index: 10000;
-        font-family: monospace;
-        font-size: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        min-width: 250px;
-    `;
-    
     debugPanel.innerHTML = `
-        <div style="margin-bottom: 10px; font-weight: bold; color: #3498db;">
-            🐛 MODO DEBUG ACTIVO
-        </div>
-        <div style="margin-bottom: 8px;">
-            <label style="display: block; margin-bottom: 5px;">Modo de facturación:</label>
-            <select id="debugMode" style="width: 100%; padding: 4px; border-radius: 4px;">
-                <option value="debug">🔍 Solo Debug (sin recarga)</option>
-                <option value="normal">📄 Normal (con recarga)</option>
-            </select>
-        </div>
-        <div style="margin-bottom: 8px;">
-            <button id="testBilling" style="width: 100%; padding: 6px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                🧪 Probar Facturación
-            </button>
-        </div>
-        <div style="margin-bottom: 8px;">
-            <button id="disableDebug" style="width: 100%; padding: 6px; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                ❌ Desactivar Debug
-            </button>
-        </div>
-        <div style="font-size: 10px; color: #bdc3c7;">
-            Revisa la consola para ver el proceso completo
+        <div style="position: fixed; top: 10px; right: 10px; background: #2c3e50; color: white; padding: 15px; border-radius: 8px; z-index: 10000; font-family: Arial, sans-serif; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
+            <h4 style="margin: 0 0 10px 0; color: #ecf0f1;">🔧 Panel de Debug</h4>
+            <div style="margin-bottom: 10px;">
+                <button id="testBilling" style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px; font-size: 12px;">🧪 Probar Facturación</button>
+                <button id="disableDebug" style="background: #95a5a6; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">❌ Deshabilitar Debug</button>
+            </div>
+            <div style="font-size: 11px; color: #bdc3c7;">
+                <div>✅ Modo debug activo</div>
+                <div>🔄 Sin recarga automática</div>
+            </div>
         </div>
     `;
-    
     document.body.appendChild(debugPanel);
-    
-    // Event listeners
-    document.getElementById('testBilling').addEventListener('click', function() {
-        const mode = document.getElementById('debugMode').value;
-        const preventReload = mode === 'debug';
+
+    // Esperar un momento para que el DOM se actualice
+    setTimeout(() => {
+        const testBillingBtn = debugPanel.querySelector('#testBilling');
+        const disableDebugBtn = debugPanel.querySelector('#disableDebug');
         
-        // Buscar el primer cliente con contrato completo
-        const testClient = clients.find(client => 
-            client.fechaContrato && client.montoContrato && client.plazoContrato
-        );
-        
-        if (testClient) {
-            console.log('🧪 === PRUEBA DE FACTURACIÓN ===');
-            console.log('Cliente de prueba:', testClient.Nombre, '(ID:', testClient.ID, ')');
-            billClientDebug(testClient.ID, preventReload);
+        if (testBillingBtn) {
+            testBillingBtn.addEventListener('click', function() {
+                console.log('🧪 === PRUEBA DE FACTURACIÓN ===');
+                console.log('📋 Cliente de prueba: 401380887');
+                billClientDebug('401380887', true);
+            });
         } else {
-            console.error('❌ No hay clientes con contrato completo para probar');
-            showToast('No hay clientes con contrato completo para probar', 'error');
+            console.error('❌ No se pudo encontrar el botón testBilling');
         }
-    });
-    
-    document.getElementById('disableDebug').addEventListener('click', function() {
-        disableDebugMode();
-    });
-    
-    console.log('🎛️ Panel de control de debug agregado');
+        
+        if (disableDebugBtn) {
+            disableDebugBtn.addEventListener('click', function() {
+                console.log('❌ === DESHABILITANDO MODO DEBUG ===');
+                if (originalBillClient) {
+                    window.billClient = originalBillClient;
+                    console.log('✅ Función original restaurada');
+                }
+                const panel = document.getElementById('debugPanel');
+                if (panel) {
+                    panel.remove();
+                    console.log('✅ Panel de debug removido');
+                }
+                showToast('🔧 Modo debug deshabilitado', 'info');
+            });
+        } else {
+            console.error('❌ No se pudo encontrar el botón disableDebug');
+        }
+    }, 100);
 }
 
 // ===== FUNCIÓN PARA REMOVER CONTROLES DE DEBUG =====
