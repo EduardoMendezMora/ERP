@@ -590,5 +590,44 @@
     🏠
 </a>
 
+<script>
+    // Efecto sticky para la información del cliente
+    function handleStickyEffect() {
+        const clientInfo = document.querySelector('.client-info');
+        if (!clientInfo) return;
+        
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    clientInfo.classList.remove('sticky');
+                } else {
+                    clientInfo.classList.add('sticky');
+                }
+            },
+            {
+                threshold: 1.0,
+                rootMargin: '-1px 0px 0px 0px'
+            }
+        );
+        
+        // Crear un elemento de referencia para detectar cuando la sección sale de la vista
+        const referenceElement = document.createElement('div');
+        referenceElement.style.height = '1px';
+        referenceElement.style.position = 'absolute';
+        referenceElement.style.top = '0';
+        referenceElement.style.left = '0';
+        referenceElement.style.pointerEvents = 'none';
+        referenceElement.style.zIndex = '-1';
+        
+        clientInfo.parentNode.insertBefore(referenceElement, clientInfo);
+        observer.observe(referenceElement);
+    }
+    
+    // Ejecutar cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', function() {
+        handleStickyEffect();
+    });
+</script>
+
 </body>
 </html> 
