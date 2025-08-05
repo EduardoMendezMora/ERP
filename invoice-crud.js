@@ -242,6 +242,9 @@ async function confirmDeleteInvoice() {
 
         console.log('✅ Factura eliminada exitosamente');
 
+        // Guardar el número de factura antes de cerrar el modal
+        const invoiceNumber = currentDeletingInvoice.NumeroFactura;
+
         // Recargar datos completos desde la API para mostrar los cambios
         console.log('🔄 Recargando datos después de eliminar factura...');
         await loadClientAndInvoices(currentClientId);
@@ -255,7 +258,7 @@ async function confirmDeleteInvoice() {
         closeDeleteInvoiceModal();
 
         // Mostrar mensaje de éxito
-        showToast(`✅ Factura ${currentDeletingInvoice.NumeroFactura} eliminada exitosamente`, 'success');
+        showToast(`✅ Factura ${invoiceNumber} eliminada exitosamente`, 'success');
 
     } catch (error) {
         console.error('❌ Error al eliminar factura:', error);
@@ -862,6 +865,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 await updateInvoice(updateData);
 
+                // Guardar el número de factura antes de cerrar el modal
+                const invoiceNumber = currentEditingInvoice.NumeroFactura;
+
                 // Recargar datos completos desde la API para mostrar los cambios
                 console.log('🔄 Recargando datos después de actualizar factura...');
                 await loadClientAndInvoices(currentClientId);
@@ -875,7 +881,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 closeEditInvoiceModal();
 
                 // Mostrar mensaje de éxito
-                showToast(`✅ Factura ${currentEditingInvoice.NumeroFactura} actualizada exitosamente`, 'success');
+                showToast(`✅ Factura ${invoiceNumber} actualizada exitosamente`, 'success');
 
             } catch (error) {
                 console.error('❌ Error al actualizar factura:', error);
