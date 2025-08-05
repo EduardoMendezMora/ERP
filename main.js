@@ -178,12 +178,13 @@ function updateClientHeader() {
     const clientNameDetailElement = document.getElementById('clientNameDetail');
     const clientIdDetailElement = document.getElementById('clientIdDetail');
 
+    // Ocultar completamente la información del cliente
     if (clientNameDetailElement) {
-        clientNameDetailElement.textContent = client.Nombre;
+        clientNameDetailElement.style.display = 'none';
     }
 
     if (clientIdDetailElement) {
-        clientIdDetailElement.textContent = `ID: ${client.ID}`;
+        clientIdDetailElement.style.display = 'none';
     }
 }
 
