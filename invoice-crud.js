@@ -298,6 +298,10 @@ async function markAsPaid(invoiceNumber) {
 
         showToast(`✅ Factura ${invoiceNumber} marcada como pagada`, 'success');
 
+        // Restaurar botón
+        button.disabled = false;
+        button.textContent = originalText;
+
     } catch (error) {
         console.error('❌ Error al marcar como pagado:', error);
         showToast('Error al actualizar factura: ' + error.message, 'error');
@@ -883,6 +887,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Mostrar mensaje de éxito
                 showToast(`✅ Factura ${invoiceNumber} actualizada exitosamente`, 'success');
 
+                // Restaurar botón
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
+
             } catch (error) {
                 console.error('❌ Error al actualizar factura:', error);
                 showToast('Error al actualizar la factura: ' + error.message, 'error');
@@ -941,6 +949,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Cerrar modal
                 closeManualInvoiceModal();
+
+                // Restaurar botón
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
 
             } catch (error) {
                 console.error('❌ Error al crear factura:', error);

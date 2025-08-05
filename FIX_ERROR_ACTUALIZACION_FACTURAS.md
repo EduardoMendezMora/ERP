@@ -91,6 +91,9 @@ Se creó un script de prueba (`test-invoice-update-fix.js`) que simula el escena
 
 1. **`invoice-crud.js`** - Líneas ~850-880 (actualización de facturas)
 2. **`invoice-crud.js`** - Líneas ~240-260 (eliminación de facturas)
+3. **`invoice-crud.js`** - Líneas ~880-885 (restauración de botón en edición)
+4. **`invoice-crud.js`** - Líneas ~940-945 (restauración de botón en creación manual)
+5. **`invoice-crud.js`** - Líneas ~295-300 (restauración de botón en marcar como pagado)
 
 ## Resultado
 
@@ -100,9 +103,13 @@ Se creó un script de prueba (`test-invoice-update-fix.js`) que simula el escena
 
 ✅ **Mensajes de Éxito**: Los mensajes de confirmación se muestran correctamente con el número de factura
 
+✅ **Botones Restaurados**: Los botones se restauran correctamente después de operaciones exitosas (no se quedan en estado "Guardando...")
+
 ## Pruebas Recomendadas
 
 1. Actualizar una factura existente
 2. Eliminar una factura existente
 3. Verificar que los mensajes de éxito se muestran correctamente
-4. Verificar que no hay errores en la consola del navegador 
+4. Verificar que no hay errores en la consola del navegador
+5. **Verificar que los botones se restauran correctamente** después de operaciones exitosas
+6. **Probar editar la misma factura múltiples veces** para confirmar que el botón no se queda en "Guardando..." 
