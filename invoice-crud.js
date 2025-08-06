@@ -270,47 +270,7 @@ async function confirmDeleteInvoice() {
     }
 }
 
-// ===== FUNCIÓN PARA MARCAR COMO PAGADO =====
-async function markAsPaid(invoiceNumber) {
-    const button = document.getElementById(`payBtn-${invoiceNumber}`);
-    if (!button) return;
 
-    const originalText = button.textContent;
-    button.disabled = true;
-    button.textContent = '⏳ Procesando...';
-
-    try {
-        const updateData = {
-            Estado: 'Pagado',
-            FechaPago: formatDateForStorage(new Date())
-        };
-
-        await updateInvoiceStatus(invoiceNumber, updateData);
-
-        // Recargar datos completos desde la API para mostrar los cambios
-        console.log('🔄 Recargando datos después de marcar como pagada...');
-        await loadClientAndInvoices(currentClientId);
-        
-        // Re-renderizar la página con los datos actualizados
-        if (typeof renderPage === 'function') {
-            renderPage();
-        }
-
-        showToast(`✅ Factura ${invoiceNumber} marcada como pagada`, 'success');
-
-        // Restaurar botón
-        button.disabled = false;
-        button.textContent = originalText;
-
-    } catch (error) {
-        console.error('❌ Error al marcar como pagado:', error);
-        showToast('Error al actualizar factura: ' + error.message, 'error');
-
-        // Restaurar botón
-        button.disabled = false;
-        button.textContent = originalText;
-    }
-}
 
 // ===== FUNCIONES DE CARGA DE DATOS =====
 async function loadClientAndInvoices(clientId) {
@@ -716,9 +676,6 @@ function renderInvoicesSection(status, invoices) {
                     <button class="btn btn-secondary" onclick="editInvoice('${invoice.NumeroFactura}')" title="Editar Factura">
                         ✏️ Editar
                     </button>
-                    <button class="btn btn-success" onclick="markAsPaid('${invoice.NumeroFactura}')" id="payBtn-${invoice.NumeroFactura}">
-                        ✅ Pagado
-                    </button>
                     <button class="btn btn-danger" onclick="deleteInvoice('${invoice.NumeroFactura}')" title="Eliminar Factura">
                         🗑️ Eliminar
                     </button>
@@ -1001,7 +958,7 @@ window.updateInvoice = updateInvoice;
 window.deleteInvoice = deleteInvoice;
 window.closeDeleteInvoiceModal = closeDeleteInvoiceModal;
 window.confirmDeleteInvoice = confirmDeleteInvoice;
-window.markAsPaid = markAsPaid;
+
 window.loadClientAndInvoices = loadClientAndInvoices;
 window.renderClientDetails = renderClientDetails;
 window.updateStatsWithoutPending = updateStatsWithoutPending;
