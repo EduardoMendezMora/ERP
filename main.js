@@ -1749,55 +1749,19 @@ function parsePaymentAmountByBank(creditValue, bank) {
     const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
     console.log(`   - Valor limpio: "${cleanValue}"`);
     
-    if (bank === 'BAC') {
-        console.log(`   - Procesando como BAC`);
-        // BAC usa formato europeo: punto como separador de miles, coma como decimal
-        // Ejemplos: 129.000,00 o 129.000
-        if (cleanValue.includes(',')) {
-            // Tiene decimales: 129.000,00 -> 129000.00
-            const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
-            console.log(`   - Con decimales: "${cleanValue}" -> "${normalizedValue}"`);
-            return parseFloat(normalizedValue);
-        } else {
-            // No tiene decimales: 129.000 -> 129000
-            const normalizedValue = cleanValue.replace(/\./g, '');
-            console.log(`   - Sin decimales: "${cleanValue}" -> "${normalizedValue}"`);
-            return parseFloat(normalizedValue);
-        }
-    } else if (bank === 'BN') {
-        console.log(`   - Procesando como BN`);
-        // BN usa formato americano: coma como separador de miles, punto como decimal
-        // Ejemplos: 200,000.00 o 200,000
-        if (cleanValue.includes(',')) {
-            // Tiene coma como separador de miles: 200,000.00 -> 200000.00
-            const normalizedValue = cleanValue.replace(/,/g, '');
-            console.log(`   - Con separador de miles: "${cleanValue}" -> "${normalizedValue}"`);
-            return parseFloat(normalizedValue);
-        } else {
-            // No tiene separador de miles: 200000.00 -> 200000.00
-            console.log(`   - Sin separador de miles: "${cleanValue}" -> "${cleanValue}"`);
-            return parseFloat(cleanValue);
-        }
-    } else if (bank === 'HuberBN') {
-        // HuberBN ahora usa formato europeo (ej: 20.000,00)
-        console.log(`   - Procesando como HuberBN (formato europeo)`);
-        if (cleanValue.includes(',')) {
-            // Tiene decimales: 20.000,00 -> 20000.00
-            const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
-            console.log(`   - Con decimales: "${cleanValue}" -> "${normalizedValue}"`);
-            return parseFloat(normalizedValue);
-        } else {
-            // No tiene decimales: 20.000 -> 20000
-            const normalizedValue = cleanValue.replace(/\./g, '');
-            console.log(`   - Sin decimales: "${cleanValue}" -> "${normalizedValue}"`);
-            return parseFloat(normalizedValue);
-        }
+    // TODOS LOS BANCOS USAN FORMATO EUROPEO: punto como separador de miles, coma como decimal
+    // Ejemplos: 100.000,00 o 100.000
+    console.log(`   - Procesando como formato europeo (todos los bancos)`);
+    
+    if (cleanValue.includes(',')) {
+        // Tiene decimales: 100.000,00 -> 100000.00
+        const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
+        console.log(`   - Con decimales: "${cleanValue}" -> "${normalizedValue}"`);
+        return parseFloat(normalizedValue);
     } else {
-        // Otros bancos - usar lógica general
-        if (cleanValue.includes(',')) {
-            return parseFloat(cleanValue.replace(',', '.'));
-        } else {
-            return parseFloat(cleanValue);
-        }
+        // No tiene decimales: 100.000 -> 100000
+        const normalizedValue = cleanValue.replace(/\./g, '');
+        console.log(`   - Sin decimales: "${cleanValue}" -> "${normalizedValue}"`);
+        return parseFloat(normalizedValue);
     }
 }
