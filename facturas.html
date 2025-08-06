@@ -166,6 +166,9 @@
             <button class="btn btn-primary btn-large" onclick="openManualInvoiceModal()">
                 ➕ Crear Factura Manual
             </button>
+            <button class="btn btn-info btn-large" style="margin-left: 12px; background-color: #17a2b8; border-color: #17a2b8;" onclick="openManualPaymentModal()">
+                💰 Crear Pago Manual
+            </button>
             <button class="btn btn-success btn-large" style="margin-left: 12px; background-color: #25D366; border-color: #25D366;" onclick="sendAccountStatement()">
                 📱 Enviar estado de cuenta
             </button>
@@ -505,6 +508,122 @@
     </div>
 </div>
 
+<!-- Manual Payment Modal -->
+<div class="modal-overlay" id="manualPaymentModal" onclick="closeManualPaymentModal()">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3>💰 Pago Manual</h3>
+            <button class="modal-close" onclick="closeManualPaymentModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+            <form id="manualPaymentForm">
+                <div class="form-group">
+                    <label for="manualPaymentReference">Referencia *</label>
+                    <input type="text" id="manualPaymentReference" required placeholder="Ej: PAGO-MANUAL-001">
+                </div>
+
+                <div class="form-group">
+                    <label for="manualPaymentAmount">Monto (₡) *</label>
+                    <input type="number" id="manualPaymentAmount" required min="1" step="0.01" placeholder="0.00">
+                </div>
+
+                <div class="form-group">
+                    <label for="manualPaymentDate">Fecha de Pago *</label>
+                    <input type="date" id="manualPaymentDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="manualPaymentDescription">Descripción</label>
+                    <textarea id="manualPaymentDescription" rows="3" placeholder="Descripción opcional del pago"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeManualPaymentModal()">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        💰 Crear Pago
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Manual Payment Modal -->
+<div class="modal-overlay" id="editManualPaymentModal" onclick="closeEditManualPaymentModal()">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3>✏️ Editar Pago Manual</h3>
+            <button class="modal-close" onclick="closeEditManualPaymentModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+            <form id="editManualPaymentForm">
+                <div class="form-group">
+                    <label for="editManualPaymentReference">Referencia *</label>
+                    <input type="text" id="editManualPaymentReference" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="editManualPaymentAmount">Monto (₡) *</label>
+                    <input type="number" id="editManualPaymentAmount" required min="1" step="0.01">
+                </div>
+
+                <div class="form-group">
+                    <label for="editManualPaymentDate">Fecha de Pago *</label>
+                    <input type="date" id="editManualPaymentDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="editManualPaymentDescription">Descripción</label>
+                    <textarea id="editManualPaymentDescription" rows="3"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditManualPaymentModal()">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        💾 Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Manual Payment Modal -->
+<div class="modal-overlay" id="deleteManualPaymentModal" onclick="closeDeleteManualPaymentModal()">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>🗑️ Eliminar Pago Manual</h3>
+            <button class="modal-close" onclick="closeDeleteManualPaymentModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+            <div class="alert alert-warning">
+                <strong>⚠️ ¿Está seguro?</strong><br>
+                Esta acción eliminará el pago manual y todas sus asignaciones a facturas.
+            </div>
+            
+            <div id="deleteManualPaymentInfo" style="margin: 16px 0; padding: 12px; background: #f8f9fa; border-radius: 6px;">
+                <!-- Información del pago a eliminar -->
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteManualPaymentModal()">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteManualPaymentBtn" onclick="confirmDeleteManualPayment()">
+                    🗑️ Eliminar Pago
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Payment Distribution Modal -->
 <div class="modal-overlay" id="paymentDistributionModal" onclick="closePaymentDistributionModal()">
     <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 700px;">
@@ -537,6 +656,7 @@
 <script src="main.js"></script>
 <script src="client-management.js"></script>
 <script src="account-statement.js"></script>
+<script src="manual-payments.js"></script>
 <script>
     // Verificar autenticación al cargar
     function checkAuthentication() {

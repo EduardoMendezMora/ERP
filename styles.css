@@ -593,6 +593,11 @@ body {
     color: white;
 }
 
+.manual-payment-badge {
+    background: #17a2b8;
+    color: white;
+}
+
 /* ===== ASSIGNED PAYMENT CARDS ===== */
 .assigned-payment-card {
     background: white;
@@ -1958,5 +1963,45 @@ body {
         padding: 3px 6px;
         font-size: 11px;
     }
+}
+
+/* ===== ESTILOS PARA PAGOS MANUALES ===== */
+.manual-payment {
+    border-left: 4px solid #17a2b8 !important;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.manual-payment .payment-bank {
+    color: #17a2b8;
+    font-weight: 600;
+}
+
+.manual-payment.assigned {
+    border-left-color: #28a745 !important;
+    background: linear-gradient(135deg, #f8fff9 0%, #e8f5e8 100%);
+}
+
+.manual-payment.assigned .payment-bank {
+    color: #28a745;
+}
+
+.manual-payment .payment-actions .btn-assign {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+.manual-payment .payment-actions .btn-assign:hover {
+    background-color: #138496;
+    border-color: #138496;
+}
+
+.manual-payment .payment-actions .btn-unassign {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.manual-payment .payment-actions .btn-unassign:hover {
+    background-color: #5a6268;
+    border-color: #5a6268;
 }
 

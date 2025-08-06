@@ -1,6 +1,9 @@
 // ===== MAIN.JS - CONTROLADOR PRINCIPAL =====
 // Este archivo coordina la aplicación sin duplicar funciones de otros módulos
 
+// Variables globales para asignación
+let currentPaymentSource = null;
+
 // ===== INICIALIZACIÓN DE LA APLICACIÓN =====
 async function initializeApp() {
     console.log('🚀 Inicializando aplicación de facturas...');
@@ -56,6 +59,10 @@ async function initializeApp() {
                 loadAssignedPayments(clientId).catch(error => {
                     console.error('❌ Error en loadAssignedPayments:', error);
                     return null;
+                }),
+                loadManualPayments().catch(error => {
+                    console.error('❌ Error en loadManualPayments:', error);
+                    return null;
                 })
             ]);
             console.log('✅ Pagos cargados (con posibles errores manejados)');
@@ -110,6 +117,9 @@ function renderPage() {
         // Renderizar secciones de pagos
         renderUnassignedPaymentsSection();
         renderAssignedPaymentsSection();
+        
+        // Renderizar pagos manuales
+        renderManualPayments();
 
         // Actualizar contadores de secciones
         updateSectionCounts();
@@ -223,8 +233,8 @@ function openAssignPaymentModal(paymentReference, bankSource) {
     document.getElementById('assignPaymentModal').classList.add('show');
 }
 
-function openAssignInvoiceModal(invoiceNumber) {
-    console.log('📄 Abriendo modal de asignación de factura:', invoiceNumber);
+function openAssignInvoiceModal(invoiceNumber, paymentSource = null) {
+    console.log('📄 Abriendo modal de asignación de factura:', invoiceNumber, 'con fuente de pago:', paymentSource);
 
     // Encontrar la factura
     const invoice = clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
@@ -235,6 +245,7 @@ function openAssignInvoiceModal(invoiceNumber) {
     }
 
     currentInvoiceForAssignment = invoice;
+    currentPaymentSource = paymentSource; // Variable global para la fuente del pago
 
     // Crear y mostrar modal si no existe
     if (!document.getElementById('assignInvoiceModal')) {
@@ -435,8 +446,14 @@ function renderAssignInvoiceModal(invoice) {
         </div>
     `;
 
+    // Combinar pagos bancarios y manuales sin asignar
+    const allUnassignedPayments = [
+        ...unassignedPayments,
+        ...manualPayments.filter(p => !p.FacturasAsignadas || p.FacturasAsignadas.trim() === '')
+    ];
+
     // Opciones de pagos
-    if (unassignedPayments.length === 0) {
+    if (allUnassignedPayments.length === 0) {
         document.getElementById('paymentOptionsForInvoice').innerHTML = `
             <div style="text-align: center; padding: 20px; color: #86868b;">
                 <h4>No hay pagos disponibles</h4>
@@ -446,9 +463,17 @@ function renderAssignInvoiceModal(invoice) {
         return;
     }
 
-    const paymentOptionsHTML = unassignedPayments.map(payment => {
-        // ===== NUEVA LÓGICA: USAR COLUMNA DISPONIBLE DEL BACKEND =====
-        const availableAmount = calculateAvailableAmount(payment);
+    const paymentOptionsHTML = allUnassignedPayments.map(payment => {
+        // Determinar si es un pago manual o bancario
+        const isManualPayment = payment.TipoPago === 'Manual' || !payment.BankSource;
+        
+        // Calcular monto disponible
+        let availableAmount;
+        if (isManualPayment) {
+            availableAmount = parseAmount(payment.Disponible || payment.Monto || 0);
+        } else {
+            availableAmount = calculateAvailableAmount(payment);
+        }
 
         if (availableAmount <= 0) return ''; // Skip pagos completamente asignados
 
@@ -456,14 +481,19 @@ function renderAssignInvoiceModal(invoice) {
         const isExactMatch = difference < 0.01;
         const isCloseMatch = difference < 1000;
 
+        // Determinar fuente y clase del badge
+        const paymentSource = isManualPayment ? 'PagosManuales' : payment.BankSource;
+        const badgeClass = isManualPayment ? 'manual-payment-badge' : getBankBadgeClass(payment.BankSource);
+        const displayName = isManualPayment ? '💰 Pago Manual' : getBankDisplayName(payment.BankSource);
+
         return `
             <div class="payment-option ${isExactMatch ? 'exact-match' : ''}" 
-                 onclick="selectPaymentForInvoice('${payment.Referencia}', '${payment.BankSource}')"
-                 id="payment-option-${payment.Referencia}-${payment.BankSource}">
+                 onclick="selectPaymentForInvoice('${payment.Referencia}', '${paymentSource}')"
+                 id="payment-option-${payment.Referencia}-${paymentSource}">
                 <div class="payment-option-header">
                     <div>
                         <strong>${payment.Referencia}</strong>
-                        <span class="bank-badge ${getBankBadgeClass(payment.BankSource)}">${payment.BankSource}</span>
+                        <span class="bank-badge ${badgeClass}">${isManualPayment ? '💰 Manual' : payment.BankSource}</span>
                     </div>
                     <div style="text-align: right; font-weight: 600;">
                         ₡${availableAmount.toLocaleString('es-CR')} disponible
@@ -472,10 +502,13 @@ function renderAssignInvoiceModal(invoice) {
                     </div>
                 </div>
                 <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">
-                    ${getBankDisplayName(payment.BankSource)} | ${formatDateForDisplay(payment.Fecha)}
-                    ${payment.Disponible && payment.Disponible.trim() !== '' ? 
-                        ` | Saldo disponible del backend` : 
-                        ` | Total: ₡${parsePaymentAmount(payment.Créditos, payment.BankSource).toLocaleString('es-CR')} (₡${parseAssignedInvoices(payment.FacturasAsignadas || '').reduce((sum, a) => sum + a.amount, 0).toLocaleString('es-CR')} asignado)`
+                    ${displayName} | ${formatDateForDisplay(payment.Fecha)}
+                    ${isManualPayment ? 
+                        ` | Pago manual creado` : 
+                        (payment.Disponible && payment.Disponible.trim() !== '' ? 
+                            ` | Saldo disponible del backend` : 
+                            ` | Total: ₡${parsePaymentAmount(payment.Créditos, payment.BankSource).toLocaleString('es-CR')} (₡${parseAssignedInvoices(payment.FacturasAsignadas || '').reduce((sum, a) => sum + a.amount, 0).toLocaleString('es-CR')} asignado)`
+                        )
                     }
                 </div>
             </div>
@@ -581,12 +614,13 @@ async function confirmAssignInvoice() {
     console.log('🔍 Validando asignación de factura:', {
         currentInvoiceForAssignment,
         selectedPaymentForInvoice,
-        selectedTransaction: window.selectedTransaction
+        selectedTransaction: window.selectedTransaction,
+        currentPaymentSource
     });
 
-    // Verificar si hay una transacción seleccionada
-    if (!window.selectedTransaction) {
-        showToast('Seleccione una transacción bancaria para asignar a la factura', 'error');
+    // Verificar si hay una transacción seleccionada o un pago manual
+    if (!window.selectedTransaction && !selectedPaymentForInvoice) {
+        showToast('Seleccione una transacción bancaria o pago manual para asignar a la factura', 'error');
         return;
     }
 
@@ -600,23 +634,46 @@ async function confirmAssignInvoice() {
     confirmBtn.textContent = '⏳ Asignando...';
 
     try {
-        console.log('🎯 Asignando transacción a factura:', {
-            transaction: window.selectedTransaction,
-            invoice: currentInvoiceForAssignment.NumeroFactura
-        });
+        // Si hay un pago manual seleccionado
+        if (selectedPaymentForInvoice && selectedPaymentForInvoice.bankSource === 'PagosManuales') {
+            console.log('🎯 Asignando pago manual a factura:', {
+                payment: selectedPaymentForInvoice,
+                invoice: currentInvoiceForAssignment.NumeroFactura
+            });
 
-        // Mapear el banco al nombre de la hoja correcto (igual que en transacciones.html)
-        const sheetName = window.selectedTransaction.bank === 'BN' ? 'BN' :
-                         window.selectedTransaction.bank === 'HuberBN' ? 'HuberBN' :
-                         window.selectedTransaction.bank === 'AutosubastasBAC' ? 'AutosubastasBAC' :
-                         window.selectedTransaction.bank === 'AutosubastasBN' ? 'AutosubastasBN' : 'BAC';
-        
-        await assignTransactionToInvoice(
-            window.selectedTransaction.reference,
-            sheetName,
-            currentInvoiceForAssignment.NumeroFactura,
-            window.selectedTransaction.amount // Pasar el monto esperado
-        );
+            // Encontrar el pago manual
+            const manualPayment = manualPayments.find(p => p.Referencia === selectedPaymentForInvoice.reference);
+            if (!manualPayment) {
+                throw new Error('Pago manual no encontrado');
+            }
+
+            // Asignar pago manual a la factura
+            await assignManualPaymentToInvoice(
+                selectedPaymentForInvoice.reference,
+                currentInvoiceForAssignment.NumeroFactura,
+                parseAmount(manualPayment.Monto || 0)
+            );
+
+        } else if (window.selectedTransaction) {
+            // Asignar transacción bancaria (código existente)
+            console.log('🎯 Asignando transacción a factura:', {
+                transaction: window.selectedTransaction,
+                invoice: currentInvoiceForAssignment.NumeroFactura
+            });
+
+            // Mapear el banco al nombre de la hoja correcto (igual que en transacciones.html)
+            const sheetName = window.selectedTransaction.bank === 'BN' ? 'BN' :
+                             window.selectedTransaction.bank === 'HuberBN' ? 'HuberBN' :
+                             window.selectedTransaction.bank === 'AutosubastasBAC' ? 'AutosubastasBAC' :
+                             window.selectedTransaction.bank === 'AutosubastasBN' ? 'AutosubastasBN' : 'BAC';
+            
+            await assignTransactionToInvoice(
+                window.selectedTransaction.reference,
+                sheetName,
+                currentInvoiceForAssignment.NumeroFactura,
+                window.selectedTransaction.amount // Pasar el monto esperado
+            );
+        }
 
         closeAssignInvoiceModal();
 
