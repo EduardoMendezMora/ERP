@@ -253,15 +253,17 @@ async function loadManualPayments() {
 // ===== FUNCIONES DE RENDERIZADO =====
 
 function renderManualPayments() {
-    // Renderizar pagos manuales sin asignar
-    const unassignedManualPayments = manualPayments.filter(payment => 
-        !payment.FacturasAsignadas || payment.FacturasAsignadas.trim() === ''
-    );
+    // Renderizar pagos manuales sin asignar (tienen monto disponible)
+    const unassignedManualPayments = manualPayments.filter(payment => {
+        const available = parseAmount(payment.Disponible || payment.Créditos || 0);
+        return available > 0; // Si tiene monto disponible, está sin asignar
+    });
 
-    // Renderizar pagos manuales asignados
-    const assignedManualPayments = manualPayments.filter(payment => 
-        payment.FacturasAsignadas && payment.FacturasAsignadas.trim() !== ''
-    );
+    // Renderizar pagos manuales completamente asignados (sin monto disponible)
+    const assignedManualPayments = manualPayments.filter(payment => {
+        const available = parseAmount(payment.Disponible || payment.Créditos || 0);
+        return available <= 0; // Si no tiene monto disponible, está completamente asignado
+    });
 
     // Agregar pagos manuales a las secciones existentes
     renderUnassignedManualPayments(unassignedManualPayments);
@@ -277,7 +279,7 @@ function renderUnassignedManualPayments(payments) {
 
     // Crear HTML para pagos manuales
     const manualPaymentsHtml = payments.map(payment => {
-        const amount = parseAmount(payment.Créditos || 0);
+        const totalAmount = parseAmount(payment.Créditos || 0);
         const date = formatDateForDisplay(payment.Fecha);
         const available = parseAmount(payment.Disponible || payment.Créditos || 0);
 
@@ -288,13 +290,17 @@ function renderUnassignedManualPayments(payments) {
                         <div class="payment-reference">${payment.Referencia}</div>
                         <div class="payment-bank">💰 Pago Manual</div>
                     </div>
-                    <div class="payment-amount">₡${amount.toLocaleString('es-CR')}</div>
+                    <div class="payment-amount">₡${available.toLocaleString('es-CR')}</div>
                 </div>
                 
                 <div class="payment-details">
                     <div class="payment-detail">
                         <span class="detail-label">Fecha:</span>
                         <span class="detail-value">${date}</span>
+                    </div>
+                    <div class="payment-detail">
+                        <span class="detail-label">Total:</span>
+                        <span class="detail-value">₡${totalAmount.toLocaleString('es-CR')}</span>
                     </div>
                     <div class="payment-detail">
                         <span class="detail-label">Disponible:</span>

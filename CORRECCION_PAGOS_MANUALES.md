@@ -9,6 +9,7 @@ La función `assignManualPaymentToInvoice` en `manual-payments.js` **NO estaba a
 1. **Función incorrecta**: Usaba `updateInvoice` en lugar de `updateInvoiceStatus`
 2. **Falta de arreglos**: No actualizaba el campo `Pagos` en las facturas
 3. **Inconsistencia**: Comportamiento diferente a los pagos bancarios
+4. **Lógica de clasificación incorrecta**: Los pagos se clasificaban por `FacturasAsignadas` en lugar de `Disponible`
 
 ## ✅ Correcciones Implementadas
 
@@ -49,7 +50,46 @@ La función ahora actualiza **AMBOS arreglos** correctamente:
 - Formatea con formato: `"FAC-XXX:MONTO"`
 - Guarda en el backend usando `updateManualPayment`
 
-### 3. **Funciones Auxiliares Agregadas**
+### 3. **Corrección de Lógica de Clasificación**
+
+**ANTES (Incorrecto):**
+```javascript
+// Renderizar pagos manuales sin asignar
+const unassignedManualPayments = manualPayments.filter(payment => 
+    !payment.FacturasAsignadas || payment.FacturasAsignadas.trim() === ''
+);
+
+// Renderizar pagos manuales asignados
+const assignedManualPayments = manualPayments.filter(payment => 
+    payment.FacturasAsignadas && payment.FacturasAsignadas.trim() !== ''
+);
+```
+
+**DESPUÉS (Correcto):**
+```javascript
+// Renderizar pagos manuales sin asignar (tienen monto disponible)
+const unassignedManualPayments = manualPayments.filter(payment => {
+    const available = parseAmount(payment.Disponible || payment.Créditos || 0);
+    return available > 0; // Si tiene monto disponible, está sin asignar
+});
+
+// Renderizar pagos manuales completamente asignados (sin monto disponible)
+const assignedManualPayments = manualPayments.filter(payment => {
+    const available = parseAmount(payment.Disponible || payment.Créditos || 0);
+    return available <= 0; // Si no tiene monto disponible, está completamente asignado
+});
+```
+
+### 4. **Mejora en la Visualización**
+
+**Pagos Sin Asignar ahora muestran:**
+- **Header**: Monto disponible (lo que se puede asignar)
+- **Detalles**: 
+  - Monto total del pago
+  - Monto disponible para asignar
+  - Fecha, descripción, observaciones
+
+### 5. **Funciones Auxiliares Agregadas**
 
 Se agregaron las funciones necesarias para el manejo de arreglos:
 
@@ -67,7 +107,7 @@ function parseTransactionAssignments(assignmentsString)
 function formatTransactionAssignments(assignments)
 ```
 
-### 4. **Eliminación de Duplicados**
+### 6. **Eliminación de Duplicados**
 
 - Se eliminó la función duplicada `calculateFinesUntilDate` de `manual-payments.js`
 - Ahora usa la función global desde `utils.js`
@@ -81,6 +121,7 @@ function formatTransactionAssignments(assignments)
 3. **Determinación de estado**: Pago completo o parcial
 4. **Actualización de arreglos**: Ambos lados se actualizan
 5. **Sincronización**: Datos locales y backend sincronizados
+6. **Clasificación correcta**: Por monto disponible, no por asignaciones
 
 ### 📊 **Flujo de Asignación**
 
@@ -89,45 +130,64 @@ function formatTransactionAssignments(assignments)
 2. Sistema lee historial de pagos de la factura
 3. Calcula multas hasta la fecha del pago
 4. Determina si es pago completo o parcial
-5. Actualiza arreglo de pagos en la factura
-6. Actualiza arreglo de asignaciones en el pago manual
-7. Actualiza estado de la factura (Pagado/Pendiente)
-8. Recarga datos y re-renderiza página
+5. Aplica solo el monto necesario a la factura
+6. Calcula monto disponible restante
+7. Actualiza arreglo de pagos en la factura
+8. Actualiza arreglo de asignaciones en el pago manual
+9. Actualiza estado de la factura (Pagado/Pendiente)
+10. Clasifica el pago según monto disponible
+11. Recarga datos y re-renderiza página
 ```
+
+### 🎯 **Ejemplo Práctico**
+
+**Caso:** Pago manual de ₡150,000 asignado a factura que necesita ₡125,000
+
+**Resultado:**
+- ✅ **Factura**: Recibe ₡125,000, se marca como "Pagado"
+- ✅ **Pago manual**: 
+  - Asignado: ₡125,000 a FAC-25304
+  - Disponible: ₡25,000 restantes
+  - **Aparece en "Pagos Sin Asignar"** con ₡25,000 disponibles
+- ✅ **Usuario puede**: Asignar los ₡25,000 restantes a otra factura
 
 ## 🧪 Verificación
 
-### Script de Prueba Creado
+### Scripts de Prueba Creados
 
-Se creó `test-manual-payment-assignment.js` para verificar:
-
-- ✅ Todas las funciones están disponibles
-- ✅ Datos de prueba están cargados
-- ✅ Sistema listo para asignaciones
-- ✅ Estado actual del sistema
+1. **`test-manual-payment-assignment.js`**: Verifica asignación de pagos
+2. **`test-manual-payment-logic.js`**: Verifica lógica de clasificación
 
 ### Cómo Probar
 
 1. Abrir `facturas.html` con un cliente
-2. Crear un pago manual
-3. Ir a una factura pendiente
+2. Crear un pago manual de ₡150,000
+3. Ir a una factura que necesite ₡125,000
 4. Hacer clic en "💰 Asignar"
 5. Seleccionar el pago manual
 6. Confirmar la asignación
-7. Verificar que aparezca en "Pagos Aplicados"
+7. Verificar que:
+   - La factura aparece como "Pagado"
+   - El pago manual aparece en "Pagos Sin Asignar" con ₡25,000 disponibles
+   - Se puede asignar el resto a otra factura
 
 ## 📋 Archivos Modificados
 
 1. **`manual-payments.js`**
    - Corregida función `assignManualPaymentToInvoice`
+   - Corregida lógica de clasificación en `renderManualPayments`
+   - Mejorada visualización en `renderUnassignedManualPayments`
    - Agregadas funciones auxiliares de parseo/formateo
    - Eliminada función duplicada
 
 2. **`test-manual-payment-assignment.js`** (Nuevo)
-   - Script de prueba para verificar funcionalidad
+   - Script de prueba para verificar funcionalidad de asignación
 
-3. **`CORRECCION_PAGOS_MANUALES.md`** (Nuevo)
-   - Documentación de las correcciones
+3. **`test-manual-payment-logic.js`** (Nuevo)
+   - Script de prueba para verificar lógica de clasificación
+
+4. **`CORRECCION_PAGOS_MANUALES.md`** (Actualizado)
+   - Documentación completa de las correcciones
 
 ## 🎯 Resultado
 
@@ -137,6 +197,9 @@ Ahora los **pagos manuales funcionan exactamente igual que los pagos bancarios**
 - ✅ **Integridad de datos** garantizada
 - ✅ **Consistencia** con el sistema existente
 - ✅ **Trazabilidad** completa de pagos
+- ✅ **Clasificación correcta** por monto disponible
+- ✅ **Reutilización de pagos** con monto restante
+- ✅ **Interfaz clara** que muestra montos disponibles
 
 ---
 
