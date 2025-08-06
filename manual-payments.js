@@ -49,9 +49,10 @@ function openEditManualPaymentModal(paymentReference) {
 
     // Llenar formulario de edición
     document.getElementById('editManualPaymentReference').value = payment.Referencia;
-    document.getElementById('editManualPaymentAmount').value = payment.Monto;
+    document.getElementById('editManualPaymentAmount').value = payment.Créditos;
     document.getElementById('editManualPaymentDate').value = formatDateForInput(payment.Fecha);
-    document.getElementById('editManualPaymentDescription').value = payment.Descripcion || '';
+    document.getElementById('editManualPaymentDescription').value = payment.Descripción || '';
+    document.getElementById('editManualPaymentObservations').value = payment.Observaciones || '';
 
     // Mostrar modal
     document.getElementById('editManualPaymentModal').classList.add('show');
@@ -77,14 +78,15 @@ function openDeleteManualPaymentModal(paymentReference) {
 
     // Llenar información del pago a eliminar
     const deleteInfo = document.getElementById('deleteManualPaymentInfo');
-    const amount = parseAmount(payment.Monto || 0);
+    const amount = parseAmount(payment.Créditos || 0);
     const date = formatDateForDisplay(payment.Fecha);
 
     deleteInfo.innerHTML = `
         <strong>${payment.Referencia}</strong><br>
         Monto: ₡${amount.toLocaleString('es-CR')}<br>
         Fecha: ${date}<br>
-        ${payment.Descripcion ? `Descripción: ${payment.Descripcion}` : ''}
+        ${payment.Descripción ? `Descripción: ${payment.Descripción}` : ''}
+        ${payment.Observaciones ? `<br>Observaciones: ${payment.Observaciones}` : ''}
     `;
 
     // Mostrar modal de confirmación
@@ -100,18 +102,18 @@ function closeDeleteManualPaymentModal() {
 
 async function createManualPayment(paymentData) {
     try {
-        // Preparar datos para la API
+        // Preparar datos para la API con la estructura correcta
         const paymentPayload = {
             sheet: 'PagosManuales',
-            Referencia: paymentData.reference,
-            Monto: parseFloat(paymentData.amount),
             Fecha: paymentData.date,
-            Descripcion: paymentData.description || '',
+            Referencia: paymentData.reference,
+            Descripción: paymentData.description || '',
+            Créditos: parseFloat(paymentData.amount),
+            Observaciones: paymentData.observations || '',
             ID_Cliente: currentClientId,
             Disponible: parseFloat(paymentData.amount), // Inicialmente todo disponible
             FacturasAsignadas: '',
-            FechaAsignacion: '',
-            TipoPago: 'Manual'
+            FechaAsignacion: ''
         };
 
         console.log('💰 Creando pago manual:', paymentPayload);
@@ -275,9 +277,9 @@ function renderUnassignedManualPayments(payments) {
 
     // Crear HTML para pagos manuales
     const manualPaymentsHtml = payments.map(payment => {
-        const amount = parseAmount(payment.Monto || 0);
+        const amount = parseAmount(payment.Créditos || 0);
         const date = formatDateForDisplay(payment.Fecha);
-        const available = parseAmount(payment.Disponible || payment.Monto || 0);
+        const available = parseAmount(payment.Disponible || payment.Créditos || 0);
 
         return `
             <div class="payment-card manual-payment" id="manual-payment-${payment.Referencia}">
@@ -298,10 +300,16 @@ function renderUnassignedManualPayments(payments) {
                         <span class="detail-label">Disponible:</span>
                         <span class="detail-value">₡${available.toLocaleString('es-CR')}</span>
                     </div>
-                    ${payment.Descripcion ? `
+                    ${payment.Descripción ? `
                         <div class="payment-detail">
                             <span class="detail-label">Descripción:</span>
-                            <span class="detail-value">${payment.Descripcion}</span>
+                            <span class="detail-value">${payment.Descripción}</span>
+                        </div>
+                    ` : ''}
+                    ${payment.Observaciones ? `
+                        <div class="payment-detail">
+                            <span class="detail-label">Observaciones:</span>
+                            <span class="detail-value">${payment.Observaciones}</span>
                         </div>
                     ` : ''}
                 </div>
@@ -336,7 +344,7 @@ function renderAssignedManualPayments(payments) {
 
     // Crear HTML para pagos manuales asignados
     const manualPaymentsHtml = payments.map(payment => {
-        const amount = parseAmount(payment.Monto || 0);
+        const amount = parseAmount(payment.Créditos || 0);
         const date = formatDateForDisplay(payment.Fecha);
         const assignmentDate = payment.FechaAsignacion ? formatDateForDisplay(payment.FechaAsignacion) : 'Fecha no registrada';
 
@@ -363,10 +371,16 @@ function renderAssignedManualPayments(payments) {
                         <span class="detail-label">Facturas:</span>
                         <span class="detail-value">${payment.FacturasAsignadas || 'No asignado'}</span>
                     </div>
-                    ${payment.Descripcion ? `
+                    ${payment.Descripción ? `
                         <div class="payment-detail">
                             <span class="detail-label">Descripción:</span>
-                            <span class="detail-value">${payment.Descripcion}</span>
+                            <span class="detail-value">${payment.Descripción}</span>
+                        </div>
+                    ` : ''}
+                    ${payment.Observaciones ? `
+                        <div class="payment-detail">
+                            <span class="detail-label">Observaciones:</span>
+                            <span class="detail-value">${payment.Observaciones}</span>
                         </div>
                     ` : ''}
                 </div>
@@ -406,6 +420,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const amount = document.getElementById('manualPaymentAmount').value;
             const date = document.getElementById('manualPaymentDate').value;
             const description = document.getElementById('manualPaymentDescription').value;
+            const observations = document.getElementById('manualPaymentObservations') ? 
+                document.getElementById('manualPaymentObservations').value : '';
 
             // Validar campos requeridos
             if (!reference || !amount || !date) {
@@ -431,7 +447,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     reference: reference,
                     amount: amount,
                     date: formatDateForStorage(new Date(date)),
-                    description: description
+                    description: description,
+                    observations: observations
                 });
 
                 // Cerrar modal
@@ -468,6 +485,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const amount = document.getElementById('editManualPaymentAmount').value;
             const date = document.getElementById('editManualPaymentDate').value;
             const description = document.getElementById('editManualPaymentDescription').value;
+            const observations = document.getElementById('editManualPaymentObservations') ? 
+                document.getElementById('editManualPaymentObservations').value : '';
 
             // Validar campos requeridos
             if (!reference || !amount || !date) {
@@ -491,9 +510,10 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 const updateData = {
                     Referencia: reference,
-                    Monto: numAmount,
+                    Créditos: numAmount,
                     Fecha: formatDateForStorage(new Date(date)),
-                    Descripcion: description
+                    Descripción: description,
+                    Observaciones: observations
                 };
 
                 await updateManualPayment(updateData);
@@ -588,31 +608,17 @@ async function assignManualPaymentToInvoice(paymentReference, invoiceNumber, amo
         }
 
         // Verificar que el pago tenga suficiente monto disponible
-        const availableAmount = parseAmount(payment.Disponible || payment.Monto || 0);
+        const availableAmount = parseAmount(payment.Disponible || payment.Créditos || 0);
         if (availableAmount < amount) {
             throw new Error(`Monto insuficiente. Disponible: ₡${availableAmount.toLocaleString('es-CR')}, Solicitado: ₡${amount.toLocaleString('es-CR')}`);
         }
-
-        // Preparar datos de asignación
-        const assignment = {
-            invoiceNumber: invoiceNumber,
-            amount: amount,
-            date: new Date().toISOString().split('T')[0]
-        };
-
-        // Obtener asignaciones existentes
-        const existingAssignments = payment.Assignments ? JSON.parse(payment.Assignments) : [];
-        
-        // Agregar nueva asignación
-        existingAssignments.push(assignment);
 
         // Actualizar pago manual
         const updateData = {
             Referencia: paymentReference,
             FacturasAsignadas: invoiceNumber,
             FechaAsignacion: new Date().toISOString().split('T')[0],
-            Disponible: availableAmount - amount,
-            Assignments: JSON.stringify(existingAssignments)
+            Disponible: availableAmount - amount
         };
 
         await updateManualPayment(updateData);

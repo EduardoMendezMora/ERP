@@ -1,248 +1,207 @@
 # Sistema de Pagos Manuales
 
-## 📋 Descripción General
+## Descripción General
 
-El sistema de pagos manuales permite crear, editar, eliminar y asignar pagos que NO provienen de conciliación bancaria. Estos pagos se almacenan en la hoja "PagosManuales" y funcionan de manera similar a los pagos bancarios existentes.
+El sistema de pagos manuales permite crear, editar, eliminar y asignar pagos que no provienen de transacciones bancarias automáticas. Estos pagos se almacenan en la hoja "PagosManuales" de Google Sheets y se integran completamente con el sistema de asignación de pagos existente.
 
-## 🎯 Funcionalidades Implementadas
+## Estructura de Datos
 
-### ✅ **Crear Pagos Manuales**
-- Modal para crear nuevos pagos manuales
-- Campos: Referencia, Monto, Fecha, Descripción (opcional)
-- Generación automática de referencia única
-- Validación de campos requeridos
+### Hoja: PagosManuales
 
-### ✅ **Editar Pagos Manuales**
-- Modal para modificar pagos existentes
-- Actualización de todos los campos
-- Validación de datos
+La hoja utiliza la siguiente estructura de columnas:
 
-### ✅ **Eliminar Pagos Manuales**
-- Modal de confirmación
-- Eliminación segura con validación
-- Limpieza de asignaciones
+| Campo | Tipo | Descripción | Ejemplo |
+|-------|------|-------------|---------|
+| **Fecha** | Date | Fecha del pago (se selecciona) | 2025-01-15 |
+| **Referencia** | Text | Número de referencia de fuente externa | PAGO-MANUAL-001 |
+| **Descripción** | Text | Descripción del pago (se anota o toma desde la fuente) | Pago en efectivo |
+| **Créditos** | Number | Monto que se recibe originalmente | 50000 |
+| **Observaciones** | Text | Observaciones que coloca el usuario | Pago realizado en oficina |
+| **ID_Cliente** | Text | ID del cliente (cuando se asigna) | 401380887 |
+| **FacturasAsignadas** | Text | Números de facturas asignadas (cuando se asigna) | FAC-27896 |
+| **FechaAsignacion** | Date | Fecha de asignación a facturas | 2025-01-16 |
+| **Disponible** | Number | Monto disponible para asignar | 25000 |
 
-### ✅ **Asignar a Facturas**
-- Integración con sistema de asignación existente
-- Aparecen en "Pagos Sin Asignar" cuando están disponibles
-- Se mueven a "Pagos Aplicados" cuando se asignan
-- Actualización automática del estado de facturas
+## Funcionalidades
 
-## 🏗️ Arquitectura del Sistema
+### 1. Crear Pago Manual
 
-### **Archivos Principales**
+**Ubicación**: Página de facturas (`facturas.html`) → Sección "Acciones Rápidas" → Botón "💰 Crear Pago Manual"
 
-1. **`facturas.html`** - Modales HTML y botón de acción
-2. **`manual-payments.js`** - Lógica principal del sistema
-3. **`main.js`** - Integración con sistema existente
-4. **`styles.css`** - Estilos específicos para pagos manuales
+**Campos requeridos**:
+- **Referencia**: Identificador único del pago
+- **Monto**: Cantidad en colones
+- **Fecha de Pago**: Cuándo se realizó el pago
 
-### **Estructura de Datos**
+**Campos opcionales**:
+- **Descripción**: Información adicional del pago
+- **Observaciones**: Comentarios del usuario
 
-```javascript
-// Pago Manual
-{
-    Referencia: "PAGO-MANUAL-1234567890",
-    Monto: 125000,
-    Fecha: "2025-01-15",
-    Descripcion: "Pago en efectivo",
-    ID_Cliente: "401380887",
-    Disponible: 125000, // Monto disponible para asignar
-    FacturasAsignadas: "", // Facturas asignadas
-    FechaAsignacion: "", // Fecha de asignación
-    TipoPago: "Manual",
-    Assignments: "[]" // JSON de asignaciones
-}
-```
+### 2. Editar Pago Manual
 
-## 🔧 Funciones Principales
+**Acceso**: Desde las tarjetas de pagos manuales → Botón "✏️ Editar"
 
-### **Gestión de Pagos**
-- `createManualPayment()` - Crear nuevo pago
-- `updateManualPayment()` - Actualizar pago existente
-- `deleteManualPayment()` - Eliminar pago
-- `loadManualPayments()` - Cargar pagos desde API
+**Campos editables**:
+- Referencia
+- Monto
+- Fecha de Pago
+- Descripción
+- Observaciones
 
-### **Renderizado**
-- `renderManualPayments()` - Renderizar en interfaz
-- `renderUnassignedManualPayments()` - Pagos sin asignar
-- `renderAssignedManualPayments()` - Pagos asignados
+### 3. Eliminar Pago Manual
 
-### **Asignación**
-- `assignManualPaymentToInvoice()` - Asignar a factura
-- Integración con `openAssignInvoiceModal()`
+**Acceso**: Desde las tarjetas de pagos manuales → Botón "🗑️ Eliminar"
 
-## 🎨 Interfaz de Usuario
+**Confirmación**: Modal de confirmación que muestra los detalles del pago a eliminar.
 
-### **Botón de Acción**
-- Ubicado en sección "Quick Actions"
-- Color azul (#17a2b8) para distinguirlo
-- Texto: "💰 Crear Pago Manual"
+### 4. Asignar Pago Manual a Facturas
 
-### **Modales**
-1. **Modal de Creación** - Formulario para nuevo pago
-2. **Modal de Edición** - Modificar pago existente
-3. **Modal de Eliminación** - Confirmación de eliminación
+**Proceso**:
+1. Los pagos manuales aparecen en "Pagos Sin Asignar"
+2. Se pueden asignar usando el sistema de asignación existente
+3. Al asignarse, se mueven a "Pagos Aplicados"
+4. Se actualiza el campo `Disponible` automáticamente
 
-### **Tarjetas de Pago**
-- Borde izquierdo azul (#17a2b8)
-- Badge "💰 Pago Manual"
-- Botones: Asignar, Editar, Eliminar
-- Estado visual diferente cuando está asignado
+## Integración con el Sistema
 
-## 🔄 Flujo de Trabajo
+### Visualización
 
-### **1. Crear Pago Manual**
-```
-Usuario → Botón "Crear Pago Manual" → Modal → Llenar formulario → 
-API POST → Recargar datos → Renderizar → Mensaje de éxito
-```
+Los pagos manuales se muestran con:
+- **Tarjeta especial**: Borde azul (`#17a2b8`) para distinguirlos de pagos bancarios
+- **Badge**: "💰 Manual" para identificación rápida
+- **Sección**: Aparecen tanto en "Pagos Sin Asignar" como en "Pagos Aplicados"
 
-### **2. Asignar a Factura**
-```
-Pago Manual → Botón "Asignar" → Modal de asignación → 
-Seleccionar factura → Confirmar → Actualizar ambos → 
-Mover a "Pagos Aplicados"
-```
+### Asignación
 
-### **3. Editar Pago**
-```
-Pago Manual → Botón "Editar" → Modal → Modificar campos → 
-API PATCH → Recargar datos → Renderizar
-```
+El sistema de asignación maneja tanto pagos bancarios como manuales:
+- **Pagos bancarios**: Usan las hojas BN, BAC, HuberBN, etc.
+- **Pagos manuales**: Usan la hoja "PagosManuales"
+- **Interfaz unificada**: Mismo modal de asignación para ambos tipos
 
-### **4. Eliminar Pago**
-```
-Pago Manual → Botón "Eliminar" → Modal confirmación → 
-API DELETE → Recargar datos → Renderizar
-```
+### Cálculos
 
-## 🔗 Integración con Sistema Existente
+- **Monto disponible**: Se calcula como `Créditos - Monto asignado`
+- **Validaciones**: Verifica que haya suficiente monto disponible antes de asignar
+- **Actualización automática**: Los campos se actualizan en tiempo real
 
-### **Carga de Datos**
-- Se carga junto con pagos bancarios en `initializeApp()`
-- Se renderiza en `renderPage()`
-- Se integra con sistema de búsqueda existente
+## Archivos del Sistema
 
-### **Asignación**
-- Aparece en modal de asignación de facturas
-- Usa misma lógica que pagos bancarios
-- Actualiza estado de facturas automáticamente
+### 1. `manual-payments.js`
+**Funciones principales**:
+- `createManualPayment()`: Crear nuevo pago
+- `updateManualPayment()`: Actualizar pago existente
+- `deleteManualPayment()`: Eliminar pago
+- `loadManualPayments()`: Cargar pagos desde API
+- `renderManualPayments()`: Renderizar en la interfaz
+- `assignManualPaymentToInvoice()`: Asignar a factura
 
-### **Estados**
-- **Sin Asignar**: En sección "Pagos Sin Asignar"
-- **Asignado**: En sección "Pagos Aplicados"
-- **Disponible**: Monto restante para asignar
+### 2. `facturas.html`
+**Elementos agregados**:
+- Botón "💰 Crear Pago Manual" en Acciones Rápidas
+- Modal de creación de pago manual
+- Modal de edición de pago manual
+- Modal de eliminación de pago manual
 
-## 🛡️ Validaciones y Seguridad
+### 3. `main.js`
+**Integración**:
+- Carga de pagos manuales en `initializeApp()`
+- Renderizado en `renderPage()`
+- Integración en sistema de asignación
 
-### **Validaciones de Entrada**
-- Referencia requerida y única
+### 4. `styles.css`
+**Estilos especiales**:
+- `.manual-payment`: Estilo para tarjetas de pagos manuales
+- `.manual-payment-badge`: Badge identificador
+- Colores y efectos visuales distintivos
+
+## Flujo de Trabajo
+
+### Crear un Pago Manual
+
+1. **Navegar** a la página de facturas de un cliente
+2. **Hacer clic** en "💰 Crear Pago Manual"
+3. **Completar** los campos del formulario:
+   - Referencia (automática o manual)
+   - Monto en colones
+   - Fecha de pago
+   - Descripción (opcional)
+   - Observaciones (opcional)
+4. **Guardar** el pago
+5. **Verificar** que aparece en "Pagos Sin Asignar"
+
+### Asignar a Facturas
+
+1. **Seleccionar** una factura pendiente
+2. **Hacer clic** en "Asignar Pago"
+3. **Elegir** el pago manual de la lista
+4. **Confirmar** la asignación
+5. **Verificar** que el pago se mueve a "Pagos Aplicados"
+
+## Validaciones
+
+### Al Crear
+- Referencia obligatoria y única
 - Monto mayor a cero
 - Fecha válida
-- Cliente válido
 
-### **Validaciones de Asignación**
-- Monto disponible suficiente
-- Factura existe y está pendiente
-- No asignación duplicada
+### Al Editar
+- Mismos campos que al crear
+- No permite editar pagos ya asignados completamente
 
-### **Manejo de Errores**
-- Try-catch en todas las operaciones
-- Mensajes de error descriptivos
-- Restauración de estado en caso de fallo
+### Al Asignar
+- Verifica monto disponible
+- Actualiza automáticamente el estado de la factura
+- Recalcula montos disponibles
 
-## 📊 API Endpoints
+## Mensajes de Error
 
-### **Base URL**: `API_CONFIG.PAYMENTS`
+- **"Pago manual no encontrado"**: Error al buscar pago en la base de datos
+- **"Monto insuficiente"**: No hay suficiente saldo disponible
+- **"Factura no encontrada"**: Error al buscar la factura objetivo
+- **"Error al crear pago manual"**: Problema de conexión o validación
 
-- **POST** `/` - Crear pago manual
-- **PATCH** `/Referencia/{ref}?sheet=PagosManuales` - Actualizar
-- **DELETE** `/Referencia/{ref}?sheet=PagosManuales` - Eliminar
-- **GET** `/?sheet=PagosManuales` - Obtener todos
+## Consideraciones Técnicas
 
-## 🎯 Casos de Uso
+### API Integration
+- Usa la misma API de SheetDB que los pagos bancarios
+- Especifica `sheet=PagosManuales` en las consultas
+- Maneja errores de red y validación
 
-### **Escenario 1: Pago en Efectivo**
-1. Cliente paga en efectivo
-2. Usuario crea pago manual
-3. Asigna a factura específica
-4. Sistema marca factura como pagada
+### Rendimiento
+- Carga pagos manuales junto con pagos bancarios
+- Renderizado eficiente con filtros por cliente
+- Actualización incremental de datos
 
-### **Escenario 2: Pago Parcial**
-1. Cliente paga parte de una factura
-2. Usuario crea pago manual por el monto
-3. Asigna a factura
-4. Monto disponible se reduce
-5. Factura queda parcialmente pagada
+### Compatibilidad
+- Funciona con el sistema de asignación existente
+- Mantiene consistencia con pagos bancarios
+- No afecta funcionalidades existentes
 
-### **Escenario 3: Corrección de Pago**
-1. Usuario detecta error en pago bancario
-2. Crea pago manual para corregir
-3. Asigna a factura correcta
-4. Sistema actualiza estados
+## Pruebas
 
-## 🧪 Pruebas
+Para verificar que el sistema funciona correctamente:
 
-### **Script de Prueba**
-- `test-manual-payments.js` - Verificación de funcionalidad
-- Simula creación, asignación y actualización
-- Valida funciones disponibles
+1. **Ejecutar** el script `test-manual-payments-structure.js`
+2. **Verificar** que todos los campos están presentes
+3. **Probar** la creación de un pago manual
+4. **Comprobar** la asignación a facturas
+5. **Validar** que los cálculos son correctos
 
-### **Pruebas Manuales Recomendadas**
-1. Crear pago manual con diferentes montos
-2. Asignar a facturas de diferentes estados
-3. Editar pagos existentes
-4. Eliminar pagos con y sin asignaciones
-5. Verificar integración con búsqueda
+## Mantenimiento
 
-## 🔧 Configuración
+### Limpieza de Datos
+- Los pagos manuales se mantienen por cliente
+- Se pueden eliminar individualmente
+- No hay limpieza automática
 
-### **Variables Globales**
-```javascript
-let manualPayments = []; // Array de pagos manuales
-let currentEditingManualPayment = null; // Pago en edición
-let currentDeletingManualPayment = null; // Pago a eliminar
-```
+### Backup
+- Los datos se almacenan en Google Sheets
+- Se recomienda backup regular de la hoja "PagosManuales"
+- Los cambios son reversibles manualmente
 
-### **Configuración de API**
-- Usa `API_CONFIG.PAYMENTS` existente
-- Hoja específica: "PagosManuales"
-- Misma estructura que pagos bancarios
+## Futuras Mejoras
 
-## 📝 Notas de Implementación
-
-### **Compatibilidad**
-- Funciona con sistema existente sin conflictos
-- Usa mismas funciones de utilidad (`parseAmount`, `formatDateForDisplay`, etc.)
-- Integra con sistema de notificaciones existente
-
-### **Rendimiento**
-- Carga asíncrona de datos
-- Renderizado eficiente
-- Actualización incremental
-
-### **Mantenibilidad**
-- Código modular y bien documentado
-- Separación clara de responsabilidades
-- Fácil extensión para nuevas funcionalidades
-
-## 🚀 Próximas Mejoras
-
-### **Funcionalidades Futuras**
-- Exportación de reportes de pagos manuales
-- Historial de cambios
-- Notificaciones automáticas
-- Integración con WhatsApp para confirmaciones
-
-### **Optimizaciones**
-- Cache de datos locales
-- Validación en tiempo real
-- Autocompletado de referencias
-- Plantillas de pagos frecuentes
-
----
-
-**✅ Sistema implementado y funcional**
-**📅 Fecha de implementación**: Enero 2025
-**👨‍💻 Desarrollado por**: Asistente AI 
+- **Historial de cambios**: Registrar modificaciones a pagos
+- **Búsqueda avanzada**: Filtrar por fecha, monto, descripción
+- **Reportes**: Exportar pagos manuales a PDF/Excel
+- **Notificaciones**: Alertas cuando se asignan pagos manuales 

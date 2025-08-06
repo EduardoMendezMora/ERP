@@ -470,7 +470,7 @@ function renderAssignInvoiceModal(invoice) {
         // Calcular monto disponible
         let availableAmount;
         if (isManualPayment) {
-            availableAmount = parseAmount(payment.Disponible || payment.Monto || 0);
+            availableAmount = parseAmount(payment.Disponible || payment.Créditos || 0);
         } else {
             availableAmount = calculateAvailableAmount(payment);
         }
@@ -651,7 +651,7 @@ async function confirmAssignInvoice() {
             await assignManualPaymentToInvoice(
                 selectedPaymentForInvoice.reference,
                 currentInvoiceForAssignment.NumeroFactura,
-                parseAmount(manualPayment.Monto || 0)
+                parseAmount(manualPayment.Créditos || 0)
             );
 
         } else if (window.selectedTransaction) {
