@@ -742,6 +742,17 @@ body {
     background: #cc7a00;
 }
 
+.btn-receipt {
+    background: #8e44ad;
+    color: white;
+    font-size: 10px;
+    padding: 4px 8px;
+}
+
+.btn-receipt:hover {
+    background: #6c3483;
+}
+
 .btn-print {
     background: #34c759;
     color: white;

@@ -318,6 +318,9 @@ function renderUnassignedManualPayments(payments) {
                     <button class="btn btn-assign" onclick="openAssignInvoiceModal('${payment.Referencia}', 'PagosManuales')" title="Asignar a Facturas">
                         💰 Asignar
                     </button>
+                    <button class="btn btn-receipt" onclick="generateUnassignedManualPaymentReceipt('${payment.Referencia}')" title="Generar Recibo">
+                        🧾 Recibo
+                    </button>
                     <button class="btn btn-secondary" onclick="openEditManualPaymentModal('${payment.Referencia}')" title="Editar Pago">
                         ✏️ Editar
                     </button>
@@ -386,6 +389,9 @@ function renderAssignedManualPayments(payments) {
                 </div>
 
                 <div class="payment-actions">
+                    <button class="btn btn-receipt" onclick="generateManualPaymentReceipt('${payment.Referencia}')" title="Generar Recibo">
+                        🧾 Recibo
+                    </button>
                     <button class="btn btn-secondary" onclick="openEditManualPaymentModal('${payment.Referencia}')" title="Editar Pago">
                         ✏️ Editar
                     </button>

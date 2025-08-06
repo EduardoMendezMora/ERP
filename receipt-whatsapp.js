@@ -349,7 +349,12 @@ function generateWhatsAppMessage() {
     const { payment } = currentReceiptData;
     const reference = payment.Referencia || 'Sin referencia';
 
-    // Mensaje simplificado SOLAMENTE
+    // Si es un pago manual, usar el mensaje específico para pagos manuales
+    if (currentReceiptData.isManualPayment) {
+        return generateManualPaymentWhatsAppMessage();
+    }
+
+    // Mensaje simplificado SOLAMENTE para pagos bancarios
     const message = `Recibo de Dinero # ${reference}`;
     console.log('📱 Mensaje generado:', message);
     return message;
@@ -1090,6 +1095,395 @@ function generateUnassignedPaymentReceipt(paymentReference, bankSource) {
     document.getElementById('receiptModal').classList.add('show');
 }
 
+// ===== FUNCIÓN PARA GENERAR RECIBOS DE PAGOS MANUALES ASIGNADOS =====
+function generateManualPaymentReceipt(paymentReference) {
+    const payment = manualPayments.find(p => p.Referencia === paymentReference);
+
+    if (!payment) {
+        showToast('Pago manual no encontrado', 'error');
+        return;
+    }
+
+    // Almacenar datos del recibo actual para WhatsApp y descarga
+    currentReceiptData = {
+        payment: payment,
+        client: currentClient,
+        paymentReference: paymentReference,
+        bankSource: 'PagosManuales',
+        isManualPayment: true
+    };
+
+    const amount = parseAmount(payment.Créditos || 0);
+    const amountInWords = numberToWords(amount);
+
+    // Obtener información de las facturas relacionadas
+    const relatedInvoicesInfo = getRelatedInvoicesInfoForManual(payment);
+
+    const receiptHTML = `
+        <div class="receipt-header">
+            <div class="receipt-header-content">
+                <img src="${logoUrl}"
+                     alt="EasyCars Logo"
+                     class="company-logo"
+                     crossorigin="anonymous"
+                     onload="this.style.opacity='1'"
+                     onerror="console.warn('Logo no cargó, usando texto'); this.style.display='none'; this.nextElementSibling.style.fontWeight='bold';">
+                <div class="receipt-header-text">
+                    <div class="receipt-title">Recibo de Pago Manual</div>
+                    <div class="company-name">EasyCars</div>
+                    <div class="company-details">
+                        Sistema de Arrendamiento de Vehículos | Costa Rica<br>
+                        Tel: (506) 8511-0601 | Email: emendez@autosubastas.com
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="receipt-info">
+            <div class="info-section">
+                <h4>Información del Cliente</h4>
+                <div class="info-line">
+                    <span class="info-label">Nombre:</span>
+                    <span class="info-value">${currentClient.Nombre || 'N/A'}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">ID Cliente:</span>
+                    <span class="info-value">${currentClient.ID || 'N/A'}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Teléfono:</span>
+                    <span class="info-value">${currentClient.numeroTelefono || 'N/A'}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Placa:</span>
+                    <span class="info-value">${currentClient.Placa || 'N/A'}</span>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h4>Información del Pago</h4>
+                <div class="info-line">
+                    <span class="info-label">Referencia:</span>
+                    <span class="info-value">${payment.Referencia || 'N/A'}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Tipo:</span>
+                    <span class="info-value">💰 Pago Manual</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Fecha Pago:</span>
+                    <span class="info-value">${formatDateForDisplay(payment.Fecha)}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Fecha Aplicación:</span>
+                    <span class="info-value">${formatDateForDisplay(payment.FechaAsignacion || payment.Fecha)}</span>
+                </div>
+            </div>
+        </div>
+
+        ${relatedInvoicesInfo}
+
+        <div class="receipt-amount">
+            <div class="amount-label">Monto Recibido</div>
+            <div class="amount-value">₡${amount.toLocaleString('es-CR')}</div>
+            <div class="amount-words">${amountInWords} colones exactos</div>
+        </div>
+
+        ${payment.Descripción && payment.Descripción !== 'Sin descripción' ? `
+            <div class="description-compact">
+                <h4>📝 Descripción del Pago</h4>
+                <p style="margin: 0; font-size: 0.9rem;">${payment.Descripción}</p>
+            </div>
+        ` : ''}
+
+        ${payment.Observaciones ? `
+            <div class="observations-compact">
+                <h4>📋 Observaciones</h4>
+                <p style="margin: 0; font-size: 0.9rem;">${payment.Observaciones}</p>
+            </div>
+        ` : ''}
+
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Firma del Cliente</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Firma del Responsable</div>
+            </div>
+        </div>
+
+        <div class="receipt-footer">
+            <p><strong>EasyCars</strong> - Sistema de Arrendamiento de Vehículos</p>
+            <p>Este documento certifica la recepción del pago manual realizado por el cliente.</p>
+            <p>Fecha de emisión: ${formatDateForDisplay(new Date())}</p>
+        </div>
+    `;
+
+    // Mostrar el recibo en el modal
+    document.getElementById('receiptContent').innerHTML = receiptHTML;
+    document.getElementById('receiptModal').classList.add('show');
+}
+
+// ===== FUNCIÓN PARA GENERAR RECIBOS DE PAGOS MANUALES NO ASIGNADOS =====
+function generateUnassignedManualPaymentReceipt(paymentReference) {
+    const payment = manualPayments.find(p => p.Referencia === paymentReference);
+
+    if (!payment) {
+        showToast('Pago manual no encontrado', 'error');
+        return;
+    }
+
+    // Almacenar datos del recibo actual para WhatsApp y descarga
+    currentReceiptData = {
+        payment: payment,
+        client: currentClient,
+        paymentReference: paymentReference,
+        bankSource: 'PagosManuales',
+        isManualPayment: true,
+        isUnassigned: true
+    };
+
+    const amount = parseAmount(payment.Créditos || 0);
+    const amountInWords = numberToWords(amount);
+
+    const receiptHTML = `
+        <div class="receipt-header">
+            <img src="${logoUrl}"
+                 alt="EasyCars Logo"
+                 class="company-logo"
+                 crossorigin="anonymous"
+                 onload="this.style.opacity='1'"
+                 onerror="console.warn('Logo no cargó, usando texto'); this.style.display='none'; this.nextElementSibling.style.fontWeight='bold';">
+            <div class="company-name">EasyCars</div>
+            <div class="company-details">
+                Sistema de Arrendamiento de Vehículos | Costa Rica<br>
+                Tel: (506) 8511-0601 | Email: emendez@autosubastas.com
+            </div>
+            <div class="receipt-title">Recibo de Depósito Manual</div>
+        </div>
+
+        <div class="receipt-info">
+            <div class="info-section">
+                <h4>Información del Cliente</h4>
+                <div class="info-line">
+                    <span class="info-label">Nombre:</span>
+                    <span class="info-value">${currentClient.Nombre || 'N/A'}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">ID Cliente:</span>
+                    <span class="info-value">${currentClient.ID || 'N/A'}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Teléfono:</span>
+                    <span class="info-value">${currentClient.numeroTelefono || 'N/A'}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Placa:</span>
+                    <span class="info-value">${currentClient.Placa || 'N/A'}</span>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h4>Información del Depósito</h4>
+                <div class="info-line">
+                    <span class="info-label">Referencia:</span>
+                    <span class="info-value">${payment.Referencia || 'N/A'}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Tipo:</span>
+                    <span class="info-value">💰 Depósito Manual</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Fecha Depósito:</span>
+                    <span class="info-value">${formatDateForDisplay(payment.Fecha)}</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Estado:</span>
+                    <span class="info-value">Pendiente de Aplicación</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="receipt-amount">
+            <div class="amount-label">Monto del Depósito</div>
+            <div class="amount-value">₡${amount.toLocaleString('es-CR')}</div>
+            <div class="amount-words">${amountInWords} colones exactos</div>
+        </div>
+
+        ${payment.Descripción && payment.Descripción !== 'Sin descripción' ? `
+            <div class="description-compact">
+                <h4>📝 Descripción del Depósito</h4>
+                <p style="margin: 0; font-size: 0.9rem;">${payment.Descripción}</p>
+            </div>
+        ` : ''}
+
+        ${payment.Observaciones ? `
+            <div class="observations-compact">
+                <h4>📋 Observaciones</h4>
+                <p style="margin: 0; font-size: 0.9rem;">${payment.Observaciones}</p>
+            </div>
+        ` : ''}
+
+        <div class="invoice-info-compact">
+            <h4>📄 Concepto del Depósito</h4>
+            <div class="info-grid">
+                <div><strong>Tipo:</strong> Depósito Manual</div>
+                <div><strong>Propósito:</strong> Reserva de Vehículo</div>
+                <div><strong>Estado:</strong> Pendiente de Aplicación</div>
+                <div><strong>Fecha Emisión:</strong> ${formatDateForDisplay(new Date())}</div>
+            </div>
+        </div>
+
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Firma del Cliente</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Firma del Responsable</div>
+            </div>
+        </div>
+
+        <div class="receipt-footer">
+            <p><strong>EasyCars</strong> - Sistema de Arrendamiento de Vehículos</p>
+            <p>Este documento certifica la recepción del depósito manual realizado por el cliente.</p>
+            <p>Fecha de emisión: ${formatDateForDisplay(new Date())}</p>
+        </div>
+    `;
+
+    // Mostrar el recibo en el modal
+    document.getElementById('receiptContent').innerHTML = receiptHTML;
+    document.getElementById('receiptModal').classList.add('show');
+}
+
+// ===== FUNCIÓN AUXILIAR PARA OBTENER INFORMACIÓN DE FACTURAS RELACIONADAS (PAGOS MANUALES) =====
+function getRelatedInvoicesInfoForManual(payment) {
+    if (!payment.FacturasAsignadas || payment.FacturasAsignadas.trim() === '') {
+        return `
+            <div class="invoice-info-compact">
+                <h4>📄 Facturas Asignadas</h4>
+                <div class="info-grid">
+                    <div><strong>Estado:</strong> Sin asignar</div>
+                    <div><strong>Monto disponible:</strong> ₡${parseAmount(payment.Disponible || payment.Créditos || 0).toLocaleString('es-CR')}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Buscar las facturas asignadas
+    const invoiceNumbers = payment.FacturasAsignadas.split(',').map(num => num.trim());
+    const relatedInvoices = clientInvoices.filter(invoice => 
+        invoiceNumbers.includes(invoice.NumeroFactura)
+    );
+
+    if (relatedInvoices.length === 0) {
+        return `
+            <div class="invoice-info-compact">
+                <h4>📄 Facturas Asignadas</h4>
+                <div class="info-grid">
+                    <div><strong>Referencias:</strong> ${payment.FacturasAsignadas}</div>
+                    <div><strong>Estado:</strong> Facturas no encontradas en el sistema</div>
+                </div>
+            </div>
+        `;
+    }
+
+    const invoicesHTML = relatedInvoices.map(invoice => {
+        const baseAmount = parseAmount(invoice.MontoBase || 0);
+        const fines = parseAmount(invoice.MontoMultas || 0);
+        const totalAmount = parseAmount(invoice.MontoTotal || baseAmount);
+
+        return `
+            <div class="invoice-item">
+                <div class="invoice-header">
+                    <strong>${invoice.NumeroFactura}</strong>
+                    <span class="invoice-status ${invoice.Estado === 'Pagado' ? 'paid' : 'pending'}">${invoice.Estado}</span>
+                </div>
+                <div class="invoice-details">
+                    <div class="invoice-detail">
+                        <span class="detail-label">Concepto:</span>
+                        <span class="detail-value">${invoice.ConceptoManual || invoice.SemanaDescripcion || 'N/A'}</span>
+                    </div>
+                    <div class="invoice-detail">
+                        <span class="detail-label">Vencimiento:</span>
+                        <span class="detail-value">${formatDateForDisplay(invoice.FechaVencimiento)}</span>
+                    </div>
+                    <div class="invoice-detail">
+                        <span class="detail-label">Monto Base:</span>
+                        <span class="detail-value">₡${baseAmount.toLocaleString('es-CR')}</span>
+                    </div>
+                    <div class="invoice-detail">
+                        <span class="detail-label">Multas:</span>
+                        <span class="detail-value">₡${fines.toLocaleString('es-CR')}</span>
+                    </div>
+                    <div class="invoice-detail">
+                        <span class="detail-label">Total:</span>
+                        <span class="detail-value">₡${totalAmount.toLocaleString('es-CR')}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="invoice-info">
+            <h4>📄 Facturas Asignadas</h4>
+            ${invoicesHTML}
+        </div>
+    `;
+}
+
+// ===== FUNCIÓN PARA GENERAR MENSAJE DE WHATSAPP PARA PAGOS MANUALES =====
+function generateManualPaymentWhatsAppMessage() {
+    const { payment } = currentReceiptData;
+    const reference = payment.Referencia || 'Sin referencia';
+    const amount = parseAmount(payment.Créditos || 0);
+    const date = formatDateForDisplay(payment.Fecha);
+    const description = payment.Descripción || 'Sin descripción';
+    const observations = payment.Observaciones || 'Sin observaciones';
+
+    if (currentReceiptData.isUnassigned) {
+        return `💰 *RECIBO DE DEPÓSITO MANUAL*
+
+👤 *Cliente:* ${currentClient.Nombre || 'N/A'}
+📅 *Fecha:* ${date}
+🔢 *Referencia:* ${reference}
+💵 *Monto:* ₡${amount.toLocaleString('es-CR')}
+
+📝 *Descripción:*
+${description}
+
+💬 *Observaciones:*
+${observations}
+
+📄 *Estado:* Pendiente de aplicación a facturas
+
+---
+_Enviado desde Sistema EasyCars_`;
+    } else {
+        return `💰 *RECIBO DE PAGO MANUAL*
+
+👤 *Cliente:* ${currentClient.Nombre || 'N/A'}
+📅 *Fecha:* ${date}
+🔢 *Referencia:* ${reference}
+💵 *Monto:* ₡${amount.toLocaleString('es-CR')}
+
+📝 *Descripción:*
+${description}
+
+💬 *Observaciones:*
+${observations}
+
+📄 *Facturas:* ${payment.FacturasAsignadas || 'Sin asignar'}
+
+---
+_Enviado desde Sistema EasyCars_`;
+    }
+}
+
 // ===== EXPONER FUNCIONES AL SCOPE GLOBAL =====
 window.generateReceipt = generateReceipt;
 window.closeReceiptModal = closeReceiptModal;
@@ -1103,5 +1497,8 @@ window.renderUnassignedPaymentsSection = renderUnassignedPaymentsSection;
 window.renderAssignedPaymentsSection = renderAssignedPaymentsSection;
 window.showMultipleUnassignConfirmation = showMultipleUnassignConfirmation;
 window.generateUnassignedPaymentReceipt = generateUnassignedPaymentReceipt;
+window.generateManualPaymentReceipt = generateManualPaymentReceipt;
+window.generateUnassignedManualPaymentReceipt = generateUnassignedManualPaymentReceipt;
+window.generateManualPaymentWhatsAppMessage = generateManualPaymentWhatsAppMessage;
 
 console.log('✅ receipt-whatsapp.js cargado - Sistema de recibos y WhatsApp con distribución múltiple');
