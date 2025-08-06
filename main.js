@@ -673,8 +673,8 @@ async function confirmAssignInvoice() {
             await assignTransactionToInvoice(
                 window.selectedTransaction.reference,
                 sheetName,
-                currentInvoiceForAssignment.NumeroFactura,
-                window.selectedTransaction.amount // Pasar el monto esperado
+                currentInvoiceForAssignment.NumeroFactura
+                // No pasar expectedAmount para que use el disponible del backend
             );
         }
 
@@ -986,20 +986,44 @@ async function loadTransactionsTab() {
                 const cleanValue = creditValue.toString().trim().replace(/[^\d.,]/g, '');
                 
                 // Convertir a número según el banco usando la función centralizada
-                let amount = parsePaymentAmountByBank(creditValue, bank);
+                let totalAmount = parsePaymentAmountByBank(creditValue, bank);
                 
                 // Verificar que sea un número válido
-                if (isNaN(amount)) {
-                    amount = 0;
+                if (isNaN(totalAmount)) {
+                    totalAmount = 0;
                 }
                 
-                console.log('💰 Monto parseado:', amount);
+                // ===== NUEVO: CALCULAR MONTO DISPONIBLE =====
+                let availableAmount = totalAmount;
+                
+                // Si tiene campo Disponible del backend, usarlo
+                if (transaction.Disponible !== undefined && transaction.Disponible !== null && transaction.Disponible !== '') {
+                    const disponible = parseFloat(transaction.Disponible);
+                    if (!isNaN(disponible)) {
+                        availableAmount = disponible;
+                        console.log(`💰 Usando Disponible del backend: ₡${availableAmount.toLocaleString('es-CR')}`);
+                    }
+                } else {
+                    // Calcular dinámicamente basado en FacturasAsignadas
+                    const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
+                    const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+                    availableAmount = Math.max(0, totalAmount - assignedAmount);
+                    console.log(`💰 Calculando disponible: Total=${totalAmount}, Asignado=${assignedAmount}, Disponible=${availableAmount}`);
+                }
+                
+                console.log('💰 Monto total:', totalAmount, 'Disponible:', availableAmount);
                 
                 const date = transaction.Fecha || 'Sin fecha';
                 const reference = transaction.Referencia || 'Sin referencia';
                 
-                // Formatear el monto
-                const formattedAmount = amount.toLocaleString('es-CR', {
+                // Formatear el monto disponible
+                const formattedAvailableAmount = availableAmount.toLocaleString('es-CR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                
+                // Formatear el monto total para mostrar en detalles
+                const formattedTotalAmount = totalAmount.toLocaleString('es-CR', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 });
@@ -1007,10 +1031,17 @@ async function loadTransactionsTab() {
                 // Obtener descripción de la transacción
                 const description = transaction.Descripción || transaction.Descripcion || transaction.Description || transaction.Detalle || transaction.Concepto || 'Sin descripción';
                 
+                // Mostrar indicador si es pago parcial
+                const isPartialPayment = availableAmount < totalAmount;
+                const partialIndicator = isPartialPayment ? 
+                    `<div style="background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-top: 4px;">
+                        Pago parcial - Total: ₡${formattedTotalAmount}
+                    </div>` : '';
+                
                 return `
                     <div class="transaction-item" 
                          style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: white; cursor: pointer; transition: all 0.3s ease;"
-                         onclick="selectTransaction('${reference}', '${bank}', ${amount}, '${description}')"
+                         onclick="selectTransaction('${reference}', '${bank}', ${availableAmount}, '${description}')"
                          onmouseover="this.style.borderColor='#007aff'; this.style.boxShadow='0 2px 8px rgba(0,122,255,0.1)'"
                          onmouseout="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -1023,9 +1054,11 @@ async function loadTransactionsTab() {
                                     ${description}
                                 </div>
                                 <small style="color: #666;">${date}</small>
+                                ${partialIndicator}
                             </div>
                             <div style="text-align: right; margin-left: 12px;">
-                                <strong style="color: #007aff; font-size: 1.1rem;">₡${formattedAmount}</strong>
+                                <strong style="color: #007aff; font-size: 1.1rem;">₡${formattedAvailableAmount}</strong>
+                                <div style="font-size: 0.8rem; color: #666; margin-top: 2px;">disponible</div>
                             </div>
                         </div>
                     </div>
@@ -1286,36 +1319,53 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         const bankToUse = transaction.banco || bank;
         console.log('   - Banco a usar para parseo:', bankToUse);
         
-        const amount = parsePaymentAmountByBank(creditValue, bankToUse);
+        const totalAmount = parsePaymentAmountByBank(creditValue, bankToUse);
         
-        console.log('   - Monto parseado:', amount);
-        console.log('   - Es NaN:', isNaN(amount));
-        console.log('   - Es <= 0:', amount <= 0);
+        console.log('   - Monto total parseado:', totalAmount);
+        console.log('   - Es NaN:', isNaN(totalAmount));
+        console.log('   - Es <= 0:', totalAmount <= 0);
         
-        if (isNaN(amount) || amount <= 0) {
+        if (isNaN(totalAmount) || totalAmount <= 0) {
             throw new Error('Monto de transacción inválido');
         }
 
-        // ===== NUEVO: VALIDAR QUE LA TRANSACCIÓN TENGA SALDO DISPONIBLE =====
-        if (transaction.Disponible !== undefined && transaction.Disponible !== null) {
+        // ===== NUEVO: CALCULAR MONTO DISPONIBLE =====
+        let availableAmount = totalAmount;
+        
+        // Si tiene campo Disponible del backend, usarlo
+        if (transaction.Disponible !== undefined && transaction.Disponible !== null && transaction.Disponible !== '') {
             const disponible = parseFloat(transaction.Disponible);
-            if (!isNaN(disponible) && disponible <= 0) {
-                console.error('❌ ERROR: Transacción sin saldo disponible');
-                console.error(`   - Disponible: ₡${disponible.toLocaleString('es-CR')}`);
-                throw new Error(`La transacción ${transactionReference} ya no tiene saldo disponible para asignar (₡${disponible.toLocaleString('es-CR')})`);
+            if (!isNaN(disponible)) {
+                availableAmount = disponible;
+                console.log(`💰 Usando Disponible del backend: ₡${availableAmount.toLocaleString('es-CR')}`);
             }
+        } else {
+            // Calcular dinámicamente basado en FacturasAsignadas
+            const assignments = parseAssignedInvoices(transaction.FacturasAsignadas || '');
+            const assignedAmount = assignments.reduce((sum, a) => sum + a.amount, 0);
+            availableAmount = Math.max(0, totalAmount - assignedAmount);
+            console.log(`💰 Calculando disponible: Total=${totalAmount}, Asignado=${assignedAmount}, Disponible=${availableAmount}`);
         }
 
-        // ===== NUEVO: VALIDAR QUE EL MONTO COINCIDA =====
-        if (expectedAmount && Math.abs(amount - expectedAmount) > 0.01) {
-            console.error('❌ ERROR: Monto no coincide');
+        // ===== NUEVO: VALIDAR QUE LA TRANSACCIÓN TENGA SALDO DISPONIBLE =====
+        if (availableAmount <= 0) {
+            console.error('❌ ERROR: Transacción sin saldo disponible');
+            console.error(`   - Total: ₡${totalAmount.toLocaleString('es-CR')}`);
+            console.error(`   - Disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
+            throw new Error(`La transacción ${transactionReference} ya no tiene saldo disponible para asignar (₡${availableAmount.toLocaleString('es-CR')})`);
+        }
+
+        // ===== NUEVO: VALIDAR QUE EL MONTO COINCIDA (solo si se proporciona expectedAmount) =====
+        if (expectedAmount && Math.abs(availableAmount - expectedAmount) > 0.01) {
+            console.error('❌ ERROR: Monto disponible no coincide con el esperado');
             console.error(`   - Monto esperado: ₡${expectedAmount.toLocaleString('es-CR')}`);
-            console.error(`   - Monto real: ₡${amount.toLocaleString('es-CR')}`);
-            console.error(`   - Diferencia: ₡${Math.abs(amount - expectedAmount).toLocaleString('es-CR')}`);
-            throw new Error(`El monto de la transacción (₡${amount.toLocaleString('es-CR')}) no coincide con el monto seleccionado (₡${expectedAmount.toLocaleString('es-CR')})`);
+            console.error(`   - Monto disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
+            console.error(`   - Diferencia: ₡${Math.abs(availableAmount - expectedAmount).toLocaleString('es-CR')}`);
+            throw new Error(`El monto disponible de la transacción (₡${availableAmount.toLocaleString('es-CR')}) no coincide con el monto seleccionado (₡${expectedAmount.toLocaleString('es-CR')})`);
         }
 
-        console.log(`💰 Monto de transacción: ₡${amount.toLocaleString('es-CR')}`);
+        console.log(`💰 Monto total: ₡${totalAmount.toLocaleString('es-CR')}`);
+        console.log(`💰 Monto disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
         if (expectedAmount) {
             console.log(`✅ Monto validado correctamente`);
         }
@@ -1344,18 +1394,18 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         console.log(`   - Total adeudado: ₡${totalOwed.toLocaleString('es-CR')}`);
         console.log(`   - Pagos previos: ₡${totalPreviousPayments.toLocaleString('es-CR')}`);
         console.log(`   - Saldo restante: ₡${remainingBalance.toLocaleString('es-CR')}`);
-        console.log(`   - Monto transacción: ₡${amount.toLocaleString('es-CR')}`);
+        console.log(`   - Monto disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
 
         let amountToApply, newStatus, newBalance = 0;
 
-        if (amount >= remainingBalance) {
+        if (availableAmount >= remainingBalance) {
             // Pago completo del saldo restante
             amountToApply = remainingBalance;
             newStatus = 'Pagado';
             console.log('✅ Pago completo - Factura será marcada como PAGADA');
         } else {
             // Pago parcial
-            amountToApply = amount;
+            amountToApply = availableAmount;
             newStatus = 'Pendiente'; // Mantener como Pendiente hasta que saldo llegue a 0
             newBalance = remainingBalance - amountToApply;
             console.log(`⚠️ Pago parcial - Saldo restante: ₡${newBalance.toLocaleString('es-CR')}`);

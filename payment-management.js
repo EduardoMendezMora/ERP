@@ -2522,3 +2522,24 @@ async function updateDisponibleInAllBanks() {
         throw error;
     }
 }
+
+// ===== EXPOSICIÓN GLOBAL DE FUNCIONES =====
+window.parseAssignedInvoices = parseAssignedInvoices;
+window.formatAssignedInvoices = formatAssignedInvoices;
+window.calculateAvailableAmount = calculateAvailableAmount;
+window.loadUnassignedPayments = loadUnassignedPayments;
+window.loadAssignedPayments = loadAssignedPayments;
+window.updateInvoiceStatus = updateInvoiceStatus;
+window.assignPaymentToInvoice = assignPaymentToInvoice;
+window.updatePaymentAssignments = updatePaymentAssignments;
+window.updatePaymentAssignmentsRaw = updatePaymentAssignmentsRaw;
+window.reloadDataAndRender = reloadDataAndRender;
+window.sendPaymentAssignmentWhatsAppNotification = sendPaymentAssignmentWhatsAppNotification;
+window.showPaymentDistributionModal = showPaymentDistributionModal;
+window.closePaymentDistributionModal = closePaymentDistributionModal;
+window.unassignPaymentFromInvoice = unassignPaymentFromInvoice;
+window.showUnassignConfirmation = showUnassignConfirmation;
+window.testDisponibleForTransaction = testDisponibleForTransaction;
+window.corregirSaldoDisponible = corregirSaldoDisponible;
+window.updateAllPaymentsWithDisponible = updateAllPaymentsWithDisponible;
+window.updateDisponibleInAllBanks = updateDisponibleInAllBanks;
