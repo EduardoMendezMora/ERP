@@ -616,27 +616,114 @@ async function assignManualPaymentToInvoice(paymentReference, invoiceNumber, amo
             throw new Error(`Monto insuficiente. Disponible: ₡${availableAmount.toLocaleString('es-CR')}, Solicitado: ₡${amount.toLocaleString('es-CR')}`);
         }
 
-        // Actualizar pago manual
-        const updateData = {
+        // ===== NUEVO: LEER HISTORIAL DE PAGOS DE LA FACTURA =====
+        console.log('📋 Leyendo historial de pagos de la factura...');
+        
+        // Parsear pagos previos de la factura (formato: "REF:MONTO:FECHA")
+        const previousPayments = parseInvoicePayments(invoice.Pagos || '');
+        const totalPreviousPayments = previousPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        
+        console.log('📊 Historial de pagos:');
+        console.log('   - Pagos previos:', previousPayments);
+        console.log('   - Total pagos previos:', totalPreviousPayments);
+
+        // Calcular multas hasta la fecha del pago manual
+        const paymentDate = payment.Fecha;
+        const baseAmount = parseAmount(invoice.MontoBase || 0);
+        const finesUntilPayment = calculateFinesUntilDate(invoice, paymentDate);
+        const totalOwed = baseAmount + finesUntilPayment;
+        const remainingBalance = totalOwed - totalPreviousPayments;
+
+        console.log(`📊 Análisis de asignación:`);
+        console.log(`   - Monto base: ₡${baseAmount.toLocaleString('es-CR')}`);
+        console.log(`   - Multas hasta pago: ₡${finesUntilPayment.toLocaleString('es-CR')}`);
+        console.log(`   - Total adeudado: ₡${totalOwed.toLocaleString('es-CR')}`);
+        console.log(`   - Pagos previos: ₡${totalPreviousPayments.toLocaleString('es-CR')}`);
+        console.log(`   - Saldo restante: ₡${remainingBalance.toLocaleString('es-CR')}`);
+        console.log(`   - Monto pago manual: ₡${amount.toLocaleString('es-CR')}`);
+
+        let amountToApply, newStatus, newBalance = 0;
+
+        if (amount >= remainingBalance) {
+            // Pago completo del saldo restante
+            amountToApply = remainingBalance;
+            newStatus = 'Pagado';
+            console.log('✅ Pago completo - Factura será marcada como PAGADA');
+        } else {
+            // Pago parcial
+            amountToApply = amount;
+            newStatus = 'Pendiente'; // Mantener como Pendiente hasta que saldo llegue a 0
+            newBalance = remainingBalance - amountToApply;
+            console.log('⚠️ Pago parcial - Factura permanecerá como PENDIENTE');
+        }
+
+        // ===== NUEVO: ACTUALIZAR CAMPO PAGOS DE LA FACTURA =====
+        console.log('📝 Actualizando campo Pagos de la factura...');
+        
+        // Agregar el nuevo pago al historial
+        const newPayment = {
+            reference: paymentReference,
+            amount: amountToApply,
+            date: paymentDate || new Date().toLocaleDateString('es-CR')
+        };
+        
+        const updatedPayments = [...previousPayments, newPayment];
+        const formattedPayments = formatInvoicePayments(updatedPayments);
+        
+        console.log('📋 Pagos actualizados:', updatedPayments);
+        console.log('📝 Pagos formateados:', formattedPayments);
+
+        // ===== NUEVO: ACTUALIZAR ASIGNACIONES DEL PAGO MANUAL =====
+        console.log('📝 Actualizando asignaciones del pago manual...');
+        
+        // Parsear asignaciones previas del pago manual
+        const previousAssignments = parseTransactionAssignments(payment.FacturasAsignadas || '');
+        
+        // Agregar nueva asignación
+        const newAssignment = {
+            invoiceNumber: invoiceNumber,
+            amount: amountToApply
+        };
+        
+        const updatedAssignments = [...previousAssignments, newAssignment];
+        const formattedAssignments = formatTransactionAssignments(updatedAssignments);
+        
+        console.log('📋 Asignaciones actualizadas:', updatedAssignments);
+        console.log('📝 Asignaciones formateadas:', formattedAssignments);
+
+        // ===== ACTUALIZAR PAGO MANUAL =====
+        const paymentUpdateData = {
             Referencia: paymentReference,
-            FacturasAsignadas: invoiceNumber,
-            FechaAsignacion: new Date().toISOString().split('T')[0],
-            Disponible: availableAmount - amount
+            FacturasAsignadas: formattedAssignments,
+            FechaAsignacion: formatDateForStorage(new Date()),
+            Disponible: (availableAmount - amountToApply).toString()
         };
 
-        await updateManualPayment(updateData);
+        await updateManualPayment(paymentUpdateData);
 
-        // Actualizar estado de la factura
+        // ===== ACTUALIZAR FACTURA =====
         const invoiceUpdateData = {
             NumeroFactura: invoiceNumber,
-            Estado: 'Pagado',
-            FechaPago: new Date().toISOString().split('T')[0]
+            Estado: newStatus,
+            MontoMultas: finesUntilPayment,
+            MontoTotal: newStatus === 'Pagado' ? 0 : Math.round(newBalance),
+            Pagos: formattedPayments
         };
 
-        // Usar la función existente para actualizar facturas
-        if (typeof updateInvoice === 'function') {
-            await updateInvoice(invoiceUpdateData);
+        if (newStatus === 'Pagado') {
+            invoiceUpdateData.FechaPago = paymentDate || formatDateForStorage(new Date());
         }
+
+        // Usar la función correcta para actualizar facturas (igual que pagos bancarios)
+        if (typeof updateInvoiceStatus === 'function') {
+            await updateInvoiceStatus(invoiceNumber, invoiceUpdateData);
+        } else {
+            console.error('❌ Función updateInvoiceStatus no disponible');
+            throw new Error('Función de actualización de facturas no disponible');
+        }
+
+        // Actualizar datos locales
+        Object.assign(invoice, invoiceUpdateData);
 
         // Recargar datos
         await Promise.all([
@@ -675,5 +762,84 @@ window.deleteManualPayment = deleteManualPayment;
 window.loadManualPayments = loadManualPayments;
 window.renderManualPayments = renderManualPayments;
 window.assignManualPaymentToInvoice = assignManualPaymentToInvoice;
+
+// ===== FUNCIONES AUXILIARES PARA MANEJO DE PAGOS =====
+
+// Parsear pagos de una factura (formato: "REF:MONTO:FECHA" o "REF:MONTO" para compatibilidad)
+function parseInvoicePayments(paymentsString) {
+    if (!paymentsString || paymentsString.trim() === '') {
+        return [];
+    }
+    
+    try {
+        return paymentsString.split(';')
+            .filter(part => part.trim() !== '')
+            .map(part => {
+                const parts = part.split(':');
+                const reference = parts[0]?.trim();
+                const amount = parseFloat(parts[1]) || 0;
+                const date = parts[2]?.trim() || new Date().toLocaleDateString('es-CR'); // Fecha por defecto si no existe
+                
+                return {
+                    reference: reference,
+                    amount: amount,
+                    date: date
+                };
+            })
+            .filter(payment => payment.reference && payment.amount > 0);
+    } catch (error) {
+        console.error('Error al parsear pagos de factura:', error);
+        return [];
+    }
+}
+
+// Formatear pagos de una factura para guardar en BD
+function formatInvoicePayments(payments) {
+    if (!payments || payments.length === 0) return '';
+    
+    return payments
+        .filter(payment => payment.reference && payment.amount > 0)
+        .map(payment => {
+            // Formato: REF:MONTO:FECHA
+            const date = payment.date || new Date().toLocaleDateString('es-CR');
+            return `${payment.reference}:${payment.amount}:${date}`;
+        })
+        .join(';');
+}
+
+// Parsear asignaciones de una transacción (formato: "FAC-001:MONTO;FAC-002:MONTO")
+function parseTransactionAssignments(assignmentsString) {
+    if (!assignmentsString || assignmentsString.trim() === '') {
+        return [];
+    }
+    
+    try {
+        return assignmentsString.split(';')
+            .filter(part => part.trim() !== '')
+            .map(part => {
+                const [invoiceNumber, amountStr] = part.split(':');
+                return {
+                    invoiceNumber: invoiceNumber.trim(),
+                    amount: parseFloat(amountStr) || 0
+                };
+            })
+            .filter(assignment => assignment.invoiceNumber && assignment.amount > 0);
+    } catch (error) {
+        console.error('Error al parsear asignaciones de transacción:', error);
+        return [];
+    }
+}
+
+// Formatear asignaciones de una transacción para guardar en BD
+function formatTransactionAssignments(assignments) {
+    if (!assignments || assignments.length === 0) return '';
+    
+    return assignments
+        .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
+        .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}`)
+        .join(';');
+}
+
+// Nota: calculateFinesUntilDate está disponible globalmente desde utils.js
 
 console.log('✅ manual-payments.js cargado - Sistema de pagos manuales'); 
