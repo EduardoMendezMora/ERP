@@ -449,7 +449,10 @@ function renderAssignInvoiceModal(invoice) {
     // Combinar pagos bancarios y manuales sin asignar
     const allUnassignedPayments = [
         ...unassignedPayments,
-        ...manualPayments.filter(p => !p.FacturasAsignadas || p.FacturasAsignadas.trim() === '')
+        ...manualPayments.filter(p => {
+            const available = parseAmount(p.Disponible || p.Créditos || 0);
+            return available > 0; // Si tiene monto disponible, está sin asignar
+        })
     ];
 
     // Opciones de pagos
@@ -651,7 +654,7 @@ async function confirmAssignInvoice() {
             await assignManualPaymentToInvoice(
                 selectedPaymentForInvoice.reference,
                 currentInvoiceForAssignment.NumeroFactura,
-                parseAmount(manualPayment.Créditos || 0)
+                parseAmount(manualPayment.Disponible || 0)
             );
 
         } else if (window.selectedTransaction) {
