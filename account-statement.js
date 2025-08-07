@@ -11,15 +11,15 @@ function sendAccountStatement() {
     const facturas = window.clientInvoices || [];
     const assignedPayments = window.assignedPayments || [];
 
-    // Filtrar solo facturas pendientes con multas
-    const facturasConMultas = facturas.filter(f => f.Estado === 'Pendiente' && f.DiasAtraso > 0);
-    if (facturasConMultas.length === 0) {
-        alert('No hay facturas pendientes con multas para este cliente.');
+    // Filtrar solo facturas vencidas (Estado: 'Vencido')
+    const vencidas = facturas.filter(f => f.Estado === 'Vencido');
+    if (vencidas.length === 0) {
+        alert('No hay facturas vencidas para este cliente.');
         return;
     }
 
     let totalPendiente = 0;
-    let detalleFacturas = facturasConMultas.map(f => {
+    let detalleFacturas = vencidas.map(f => {
         const diasAtraso = f.DiasAtraso || 0;
         // CORREGIDO: Usar parseAmount en lugar de parseFloat
         const saldo = parseAmount(f.MontoBase || 0);
