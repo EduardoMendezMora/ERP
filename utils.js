@@ -852,9 +852,7 @@ function goBackToClients() {
 
 // ===== FUNCIONES DE HELPER PARA ASIGNACIONES =====
 function findAssociatedPayment(invoiceNumber) {
-    const payment = assignedPayments.find(p => 
-        p.RelatedInvoices?.some(inv => inv.NumeroFactura === invoiceNumber)
-    );
+    const payment = assignedPayments.find(p => p.RelatedInvoice?.NumeroFactura === invoiceNumber);
     if (payment) {
         return {
             reference: payment.Referencia,
