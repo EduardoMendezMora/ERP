@@ -61,7 +61,7 @@ async function testManualPaymentAssignment() {
         
         // Encontrar una factura pendiente
         const pendingInvoice = window.clientInvoices.find(inv => 
-            inv.Estado === 'Pendiente' || inv.Estado === 'Vencido'
+            inv.Estado === 'Pendiente'
         );
         
         if (!pendingInvoice) {
@@ -131,8 +131,8 @@ function checkCurrentState() {
     }
     
     if (window.clientInvoices) {
-        const pending = window.clientInvoices.filter(inv => inv.Estado === 'Pendiente');
-        const overdue = window.clientInvoices.filter(inv => inv.Estado === 'Vencido');
+            const pending = window.clientInvoices.filter(inv => inv.Estado === 'Pendiente' && !isInvoiceOverdue(inv));
+    const overdue = window.clientInvoices.filter(inv => isInvoiceOverdue(inv));
         const paid = window.clientInvoices.filter(inv => inv.Estado === 'Cancelado');
         
         console.log('📄 Facturas:');

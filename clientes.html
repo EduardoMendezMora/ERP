@@ -1051,7 +1051,7 @@
             let debugCount = 0;
             
             invoices.forEach(invoice => {
-                if (invoice.Estado === 'Pendiente' || invoice.Estado === 'Vencido') {
+                if (invoice.Estado === 'Pendiente') {
                     totalProcessed++;
                     const dueDateStr = invoice.FechaVencimiento;
                     
@@ -1169,9 +1169,9 @@
             }
             
             // Contar por estado
-            const pending = clientInvoices.filter(inv => inv.Estado === 'Pendiente');
-            const overdue = clientInvoices.filter(inv => inv.Estado === 'Vencido');  
-            const paid = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
+                            const pending = clientInvoices.filter(inv => inv.Estado === 'Pendiente' && !isInvoiceOverdue(inv));
+                const overdue = clientInvoices.filter(inv => isInvoiceOverdue(inv));  
+                const paid = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
             
                     const totalPending = pending.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
         const totalOverdue = overdue.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
@@ -1385,10 +1385,7 @@
             
                 const totalPending = invoices
                     .filter(inv => {
-                        // Incluir facturas con estado "Vencido" O facturas pendientes que ya vencieron
-                        if (inv.Estado === 'Vencido') return true;
-                        
-                        // Verificar si es una factura pendiente que ya venció
+                        // Incluir facturas pendientes que ya vencieron
                         if (inv.Estado === 'Pendiente' && inv.FechaVencimiento) {
                             const fechaVencimiento = parseDate(inv.FechaVencimiento);
                             const hoy = new Date();
@@ -1421,7 +1418,7 @@
             console.log('Total facturas cargadas:', invoices.length);
             
             // Verificar facturas vencidas por estado
-            const facturasVencidasPorEstado = invoices.filter(inv => inv.Estado === 'Vencido');
+            const facturasVencidasPorEstado = invoices.filter(inv => isInvoiceOverdue(inv));
             console.log('Facturas con estado "Vencido":', facturasVencidasPorEstado.length);
             
             // Verificar facturas pendientes que ya vencieron

@@ -606,17 +606,41 @@ function showToast(message, type = 'info') {
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.textContent = message;
+    toast.innerHTML = `
+        <div class="toast-content">
+            <span class="toast-message">${message}</span>
+            <button class="toast-close" onclick="this.parentElement.parentElement.remove()">✕</button>
+        </div>
+    `;
+
     document.body.appendChild(toast);
 
-    // Mostrar el toast
-    setTimeout(() => toast.classList.add('show'), 100);
-
-    // Ocultar y remover el toast después de 4 segundos
+    // Auto-remover después de 5 segundos
     setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, 4000);
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    }, 5000);
+}
+
+// ===== FUNCIÓN AUXILIAR PARA DETERMINAR SI UNA FACTURA ESTÁ VENCIDA =====
+function isInvoiceOverdue(invoice) {
+    // Solo facturas pendientes pueden estar vencidas
+    if (invoice.Estado !== 'Pendiente') {
+        return false;
+    }
+    
+    const dueDate = parseDate(invoice.FechaVencimiento);
+    if (!dueDate) {
+        return false; // Si no se puede parsear la fecha, no considerarla vencida
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Resetear a inicio del día
+    dueDate.setHours(0, 0, 0, 0); // Resetear a inicio del día
+    
+    // La factura está vencida si la fecha de vencimiento es hoy o anterior
+    return dueDate <= today;
 }
 
 function showLoading(show) {
@@ -778,9 +802,9 @@ function updateControlUI() {
 }
 
 function updateSectionCounts() {
-    // Actualizar contadores en los controles
-    const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
-            const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
+            // Actualizar contadores en los controles
+        const overdueInvoices = clientInvoices.filter(inv => isInvoiceOverdue(inv));
+        const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
     const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
 
     const counts = {
@@ -1131,7 +1155,7 @@ const SEARCH_CONFIG = {
         resultsId: 'searchResultsOverdue',
         dataSource: 'clientInvoices',
         searchFields: ['NumeroFactura', 'Concepto', 'FechaVencimiento', 'Monto'],
-        filterFunction: (item) => item.Estado === 'Vencido',
+        filterFunction: (item) => isInvoiceOverdue(item),
         placeholder: 'Buscar facturas por número, concepto, fecha...'
     },
     upcoming: {
