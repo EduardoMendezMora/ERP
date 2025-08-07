@@ -37,8 +37,8 @@ async function initializeApp() {
         // Cargar preferencias de sección guardadas
         loadSectionPreferences();
 
-        // Asegurar que todas las secciones estén cerradas por defecto
-        showOnlyActive();
+        // Asegurar que todas las secciones estén abiertas por defecto
+        toggleAllSections(true);
 
         // Mostrar loading
         showLoading(true);
