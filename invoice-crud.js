@@ -790,8 +790,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Validar monto
             const numAmount = parseFloat(amount);
-            if (numAmount <= 0) {
-                showToast('El monto debe ser mayor a cero', 'error');
+            if (numAmount < 0) {
+                showToast('El monto no puede ser negativo', 'error');
                 return;
             }
 
@@ -812,12 +812,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 const formattedDueDate = formatDateForStorage(new Date(dueDate));
                 const formattedPaymentDate = paymentDate ? formatDateForStorage(new Date(paymentDate)) : '';
 
+                // Calcular multas acumuladas si la factura está vencida
+                let fines = 0;
+                let daysOverdue = 0;
+                
+                if (status === 'Vencido') {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const dueDateObj = new Date(formattedDueDate);
+                    dueDateObj.setHours(0, 0, 0, 0);
+                    
+                    if (today > dueDateObj) {
+                        const diffTime = today.getTime() - dueDateObj.getTime();
+                        daysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        // Solo aplicar multas si no es una factura manual
+                        const isManualInvoice = currentEditingInvoice.TipoFactura === 'Manual' ||
+                            currentEditingInvoice.NumeroFactura?.startsWith('MAN-') ||
+                            currentEditingInvoice.ConceptoManual;
+                        
+                        if (!isManualInvoice) {
+                            fines = daysOverdue * 2000; // ₡2,000 por día
+                        }
+                    }
+                }
+
                 const updateData = {
                     NumeroFactura: currentEditingInvoice.NumeroFactura,
                     ConceptoManual: concept,
                     DescripcionManual: description,
                     MontoBase: numAmount,
-                    MontoTotal: numAmount, // Se recalculará con multas si es necesario
+                    MontoTotal: numAmount + fines, // Monto base + multas acumuladas
+                    MontoMultas: fines,
+                    DiasAtraso: daysOverdue,
                     FechaVencimiento: formattedDueDate,
                     Estado: status,
                     FechaPago: safeFormatDate(paymentDate),
@@ -879,8 +906,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Validar monto
             const numAmount = parseFloat(amount);
-            if (numAmount <= 0) {
-                showToast('El monto debe ser mayor a cero', 'error');
+            if (numAmount < 0) {
+                showToast('El monto no puede ser negativo', 'error');
                 return;
             }
 
