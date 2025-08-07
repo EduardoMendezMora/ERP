@@ -928,8 +928,43 @@
 
         function setupEventListeners() {
             // Búsqueda en tiempo real
-            document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', function(e) {
                 filterClients(e.target.value);
+            });
+            
+            // Navegar al primer resultado al presionar Enter en la búsqueda
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Obtener el término de búsqueda
+                    const searchTerm = e.target.value.trim();
+                    
+                    if (searchTerm) {
+                        // Filtrar clientes
+                        const filtered = clients.filter(client => 
+                            (client.Nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (client.ID || '').toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (client.numeroTelefono || '').toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (client.Placa || '').toLowerCase().includes(searchTerm.toLowerCase())
+                        );
+                        
+                        // Si hay resultados, navegar al primero
+                        if (filtered.length > 0) {
+                            const firstClient = filtered[0];
+                            console.log('🚀 Navegando al primer resultado:', firstClient.Nombre, 'ID:', firstClient.ID);
+                            viewInvoices(firstClient.ID);
+                        } else {
+                            // Si no hay resultados, solo filtrar
+                            filterClients(searchTerm);
+                        }
+                    } else {
+                        // Si no hay término de búsqueda, solo filtrar
+                        filterClients(searchTerm);
+                    }
+                }
             });
 
             // Formulario de cliente
