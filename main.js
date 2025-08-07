@@ -635,6 +635,9 @@ async function confirmAssignInvoice() {
     const confirmBtn = document.getElementById('confirmAssignInvoiceBtn');
     confirmBtn.disabled = true;
     confirmBtn.textContent = '⏳ Asignando...';
+    
+    // Mostrar mensaje de progreso
+    showToast('Iniciando asignación de factura...', 'info');
 
     try {
         // Si hay un pago manual seleccionado
@@ -663,6 +666,10 @@ async function confirmAssignInvoice() {
                 transaction: window.selectedTransaction,
                 invoice: currentInvoiceForAssignment.NumeroFactura
             });
+            
+            // Actualizar mensaje de progreso
+            confirmBtn.textContent = '⏳ Procesando transacción...';
+            showToast('Procesando transacción bancaria...', 'info');
 
             // Mapear el banco al nombre de la hoja correcto (igual que en transacciones.html)
             const sheetName = window.selectedTransaction.bank === 'BN' ? 'BN' :
@@ -679,9 +686,13 @@ async function confirmAssignInvoice() {
         }
 
         closeAssignInvoiceModal();
+        
+        // Mensaje de éxito
+        showToast('✅ Factura asignada exitosamente', 'success');
 
     } catch (error) {
         console.error('❌ Error al confirmar asignación:', error);
+        showToast('Error al asignar la factura: ' + error.message, 'error');
 
         // Restaurar botón
         confirmBtn.disabled = false;
@@ -1243,11 +1254,17 @@ function clearTransactionSearch() {
 
 // ===== FUNCIÓN PARA ASIGNAR TRANSACCIONES BANCARIAS =====
 async function assignTransactionToInvoice(transactionReference, bank, invoiceNumber, expectedAmount = null) {
-    try {
-        console.log(`🎯 Iniciando asignación de transacción: ${transactionReference} (${bank}) → Factura ${invoiceNumber}`);
-        if (expectedAmount) {
-            console.log(`💰 Monto esperado del modal: ₡${expectedAmount.toLocaleString('es-CR')}`);
-        }
+    // Agregar timeout de 30 segundos para evitar que se quede colgado
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout: La operación tardó demasiado tiempo')), 30000);
+    });
+    
+    const assignmentPromise = (async () => {
+        try {
+            console.log(`🎯 Iniciando asignación de transacción: ${transactionReference} (${bank}) → Factura ${invoiceNumber}`);
+            if (expectedAmount) {
+                console.log(`💰 Monto esperado del modal: ₡${expectedAmount.toLocaleString('es-CR')}`);
+            }
 
         // Encontrar la factura
         const invoice = clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
@@ -1479,13 +1496,18 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
 
         // Recargar datos y re-renderizar la página
         console.log('🔄 Recargando datos después de la asignación...');
-        if (typeof reloadDataAndRender === 'function') {
-            await reloadDataAndRender();
-        } else {
-            // Fallback: solo renderizar si no está disponible reloadDataAndRender
-            if (typeof renderPage === 'function') {
-                renderPage();
+        try {
+            if (typeof reloadDataAndRender === 'function') {
+                await reloadDataAndRender();
+            } else {
+                // Fallback: solo renderizar si no está disponible reloadDataAndRender
+                if (typeof renderPage === 'function') {
+                    renderPage();
+                }
             }
+        } catch (reloadError) {
+            console.warn('⚠️ Error al recargar datos, pero la asignación fue exitosa:', reloadError);
+            // No fallar por error de recarga
         }
 
         // Mostrar mensaje
@@ -1500,8 +1522,20 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
     } catch (error) {
         console.error('❌ Error en assignTransactionToInvoice:', error);
         showToast('Error al asignar la transacción: ' + error.message, 'error');
+        
+        // Restaurar el botón en caso de error
+        const confirmBtn = document.getElementById('confirmAssignInvoiceBtn');
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = '✅ Asignar Factura';
+        }
+        
         throw error;
     }
+    })();
+    
+    // Ejecutar con timeout
+    return Promise.race([assignmentPromise, timeoutPromise]);
 }
 
 // Función para sincronizar pagos existentes que no están en la API de transacciones
@@ -1767,7 +1801,12 @@ async function updateTransactionAssignments(transactionReference, bank, formatte
         console.error('❌ Error al actualizar transacción:', error);
         console.error('❌ Stack trace:', error.stack);
         console.error('❌ Parámetros que causaron el error:', { transactionReference, bank, formattedAssignments });
-        // No lanzar error para no interrumpir el proceso principal
+        
+        // Mostrar mensaje de error al usuario
+        showToast('Error al actualizar la transacción en el sistema: ' + error.message, 'error');
+        
+        // Lanzar el error para que se maneje en el nivel superior
+        throw error;
     }
 }
 

@@ -2,8 +2,10 @@
 function calculateAvailableAmount(payment) {
     // Si la columna "Disponible" tiene contenido, usarla
     if (payment.Disponible && payment.Disponible.trim() !== '' && payment.Disponible !== '0') {
-        const availableAmount = parseFloat(payment.Disponible) || 0;
-        console.log(`💰 Pago ${payment.Referencia}: Usando saldo disponible del backend: ₡${availableAmount.toLocaleString('es-CR')}`);
+        // Asegurar que el parsing maneje tanto enteros como decimales
+        const disponibleValue = payment.Disponible.toString().trim();
+        const availableAmount = parseFloat(disponibleValue) || 0;
+        console.log(`💰 Pago ${payment.Referencia}: Usando saldo disponible del backend: "${disponibleValue}" -> ₡${availableAmount.toLocaleString('es-CR')}`);
         return availableAmount;
     } else {
         // Si está vacía, calcular dinámicamente (comportamiento anterior)
@@ -707,7 +709,7 @@ async function updatePaymentAssignments(payment, newAssignments) {
         const updateData = {
             FacturasAsignadas: formattedAssignments,
             FechaAsignacion: formatDateForStorage(new Date()),
-            Disponible: availableAmount.toString() // Guardar saldo disponible (siempre como string)
+            Disponible: availableAmount.toFixed(2) // Guardar saldo disponible con formato decimal consistente
         };
 
         console.log('📦 Datos a actualizar:', updateData);
