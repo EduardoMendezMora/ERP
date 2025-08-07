@@ -643,6 +643,35 @@ function isInvoiceOverdue(invoice) {
     return dueDate <= today;
 }
 
+// ===== FUNCIÓN PARA OBTENER FACTURAS PRÓXIMAS =====
+function getUpcomingInvoices(invoices, limit = 2) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Resetear a inicio del día
+    
+    // Filtrar facturas pendientes que vencen en el futuro
+    const futureInvoices = invoices.filter(inv => {
+        if (inv.Estado !== 'Pendiente') return false;
+        
+        const dueDate = parseDate(inv.FechaVencimiento);
+        if (!dueDate) return false;
+        
+        return dueDate > today;
+    });
+    
+    // Ordenar por fecha de vencimiento (ascendente) y tomar las primeras 'limit'
+    const sortedInvoices = futureInvoices.sort((a, b) => {
+        const dateA = parseDate(a.FechaVencimiento);
+        const dateB = parseDate(b.FechaVencimiento);
+        
+        if (dateA && dateB) {
+            return dateA.getTime() - dateB.getTime();
+        }
+        return 0;
+    });
+    
+    return sortedInvoices.slice(0, limit);
+}
+
 function showLoading(show) {
     const loading = document.getElementById('loading');
     const mainContent = document.getElementById('mainContent');
