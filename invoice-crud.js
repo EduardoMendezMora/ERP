@@ -795,8 +795,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            // Si el monto es 0, automáticamente cambiar el estado a "Pagado"
+            let finalStatus = status;
+            let finalPaymentDate = paymentDate;
+            
+            if (numAmount === 0) {
+                finalStatus = 'Pagado';
+                // Si no hay fecha de pago especificada, usar la fecha actual
+                if (!finalPaymentDate) {
+                    finalPaymentDate = new Date().toISOString().split('T')[0];
+                }
+                console.log('💰 Monto 0 detectado: Estado cambiado automáticamente a "Pagado"');
+            }
+
             // Validar fecha de pago si el estado es "Pagado"
-            if (status === 'Pagado' && !paymentDate) {
+            if (finalStatus === 'Pagado' && !finalPaymentDate) {
                 showToast('Debe especificar la fecha de pago', 'error');
                 return;
             }
@@ -816,7 +829,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 let fines = 0;
                 let daysOverdue = 0;
                 
-                if (status === 'Vencido') {
+                if (finalStatus === 'Vencido') {
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
                     const dueDateObj = new Date(formattedDueDate);
@@ -846,8 +859,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     MontoMultas: fines,
                     DiasAtraso: daysOverdue,
                     FechaVencimiento: formattedDueDate,
-                    Estado: status,
-                    FechaPago: safeFormatDate(paymentDate),
+                    Estado: finalStatus,
+                    FechaPago: safeFormatDate(finalPaymentDate),
                     TipoFactura: currentEditingInvoice.TipoFactura || 'Manual'
                 };
 
