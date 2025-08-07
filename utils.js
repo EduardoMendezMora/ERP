@@ -779,16 +779,15 @@ function updateControlUI() {
 
 function updateSectionCounts() {
     // Actualizar contadores en los controles
-    const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
-    const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
+    const cancelledInvoices = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
     const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
 
     const counts = {
         'unassigned': `${unassignedPayments.length} pagos pendientes`,
-        'overdue': `${overdueInvoices.length} facturas vencidas`,
+        'overdue': `${cancelledInvoices.length} facturas canceladas`,
         'upcoming': `${upcomingInvoices.length} próximas facturas`,
         'assigned': `${assignedPayments.length} pagos aplicados`,
-        'paid': `${paidInvoices.length} facturas pagadas`
+        'paid': `${cancelledInvoices.length} facturas canceladas`
     };
 
     Object.entries(counts).forEach(([key, text]) => {
@@ -877,8 +876,7 @@ function debugInvoices() {
     // Agrupar por estado
     const byStatus = {
         'Pendiente': [],
-        'Vencido': [],
-        'Pagado': []
+        'Cancelado': []
     };
     
     clientInvoices.forEach(inv => {
@@ -1131,7 +1129,7 @@ const SEARCH_CONFIG = {
         resultsId: 'searchResultsOverdue',
         dataSource: 'clientInvoices',
         searchFields: ['NumeroFactura', 'Concepto', 'FechaVencimiento', 'Monto'],
-        filterFunction: (item) => item.Estado === 'Vencido',
+        filterFunction: (item) => item.Estado === 'Cancelado',
         placeholder: 'Buscar facturas por número, concepto, fecha...'
     },
     upcoming: {
@@ -1163,7 +1161,7 @@ const SEARCH_CONFIG = {
         resultsId: 'searchResultsPaid',
         dataSource: 'clientInvoices',
         searchFields: ['NumeroFactura', 'Concepto', 'FechaVencimiento', 'Monto'],
-        filterFunction: (item) => item.Estado === 'Pagado',
+        filterFunction: (item) => item.Estado === 'Cancelado',
         placeholder: 'Buscar facturas por número, concepto, fecha...'
     }
 };
