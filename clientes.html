@@ -1654,7 +1654,8 @@
             const dueDate = new Date(weekEndDate);
             
             // Si el día de pago ya pasó en el mes del fin de semana, ir al siguiente mes
-            if (dueDate.getDate() >= paymentDay) {
+            // Comparamos el día actual del mes con el día de pago
+            if (dueDate.getDate() > paymentDay) {
                 dueDate.setMonth(dueDate.getMonth() + 1);
             }
             
