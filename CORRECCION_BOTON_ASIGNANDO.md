@@ -175,4 +175,41 @@ const updateData = {
 
 **Resultado**: Ahora `loadAssignedPayments` puede encontrar el pago por `ID_Cliente` y `findAssociatedPayment` puede mostrarlo en las facturas.
 
+## 🔧 **Corrección Crítica de la Columna Pagos (Nueva)**
+
+**Problema identificado**: Después de asignar el pago, **la columna `Pagos` de la factura quedaba vacía**, aunque el pago se asignaba correctamente en las transacciones.
+
+**Solución implementada**: Agregar el campo `Pagos` al `updateData` en la función `applySinglePayment`:
+
+```javascript
+// ===== NUEVO: ACTUALIZAR CAMPO PAGOS DE LA FACTURA =====
+// Parsear pagos previos de la factura
+const previousPayments = parseInvoicePayments(invoice.Pagos || '');
+
+// Agregar el nuevo pago
+const newPayment = {
+    reference: payment.Referencia,
+    bank: payment.BankSource,
+    amount: amountToApply,
+    date: payment.Fecha || new Date().toLocaleDateString('es-CR')
+};
+
+const updatedPayments = [...previousPayments, newPayment];
+const formattedPayments = formatInvoicePayments(updatedPayments);
+
+// Actualizar la factura
+const updateData = {
+    Estado: newStatus,
+    MontoMultas: finesUntilPayment,
+    MontoTotal: newBalance > 0 ? newBalance : totalOwedUntilPayment,
+    Pagos: formattedPayments // ✅ CRÍTICO: Agregar el campo Pagos
+};
+```
+
+**Formato de la columna Pagos**: `"REFERENCIA:MONTO:FECHA"` (separado por `;` para múltiples pagos)
+
+**Ejemplo**: `"11111111:25000:05/08/2025"`
+
+**Resultado**: Ahora la columna `Pagos` de la factura se actualiza correctamente con el historial de pagos aplicados.
+
 Si hay algún error, el botón se restaurará y se mostrará un mensaje de error específico. 

@@ -140,11 +140,29 @@ async function applySinglePayment(payment, invoice, availableAmount) {
             [{ invoiceNumber: invoice.NumeroFactura, amount: amountToApply }]
         );
 
+        // ===== NUEVO: ACTUALIZAR CAMPO PAGOS DE LA FACTURA =====
+        // Parsear pagos previos de la factura (formato: "REF:MONTO:FECHA" o "REF:MONTO" para compatibilidad)
+        const previousPayments = parseInvoicePayments(invoice.Pagos || '');
+        
+        // Agregar el nuevo pago
+        const newPayment = {
+            reference: payment.Referencia,
+            bank: payment.BankSource,
+            amount: amountToApply,
+            date: payment.Fecha || new Date().toLocaleDateString('es-CR')
+        };
+        
+        const updatedPayments = [...previousPayments, newPayment];
+        const formattedPayments = formatInvoicePayments(updatedPayments);
+        
+        console.log('📝 Actualizando pagos de la factura:', formattedPayments);
+
         // Actualizar la factura
         const updateData = {
             Estado: newStatus,
             MontoMultas: finesUntilPayment,
-            MontoTotal: newBalance > 0 ? newBalance : totalOwedUntilPayment
+            MontoTotal: newBalance > 0 ? newBalance : totalOwedUntilPayment,
+            Pagos: formattedPayments // ✅ CRÍTICO: Agregar el campo Pagos
         };
 
         if (newStatus === 'Pagado') {
