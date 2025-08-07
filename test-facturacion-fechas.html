@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Facturación Fechas</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de Facturación - Cálculo de Fechas</h1>
+    
+    <div id="results"></div>
+
+    <script src="utils.js"></script>
+    <script>
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            resultsDiv.appendChild(div);
+        }
+
+        // Simular cliente de prueba
+        const testClient = {
+            ID: '304070826',
+            Nombre: 'JORGE ORTEGA GONZALEZ',
+            fechaContrato: '07/08/2025',
+            montoContrato: '115.000,00',
+            plazoContrato: '52',
+            diaPago: '10'
+        };
+
+        function generateInvoicesForClient(client) {
+            const invoicesData = [];
+            const signDate = parseDate(client.fechaContrato);
+            const contractStartDate = new Date(signDate);
+            
+            addResult(`📅 Fecha de firma: ${client.fechaContrato}`, 'info');
+            addResult(`📅 Fecha de inicio contrato: ${formatDateForDB(contractStartDate)}`, 'info');
+            
+            const weeklyAmount = parseAmount(client.montoContrato);
+            const totalWeeks = parseInt(client.plazoContrato);
+            const paymentDay = parseInt(client.diaPago);
+            
+            addResult(`💰 Monto semanal: ${weeklyAmount}`, 'info');
+            addResult(`📅 Día de pago: ${paymentDay}`, 'info');
+            addResult(`📅 Total de semanas: ${totalWeeks}`, 'info');
+
+            for (let week = 1; week <= Math.min(5, totalWeeks); week++) {
+                // Calcular fecha de inicio de la semana
+                const weekStartDate = new Date(contractStartDate);
+                weekStartDate.setDate(contractStartDate.getDate() + (week - 1) * 7);
+                
+                // Calcular fecha de fin de la semana
+                const weekEndDate = new Date(weekStartDate);
+                weekEndDate.setDate(weekStartDate.getDate() + 6);
+                
+                // Calcular fecha de vencimiento
+                const dueDate = getNextPaymentDate(weekEndDate, paymentDay);
+                
+                // Generar descripción de la semana
+                const weekDescription = generateWeekDescription(weekStartDate, weekEndDate);
+                
+                const invoiceData = {
+                    SemanaNumero: week,
+                    SemanaDescripcion: weekDescription,
+                    FechaVencimiento: formatDateForStorage(dueDate),
+                    MontoBase: weeklyAmount,
+                    Estado: 'Pendiente'
+                };
+                
+                invoicesData.push(invoiceData);
+                
+                addResult(`
+                    <strong>Semana ${week}:</strong><br>
+                    📅 Inicio: ${formatDateForDB(weekStartDate)}<br>
+                    📅 Fin: ${formatDateForDB(weekEndDate)}<br>
+                    📅 Vencimiento: ${formatDateForStorage(dueDate)}<br>
+                    💰 Monto: ${weeklyAmount}<br>
+                    📝 Descripción: ${weekDescription}
+                `, 'success');
+            }
+            
+            return invoicesData;
+        }
+
+        function getNextPaymentDate(weekEndDate, paymentDay) {
+            // Si el día de pago es 0 o no válido, usar el día siguiente al fin de semana
+            if (!paymentDay || paymentDay <= 0 || paymentDay > 31) {
+                const dueDate = new Date(weekEndDate);
+                dueDate.setDate(weekEndDate.getDate() + 1);
+                return dueDate;
+            }
+            
+            // Calcular la fecha de vencimiento
+            const dueDate = new Date(weekEndDate);
+            
+            // Si el día de pago ya pasó en el mes del fin de semana, ir al siguiente mes
+            if (dueDate.getDate() >= paymentDay) {
+                dueDate.setMonth(dueDate.getMonth() + 1);
+            }
+            
+            // Establecer el día de pago
+            dueDate.setDate(paymentDay);
+            
+            return dueDate;
+        }
+
+        function generateWeekDescription(startDate, endDate) {
+            const months = [
+                'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+            ];
+            
+            const startDay = startDate.getDate();
+            const startMonth = months[startDate.getMonth()];
+            const startYear = startDate.getFullYear();
+            
+            const endDay = endDate.getDate();
+            const endMonth = months[endDate.getMonth()];
+            const endYear = endDate.getFullYear();
+            
+            if (startMonth === endMonth && startYear === endYear) {
+                return `Semana del ${startDay} al ${endDay} de ${startMonth} del ${startYear}`;
+            } else if (startYear === endYear) {
+                return `Semana del ${startDay} de ${startMonth} al ${endDay} de ${endMonth} del ${startYear}`;
+            } else {
+                return `Semana del ${startDay} de ${startMonth} del ${startYear} al ${endDay} de ${endMonth} del ${endYear}`;
+            }
+        }
+
+        // Ejecutar prueba
+        try {
+            addResult('🚀 Iniciando prueba de facturación...', 'info');
+            
+            if (typeof parseDate === 'undefined') {
+                throw new Error('parseDate no está disponible');
+            }
+            if (typeof formatDateForDB === 'undefined') {
+                throw new Error('formatDateForDB no está disponible');
+            }
+            if (typeof formatDateForStorage === 'undefined') {
+                throw new Error('formatDateForStorage no está disponible');
+            }
+            if (typeof parseAmount === 'undefined') {
+                throw new Error('parseAmount no está disponible');
+            }
+            
+            addResult('✅ Todas las funciones necesarias están disponibles', 'success');
+            
+            const invoices = generateInvoicesForClient(testClient);
+            
+            addResult(`✅ Prueba completada. Se generaron ${invoices.length} facturas de prueba.`, 'success');
+            
+        } catch (error) {
+            addResult(`❌ Error en la prueba: ${error.message}`, 'error');
+            console.error('Error completo:', error);
+        }
+    </script>
+</body>
+</html>
