@@ -158,4 +158,21 @@ El problema era que el sistema no tenía una rama para manejar pagos bancarios c
 
 Esta corrección permite que los pagos bancarios con saldo disponible (como el 11111111 BAC con ₡25,000) se asignen correctamente a las facturas.
 
+## 🔧 **Corrección Crítica del ID_Cliente (Nueva)**
+
+**Problema identificado**: Después de asignar el pago, este no aparecía en la vista de facturas porque **faltaba el `ID_Cliente`** en la transacción bancaria.
+
+**Solución implementada**: Agregar el `ID_Cliente` al `updateData` en la función `updatePaymentAssignments`:
+
+```javascript
+const updateData = {
+    FacturasAsignadas: formattedAssignments,
+    FechaAsignacion: formatDateForStorage(new Date()),
+    Disponible: availableAmount.toFixed(2),
+    ID_Cliente: currentClientId // ✅ CRÍTICO: Agregar ID_Cliente
+};
+```
+
+**Resultado**: Ahora `loadAssignedPayments` puede encontrar el pago por `ID_Cliente` y `findAssociatedPayment` puede mostrarlo en las facturas.
+
 Si hay algún error, el botón se restaurará y se mostrará un mensaje de error específico. 

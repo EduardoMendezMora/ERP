@@ -709,7 +709,8 @@ async function updatePaymentAssignments(payment, newAssignments) {
         const updateData = {
             FacturasAsignadas: formattedAssignments,
             FechaAsignacion: formatDateForStorage(new Date()),
-            Disponible: availableAmount.toFixed(2) // Guardar saldo disponible con formato decimal consistente
+            Disponible: availableAmount.toFixed(2), // Guardar saldo disponible con formato decimal consistente
+            ID_Cliente: currentClientId // ✅ CRÍTICO: Agregar ID_Cliente para que loadAssignedPayments pueda encontrar el pago
         };
 
         console.log('📦 Datos a actualizar:', updateData);
