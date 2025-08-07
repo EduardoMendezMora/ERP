@@ -795,17 +795,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Si el monto es 0, automáticamente cambiar el estado a "Pagado"
+            // Lógica de cambio automático de estado basado en el monto
             let finalStatus = status;
             let finalPaymentDate = paymentDate;
             
+            // Obtener el monto original de la factura
+            const originalAmount = parseFloat(currentEditingInvoice.MontoBase || 0);
+            
             if (numAmount === 0) {
+                // Si el monto es 0, automáticamente cambiar el estado a "Pagado"
                 finalStatus = 'Pagado';
                 // Si no hay fecha de pago especificada, usar la fecha actual
                 if (!finalPaymentDate) {
                     finalPaymentDate = new Date().toISOString().split('T')[0];
                 }
                 console.log('💰 Monto 0 detectado: Estado cambiado automáticamente a "Pagado"');
+            } else if (originalAmount === 0 && numAmount > 0) {
+                // Si el monto original era 0 y ahora es mayor a 0, cambiar a "Pendiente"
+                finalStatus = 'Pendiente';
+                finalPaymentDate = ''; // Limpiar fecha de pago ya que ahora hay saldo pendiente
+                console.log('📝 Monto cambiado de 0 a mayor: Estado cambiado automáticamente a "Pendiente"');
             }
 
             // Validar fecha de pago si el estado es "Pagado"
