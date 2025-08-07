@@ -171,10 +171,34 @@ function formatDateForDisplay(dateString) {
 
 function formatDateForStorage(date) {
     try {
+        // ✅ CORRECCIÓN: Manejar zona horaria correctamente
+        // Si la fecha viene como string (ej: '2025-08-05'), crear fecha en zona local
+        if (typeof date === 'string') {
+            // Para fechas en formato YYYY-MM-DD, crear en zona local
+            if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                const [year, month, day] = date.split('-').map(Number);
+                date = new Date(year, month - 1, day); // month - 1 porque getMonth() es 0-based
+            } else {
+                date = new Date(date);
+            }
+        }
+        
+        // Asegurar que la fecha se interprete en zona local
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
-        return `${day}/${month}/${year}`; // DD/MM/YYYY para Google Sheets
+        
+        const formattedDate = `${day}/${month}/${year}`; // DD/MM/YYYY para Google Sheets
+        
+        console.log('📅 [DEBUG] formatDateForStorage:', {
+            input: date,
+            year,
+            month: date.getMonth() + 1,
+            day: date.getDate(),
+            formatted: formattedDate
+        });
+        
+        return formattedDate;
     } catch (error) {
         console.error('Error al formatear fecha:', error);
         return '';
@@ -192,6 +216,44 @@ function formatDateForInput(dateString) {
         return `${year}-${month}-${day}`;
     } catch (error) {
         console.error('Error al formatear fecha para input:', error);
+        return '';
+    }
+}
+
+// ✅ NUEVA FUNCIÓN: Para fechas de pagos manuales (zona horaria local)
+function formatDateForManualPayment(dateInput) {
+    try {
+        let date;
+        
+        // Si es string en formato YYYY-MM-DD, crear fecha en zona local
+        if (typeof dateInput === 'string' && dateInput.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = dateInput.split('-').map(Number);
+            date = new Date(year, month - 1, day); // month - 1 porque getMonth() es 0-based
+        } else if (dateInput instanceof Date) {
+            date = dateInput;
+        } else {
+            date = new Date(dateInput);
+        }
+        
+        // Asegurar que se use la zona horaria local
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        const formattedDate = `${day}/${month}/${year}`;
+        
+        console.log('📅 [DEBUG] formatDateForManualPayment:', {
+            input: dateInput,
+            date: date,
+            year,
+            month: date.getMonth() + 1,
+            day: date.getDate(),
+            formatted: formattedDate
+        });
+        
+        return formattedDate;
+    } catch (error) {
+        console.error('Error al formatear fecha para pago manual:', error);
         return '';
     }
 }
@@ -1694,6 +1756,7 @@ window.parseDate = parseDate;
 window.formatDateForDisplay = formatDateForDisplay;
 window.formatDateForStorage = formatDateForStorage;
 window.formatDateForInput = formatDateForInput;
+window.formatDateForManualPayment = formatDateForManualPayment;
 
 // Funciones de cálculo
 window.calculateFinesUntilDate = calculateFinesUntilDate;

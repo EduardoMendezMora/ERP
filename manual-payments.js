@@ -455,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 await createManualPayment({
                     reference: reference,
                     amount: amount,
-                    date: formatDateForStorage(new Date(date)),
+                    date: formatDateForManualPayment(date), // ✅ CORRECCIÓN: Usar función específica para zona horaria local
                     description: description,
                     observations: observations
                 });
@@ -520,7 +520,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const updateData = {
                     Referencia: reference,
                     Créditos: numAmount,
-                    Fecha: formatDateForStorage(new Date(date)),
+                    Fecha: formatDateForManualPayment(date), // ✅ CORRECCIÓN: Usar función específica para zona horaria local
                     Descripción: description,
                     Observaciones: observations
                 };
