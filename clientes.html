@@ -765,6 +765,14 @@
     <script src="utils.js"></script>
 
     <script>
+        // Verificar que utils.js se haya cargado correctamente
+        if (typeof formatDateForDB === 'undefined') {
+            console.error('❌ ERROR: formatDateForDB no está disponible. utils.js no se cargó correctamente.');
+            alert('Error: No se pudo cargar utils.js correctamente. Por favor, recarga la página.');
+        } else {
+            console.log('✅ utils.js cargado correctamente - formatDateForDB disponible');
+        }
+        
         const API_URL_CLIENTS = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
         const API_URL_INVOICES = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
         
@@ -1556,6 +1564,17 @@
         }
 
         function generateInvoicesForClient(client) {
+            // Verificar que las funciones necesarias estén disponibles
+            if (typeof formatDateForDB === 'undefined') {
+                throw new Error('formatDateForDB no está disponible. utils.js no se cargó correctamente.');
+            }
+            if (typeof parseDate === 'undefined') {
+                throw new Error('parseDate no está disponible. utils.js no se cargó correctamente.');
+            }
+            if (typeof formatDateForStorage === 'undefined') {
+                throw new Error('formatDateForStorage no está disponible. utils.js no se cargó correctamente.');
+            }
+            
             const invoicesData = [];
             const signDate = parseDate(client.fechaContrato); // Fecha de firma usando parseDate
             const contractStartDate = new Date(signDate);
