@@ -37,9 +37,6 @@ async function initializeApp() {
         // Cargar preferencias de sección guardadas
         loadSectionPreferences();
 
-        // Asegurar que todas las secciones estén abiertas por defecto
-        toggleAllSections(true);
-
         // Mostrar loading
         showLoading(true);
 
@@ -124,9 +121,13 @@ function renderPage() {
         // Actualizar contadores de secciones
         updateSectionCounts();
 
-        // Aplicar visibilidad de secciones
-        updateSectionVisibility();
-        updateControlUI();
+        // Aplicar visibilidad de secciones - COMENTADO PARA MANTENER TODAS ABIERTAS
+        // updateSectionVisibility();
+        // updateControlUI();
+
+        // Asegurar que todas las secciones estén abiertas
+        console.log('🎛️ Aplicando estado de secciones: todas abiertas');
+        toggleAllSections(true);
 
         console.log('✅ Página renderizada completamente');
 
@@ -756,9 +757,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Cargar preferencias de sección
     loadSectionPreferences();
-
-    // Asegurar que todas las secciones estén cerradas por defecto
-    showOnlyActive();
 
     // Inicializar aplicación
     initializeApp();
