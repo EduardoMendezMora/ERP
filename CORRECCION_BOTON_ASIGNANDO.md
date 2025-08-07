@@ -124,9 +124,38 @@ Para el caso mostrado en la imagen:
 
 El proceso ahora debería:
 1. Mostrar "Iniciando asignación de factura..."
-2. Cambiar a "Procesando transacción..."
+2. Cambiar a "Procesando pago bancario..."
 3. Completar la asignación exitosamente
 4. Mostrar "✅ Factura asignada exitosamente"
 5. Cerrar el modal y actualizar la vista
+
+### 🔧 **Corrección Específica Implementada:**
+
+El problema era que el sistema no tenía una rama para manejar pagos bancarios con saldo disponible. Se agregó:
+
+```javascript
+} else if (selectedPaymentForInvoice && selectedPaymentForInvoice.bankSource !== 'PagosManuales') {
+    // NUEVO: Asignar pago bancario con saldo disponible
+    console.log('🎯 Asignando pago bancario con saldo disponible:', {
+        payment: selectedPaymentForInvoice,
+        invoice: currentInvoiceForAssignment.NumeroFactura
+    });
+    
+    // Encontrar el pago en unassignedPayments
+    const payment = unassignedPayments.find(p => 
+        p.Referencia === selectedPaymentForInvoice.reference && 
+        p.BankSource === selectedPaymentForInvoice.bankSource
+    );
+    
+    // Usar la función existente para asignar pagos bancarios
+    await assignPaymentToInvoice(
+        selectedPaymentForInvoice.reference,
+        selectedPaymentForInvoice.bankSource,
+        currentInvoiceForAssignment.NumeroFactura
+    );
+}
+```
+
+Esta corrección permite que los pagos bancarios con saldo disponible (como el 11111111 BAC con ₡25,000) se asignen correctamente a las facturas.
 
 Si hay algún error, el botón se restaurará y se mostrará un mensaje de error específico. 

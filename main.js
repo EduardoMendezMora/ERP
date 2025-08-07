@@ -683,6 +683,36 @@ async function confirmAssignInvoice() {
                 currentInvoiceForAssignment.NumeroFactura
                 // No pasar expectedAmount para que use el disponible del backend
             );
+        } else if (selectedPaymentForInvoice && selectedPaymentForInvoice.bankSource !== 'PagosManuales') {
+            // NUEVO: Asignar pago bancario con saldo disponible
+            console.log('🎯 Asignando pago bancario con saldo disponible:', {
+                payment: selectedPaymentForInvoice,
+                invoice: currentInvoiceForAssignment.NumeroFactura
+            });
+            
+            // Actualizar mensaje de progreso
+            confirmBtn.textContent = '⏳ Procesando pago bancario...';
+            showToast('Procesando pago bancario con saldo disponible...', 'info');
+
+            // Encontrar el pago en unassignedPayments
+            const payment = unassignedPayments.find(p => 
+                p.Referencia === selectedPaymentForInvoice.reference && 
+                p.BankSource === selectedPaymentForInvoice.bankSource
+            );
+            
+            if (!payment) {
+                throw new Error('Pago bancario no encontrado');
+            }
+
+            // Usar la función existente para asignar pagos bancarios
+            await assignPaymentToInvoice(
+                selectedPaymentForInvoice.reference,
+                selectedPaymentForInvoice.bankSource,
+                currentInvoiceForAssignment.NumeroFactura
+            );
+        } else {
+            // No se seleccionó ninguna opción válida
+            throw new Error('No se seleccionó un pago válido para asignar. Por favor, seleccione una transacción bancaria o pago manual.');
         }
 
         closeAssignInvoiceModal();
