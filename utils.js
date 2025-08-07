@@ -169,6 +169,35 @@ function formatDateForDisplay(dateString) {
     }
 }
 
+function formatDateForDB(date) {
+    try {
+        // Si la fecha viene como string, convertirla a Date
+        if (typeof date === 'string') {
+            date = new Date(date);
+        }
+        
+        // Asegurar que la fecha se interprete en zona local
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        const formattedDate = `${year}-${month}-${day}`; // YYYY-MM-DD para base de datos
+        
+        console.log('📅 [DEBUG] formatDateForDB:', {
+            input: date,
+            year,
+            month: date.getMonth() + 1,
+            day: date.getDate(),
+            formatted: formattedDate
+        });
+        
+        return formattedDate;
+    } catch (error) {
+        console.error('Error al formatear fecha para DB:', error);
+        return '';
+    }
+}
+
 function formatDateForStorage(date) {
     try {
         // ✅ CORRECCIÓN: Manejar zona horaria correctamente
