@@ -1171,7 +1171,7 @@
             // Contar por estado
             const pending = clientInvoices.filter(inv => inv.Estado === 'Pendiente');
             const overdue = clientInvoices.filter(inv => inv.Estado === 'Vencido');  
-            const paid = clientInvoices.filter(inv => inv.Estado === 'Pagado');
+            const paid = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
             
                     const totalPending = pending.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
         const totalOverdue = overdue.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);

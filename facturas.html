@@ -95,8 +95,8 @@
                 <div class="control-info">
                     <div class="control-icon">🟢</div>
                     <div class="control-text">
-                        <div class="control-label">Facturas Pagadas</div>
-                        <div class="control-count" id="control-count-paid">0 facturas pagadas</div>
+                                        <div class="control-label">Facturas Canceladas</div>
+                <div class="control-count" id="control-count-paid">0 facturas canceladas</div>
                     </div>
                 </div>
                 <div class="control-toggle active" id="toggle-paid"></div>
@@ -270,22 +270,22 @@
         <div class="invoices-section section-paid" id="paidSection">
             <div class="section-header">
                 <h3 class="section-title">
-                    🟢 Facturas Pagadas
+                    🟢 Facturas Canceladas
                     <span class="section-count" id="paidCount">0</span>
                 </h3>
-                <small style="color: #86868b; font-size: 0.8rem;">Ordenadas por fecha de pago (más recientes primero)</small>
+                <small style="color: #86868b; font-size: 0.8rem;">Ordenadas por fecha de cancelación (más recientes primero)</small>
             </div>
             <div class="search-container">
                 <div class="search-box">
-                    <input type="text" id="searchPaid" placeholder="🔍 Buscar facturas por número, concepto, fecha..." class="search-input">
+                    <input type="text" id="searchPaid" placeholder="🔍 Buscar facturas canceladas por número, concepto, fecha..." class="search-input">
                     <div class="search-clear" id="clearSearchPaid" style="display: none;">✕</div>
                 </div>
                 <div class="search-results" id="searchResultsPaid"></div>
             </div>
             <div class="invoices-grid" id="paidInvoices"></div>
             <div class="empty-section" id="emptyPaid" style="display: none;">
-                <h4>📄 No hay facturas pagadas</h4>
-                <p>Aún no se han registrado pagos</p>
+                <h4>📄 No hay facturas canceladas</h4>
+                <p>Aún no se han cancelado facturas</p>
             </div>
         </div>
     </div>

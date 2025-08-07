@@ -133,7 +133,7 @@ function checkCurrentState() {
     if (window.clientInvoices) {
         const pending = window.clientInvoices.filter(inv => inv.Estado === 'Pendiente');
         const overdue = window.clientInvoices.filter(inv => inv.Estado === 'Vencido');
-        const paid = window.clientInvoices.filter(inv => inv.Estado === 'Pagado');
+        const paid = window.clientInvoices.filter(inv => inv.Estado === 'Cancelado');
         
         console.log('📄 Facturas:');
         console.log('   - Pendientes:', pending.length);

@@ -98,7 +98,7 @@ function renderPage() {
 
         // Clasificar facturas por estado
         const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
-        const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
+        const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
         
         // Obtener las próximas 2 facturas por vencerse
         const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
@@ -382,7 +382,7 @@ function renderAssignPaymentModal(payment) {
         document.getElementById('invoiceOptionsForPayment').innerHTML = `
             <div style="text-align: center; padding: 20px; color: #86868b;">
                 <h4>No hay facturas pendientes o vencidas</h4>
-                <p>Todas las facturas del cliente están pagadas.</p>
+                <p>Todas las facturas del cliente están canceladas.</p>
             </div>
         `;
         return;

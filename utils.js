@@ -780,7 +780,7 @@ function updateControlUI() {
 function updateSectionCounts() {
     // Actualizar contadores en los controles
     const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
-    const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
+            const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
     const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
 
     const counts = {
@@ -788,7 +788,7 @@ function updateSectionCounts() {
         'overdue': `${overdueInvoices.length} facturas vencidas`,
         'upcoming': `${upcomingInvoices.length} próximas facturas`,
         'assigned': `${assignedPayments.length} pagos aplicados`,
-        'paid': `${paidInvoices.length} facturas pagadas`
+                    'paid': `${paidInvoices.length} facturas canceladas`
     };
 
     Object.entries(counts).forEach(([key, text]) => {
@@ -1163,7 +1163,7 @@ const SEARCH_CONFIG = {
         resultsId: 'searchResultsPaid',
         dataSource: 'clientInvoices',
         searchFields: ['NumeroFactura', 'Concepto', 'FechaVencimiento', 'Monto'],
-        filterFunction: (item) => item.Estado === 'Pagado',
+        filterFunction: (item) => item.Estado === 'Cancelado',
         placeholder: 'Buscar facturas por número, concepto, fecha...'
     }
 };

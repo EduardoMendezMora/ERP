@@ -79,7 +79,7 @@ function loadSectionPreferences() {
 - 🔴 Facturas Vencidas  
 - 📅 Facturas No Vencidas
 - ✅ Pagos Aplicados
-- 🟢 Facturas Pagadas
+- 🟢 Facturas Canceladas
 
 ## Beneficios
 1. **Mejor UX**: Los usuarios ven inmediatamente toda la información disponible
