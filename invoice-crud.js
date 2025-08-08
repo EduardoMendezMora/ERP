@@ -129,11 +129,11 @@ function editInvoice(invoiceNumber) {
     // Estado
     document.getElementById('editInvoiceStatus').value = invoice.Estado || 'Pendiente';
 
-    // Fecha de pago (solo si está cancelado)
+    // Fecha de pago (solo si está pagado)
     const paymentDateGroup = document.getElementById('editPaymentDateGroup');
     const paymentDateInput = document.getElementById('editInvoicePaymentDate');
 
-    if (invoice.Estado === 'Cancelado') {
+    if (invoice.Estado === 'Pagado') {
         paymentDateGroup.style.display = 'block';
         paymentDateInput.value = formatDateForInput(invoice.FechaPago);
     } else {
@@ -327,7 +327,7 @@ async function loadClientAndInvoices(clientId) {
         today.setHours(0, 0, 0, 0);
 
         clientAllInvoices.forEach(invoice => {
-            if (invoice.Estado === 'Pendiente') {
+            if (invoice.Estado === 'Pendiente' || invoice.Estado === 'Vencido') {
                 const dueDateStr = invoice.FechaVencimiento;
 
                 if (dueDateStr && dueDateStr !== '' && dueDateStr !== 'undefined') {
@@ -336,12 +336,14 @@ async function loadClientAndInvoices(clientId) {
                     if (dueDate && !isNaN(dueDate)) {
                         dueDate.setHours(0, 0, 0, 0);
 
+                        let newStatus = 'Pendiente';
                         let newDaysOverdue = 0;
                         let newFines = 0;
 
                         if (today >= dueDate) {
                             const diffTime = today.getTime() - dueDate.getTime();
                             newDaysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                            newStatus = 'Vencido';
 
                             // Solo calcular multas para facturas de arrendamiento (NO manuales)
                             const isManualInvoice = invoice.TipoFactura === 'Manual' ||
@@ -359,19 +361,22 @@ async function loadClientAndInvoices(clientId) {
                         invoice.DiasAtraso = newDaysOverdue;
                         invoice.MontoMultas = newFines;
                         invoice.MontoTotal = newTotal;
-                        // Mantener estado como Pendiente, no cambiar a Vencido
+                        invoice.Estado = newStatus;
                     }
                 }
             }
         });
 
-        // Filtrar: mostrar facturas pendientes y canceladas
+        // Filtrar: mostrar facturas pagadas, vencidas y pendientes (incluyendo futuras)
         clientInvoices = clientAllInvoices.filter(inv => {
-            // Mostrar facturas pendientes
-            if (inv.Estado === 'Pendiente') return true;
+            // Si está pagada, mostrarla siempre
+            if (inv.Estado === 'Pagado') return true;
 
-            // Mostrar facturas canceladas
-            if (inv.Estado === 'Cancelado') return true;
+            // Si está vencida (incluye las que vencen hoy), mostrarla
+            if (inv.Estado === 'Vencido') return true;
+
+            // Mostrar pendientes (incluyendo fecha futura) para la sección "Facturas No Vencidas"
+            if (inv.Estado === 'Pendiente') return true;
 
             return false;
         });
@@ -475,20 +480,20 @@ function renderClientDetails() {
     detailsContainer.innerHTML = detailsHtml;
 }
 
-function updateStatsWithoutPending(overdueInvoices, cancelledInvoices) {
+function updateStatsWithoutPending(overdueInvoices, paidInvoices) {
     const totalFines = clientInvoices.reduce((sum, inv) => {
         const fines = parseFloat(inv.MontoMultas || 0);
         return sum + fines;
     }, 0);
 
     // Mostrar estadísticas sin pendientes
-    document.getElementById('statPaid').textContent = cancelledInvoices.length;
+    document.getElementById('statPaid').textContent = paidInvoices.length;
     document.getElementById('statPending').textContent = '0'; // No mostramos pendientes
     document.getElementById('statOverdue').textContent = overdueInvoices.length;
     document.getElementById('statFines').textContent = `₡${totalFines.toLocaleString('es-CR')}`;
 
     console.log('📊 Estadísticas actualizadas (sin pendientes):', {
-        canceladas: cancelledInvoices.length,
+        pagadas: paidInvoices.length,
         vencidas: overdueInvoices.length,
         pendientes: 0,
         multas: totalFines
@@ -568,10 +573,10 @@ function renderInvoicesSection(status, invoices) {
     });
 
     const statusLabels = {
-        'overdue': 'Pendiente',
+        'overdue': 'Vencida',
         'pending': 'Pendiente',
         'upcoming': 'Próxima',
-        'cancelled': 'Cancelado'
+        'paid': 'Pagada'
     };
 
     // Personalizar etiqueta para facturas que vencen hoy
@@ -642,7 +647,7 @@ function renderInvoicesSection(status, invoices) {
         `;
 
         let actionsHtml = '';
-        if (status !== 'cancelled') {
+        if (status !== 'paid') {
             // ===== NUEVO: USAR SISTEMA DE PAGOS DE LA FACTURA =====
             const previousPayments = parseInvoicePayments(invoice.Pagos || '');
             const totalPreviousPayments = previousPayments.reduce((sum, payment) => sum + payment.amount, 0);
@@ -678,10 +683,10 @@ function renderInvoicesSection(status, invoices) {
             `;
         } else {
             const paymentDate = invoice.FechaPago ? formatDateForDisplay(invoice.FechaPago) : 'Fecha no registrada';
-            // Para facturas canceladas, buscar el pago asociado
+            // Para facturas pagadas, buscar el pago asociado
             const associatedPayment = findAssociatedPayment(invoice.NumeroFactura);
 
-            let paymentInfo = `✅ Cancelado: ${paymentDate}`;
+            let paymentInfo = `💰 Pagado: ${paymentDate}`;
             if (associatedPayment) {
                 paymentInfo += `<br><span style="font-size: 0.85rem; color: #666;">Pago: ${associatedPayment.reference} (${associatedPayment.bank})</span>`;
             }
@@ -744,7 +749,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const paymentDateGroup = document.getElementById('editPaymentDateGroup');
             const paymentDateInput = document.getElementById('editInvoicePaymentDate');
 
-            if (this.value === 'Cancelado') {
+            if (this.value === 'Pagado') {
                 paymentDateGroup.style.display = 'block';
                 if (!paymentDateInput.value) {
                     // Establecer fecha actual como fecha de pago por defecto
@@ -785,35 +790,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Validar monto
             const numAmount = parseFloat(amount);
-            if (numAmount < 0) {
-                showToast('El monto no puede ser negativo', 'error');
+            if (numAmount <= 0) {
+                showToast('El monto debe ser mayor a cero', 'error');
                 return;
             }
 
-            // Lógica de cambio automático de estado basado en el monto
-            let finalStatus = status;
-            let finalPaymentDate = paymentDate;
-            
-            // Obtener el monto original de la factura
-            const originalAmount = parseFloat(currentEditingInvoice.MontoBase || 0);
-            
-            if (numAmount === 0) {
-                // Si el monto es 0, automáticamente cambiar el estado a "Cancelado"
-                finalStatus = 'Cancelado';
-                // Si no hay fecha de pago especificada, usar la fecha actual
-                if (!finalPaymentDate) {
-                    finalPaymentDate = new Date().toISOString().split('T')[0];
-                }
-                console.log('💰 Monto 0 detectado: Estado cambiado automáticamente a "Cancelado"');
-            } else if (originalAmount === 0 && numAmount > 0) {
-                // Si el monto original era 0 y ahora es mayor a 0, cambiar a "Pendiente"
-                finalStatus = 'Pendiente';
-                finalPaymentDate = ''; // Limpiar fecha de pago ya que ahora hay saldo pendiente
-                console.log('📝 Monto cambiado de 0 a mayor: Estado cambiado automáticamente a "Pendiente"');
-            }
-
-            // Validar fecha de pago si el estado es "Cancelado"
-            if (finalStatus === 'Cancelado' && !finalPaymentDate) {
+            // Validar fecha de pago si el estado es "Pagado"
+            if (status === 'Pagado' && !paymentDate) {
                 showToast('Debe especificar la fecha de pago', 'error');
                 return;
             }
@@ -829,40 +812,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 const formattedDueDate = formatDateForStorage(new Date(dueDate));
                 const formattedPaymentDate = paymentDate ? formatDateForStorage(new Date(paymentDate)) : '';
 
-                // Calcular multas acumuladas si la factura está vencida (basado en fecha, no estado)
-                let fines = 0;
-                let daysOverdue = 0;
-                
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const dueDateObj = new Date(formattedDueDate);
-                dueDateObj.setHours(0, 0, 0, 0);
-                
-                if (today > dueDateObj) {
-                    const diffTime = today.getTime() - dueDateObj.getTime();
-                    daysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                    
-                    // Solo aplicar multas si no es una factura manual y el estado es Pendiente
-                    const isManualInvoice = currentEditingInvoice.TipoFactura === 'Manual' ||
-                        currentEditingInvoice.NumeroFactura?.startsWith('MAN-') ||
-                        currentEditingInvoice.ConceptoManual;
-                    
-                    if (!isManualInvoice && finalStatus === 'Pendiente') {
-                        fines = daysOverdue * 2000; // ₡2,000 por día
-                    }
-                }
-
                 const updateData = {
                     NumeroFactura: currentEditingInvoice.NumeroFactura,
                     ConceptoManual: concept,
                     DescripcionManual: description,
                     MontoBase: numAmount,
-                    MontoTotal: numAmount + fines, // Monto base + multas acumuladas
-                    MontoMultas: fines,
-                    DiasAtraso: daysOverdue,
+                    MontoTotal: numAmount, // Se recalculará con multas si es necesario
                     FechaVencimiento: formattedDueDate,
-                    Estado: finalStatus,
-                    FechaPago: safeFormatDate(finalPaymentDate),
+                    Estado: status,
+                    FechaPago: safeFormatDate(paymentDate),
                     TipoFactura: currentEditingInvoice.TipoFactura || 'Manual'
                 };
 
@@ -921,8 +879,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Validar monto
             const numAmount = parseFloat(amount);
-            if (numAmount < 0) {
-                showToast('El monto no puede ser negativo', 'error');
+            if (numAmount <= 0) {
+                showToast('El monto debe ser mayor a cero', 'error');
                 return;
             }
 

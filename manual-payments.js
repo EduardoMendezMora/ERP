@@ -653,8 +653,8 @@ async function assignManualPaymentToInvoice(paymentReference, invoiceNumber, amo
         if (amount >= remainingBalance) {
             // Pago completo del saldo restante
             amountToApply = remainingBalance;
-            newStatus = 'Cancelado';
-            console.log('✅ Pago completo - Factura será marcada como CANCELADA');
+            newStatus = 'Pagado';
+            console.log('✅ Pago completo - Factura será marcada como PAGADA');
         } else {
             // Pago parcial
             amountToApply = amount;
@@ -712,11 +712,11 @@ async function assignManualPaymentToInvoice(paymentReference, invoiceNumber, amo
             NumeroFactura: invoiceNumber,
             Estado: newStatus,
             MontoMultas: finesUntilPayment,
-            MontoTotal: newStatus === 'Cancelado' ? 0 : Math.round(newBalance),
+            MontoTotal: newStatus === 'Pagado' ? 0 : Math.round(newBalance),
             Pagos: formattedPayments
         };
 
-        if (newStatus === 'Cancelado') {
+        if (newStatus === 'Pagado') {
             invoiceUpdateData.FechaPago = paymentDate || formatDateForStorage(new Date());
         }
 

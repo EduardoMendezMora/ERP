@@ -1051,7 +1051,7 @@
             let debugCount = 0;
             
             invoices.forEach(invoice => {
-                if (invoice.Estado === 'Pendiente') {
+                if (invoice.Estado === 'Pendiente' || invoice.Estado === 'Vencido') {
                     totalProcessed++;
                     const dueDateStr = invoice.FechaVencimiento;
                     
@@ -1097,15 +1097,15 @@
                     
                     // Comparación directa de fechas (objetos Date)
                     if (today > dueDate) {
-                        // Hoy es DESPUÉS del día de vencimiento = Pendiente con multas
+                        // Hoy es DESPUÉS del día de vencimiento = Vencida
                         const diffTime = today.getTime() - dueDate.getTime();
                         newDaysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                         newFines = newDaysOverdue * 2000;
-                        newStatus = 'Pendiente'; // Mantener como Pendiente, no cambiar a Vencido
+                        newStatus = 'Vencido';
                         totalOverdue++;
                         
                         if (debugCount <= 5) {
-                            console.log(`⚠️ FACTURA PENDIENTE CON MULTA: ${invoice.NumeroFactura}, días: ${newDaysOverdue}`);
+                            console.log(`⚠️ FACTURA VENCIDA: ${invoice.NumeroFactura}, días: ${newDaysOverdue}`);
                         }
                     } else {
                         // Hoy es el día de vencimiento o antes = Pendiente
@@ -1170,10 +1170,11 @@
             
             // Contar por estado
             const pending = clientInvoices.filter(inv => inv.Estado === 'Pendiente');
-            const cancelled = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
+            const overdue = clientInvoices.filter(inv => inv.Estado === 'Vencido');  
+            const paid = clientInvoices.filter(inv => inv.Estado === 'Pagado');
             
                     const totalPending = pending.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
-        const totalCancelled = cancelled.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
+        const totalOverdue = overdue.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
         const totalFines = clientInvoices.reduce((sum, inv) => sum + parseAmount(inv.MontoMultas || 0), 0);
             
             return {
@@ -1182,9 +1183,10 @@
                 summary: {
                     total: clientInvoices.length,
                     pending: pending.length,
-                    cancelled: cancelled.length,
+                    overdue: overdue.length,
+                    paid: paid.length,
                     totalPending,
-                    totalCancelled,
+                    totalOverdue,
                     totalFines
                 }
             };
@@ -1239,12 +1241,16 @@
                             <div class="billing-status">
                                 <div class="billing-summary">
                                     <div class="billing-item">
-                                        <div style="color: #34c759; font-weight: 600;">${s.cancelled}</div>
-                                        <div style="font-size: 0.75rem; color: #86868b;">Canceladas</div>
+                                        <div style="color: #34c759; font-weight: 600;">${s.paid}</div>
+                                        <div style="font-size: 0.75rem; color: #86868b;">Pagadas</div>
                                     </div>
                                     <div class="billing-item">
                                         <div style="color: #ff9500; font-weight: 600;">${s.pending}</div>
                                         <div style="font-size: 0.75rem; color: #86868b;">Pendientes</div>
+                                    </div>
+                                    <div class="billing-item">
+                                        <div style="color: #ff3b30; font-weight: 600;">${s.overdue}</div>
+                                        <div style="font-size: 0.75rem; color: #86868b;">Vencidas</div>
                                     </div>
                                     <div class="billing-item">
                                         <div style="color: #ff3b30; font-weight: 600;">₡${s.totalFines.toLocaleString('es-CR')}</div>

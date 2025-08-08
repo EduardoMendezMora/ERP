@@ -147,7 +147,7 @@ function calculateTotalDebt(invoices, payments) {
     
     // Calcular deuda de facturas
     for (const invoice of invoices) {
-        if (invoice.Estado === 'Cancelado') continue;
+        if (invoice.Estado === 'Pagado') continue;
         
         const baseAmount = parseAmount(invoice.MontoBase || 0);
         const fines = parseAmount(invoice.MontoMultas || 0);
@@ -156,7 +156,7 @@ function calculateTotalDebt(invoices, payments) {
         totalDebt += invoiceTotal;
         totalFines += fines;
         
-        if (invoice.Estado === 'Pendiente' && invoice.DiasAtraso > 0) {
+        if (invoice.Estado === 'Vencido') {
             overdueInvoices++;
         }
         
@@ -200,7 +200,7 @@ function calculateTotalDebt(invoices, payments) {
     totalDebt = Math.max(0, totalDebt);
     
     // Calcular promedio de días de atraso
-    const totalInvoices = invoices.filter(inv => inv.Estado !== 'Cancelado').length;
+    const totalInvoices = invoices.filter(inv => inv.Estado !== 'Pagado').length;
     averageDaysOverdue = totalInvoices > 0 ? Math.round(averageDaysOverdue / totalInvoices) : 0;
     
     return {

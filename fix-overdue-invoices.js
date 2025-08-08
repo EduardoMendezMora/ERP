@@ -162,9 +162,9 @@ function verifyDataConsistency(clientId) {
                 dueDate.setHours(0, 0, 0, 0);
                 
                 const daysDifference = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
-                const expectedStatus = 'Pendiente'; // Solo Pendiente, no Vencido
+                const expectedStatus = daysDifference >= 0 ? 'Vencido' : 'Pendiente';
                 
-                if (invoice.Estado !== expectedStatus && invoice.Estado !== 'Cancelado') {
+                if (invoice.Estado !== expectedStatus && invoice.Estado !== 'Pagado') {
                     inconsistencies.push({
                         invoice: invoice.NumeroFactura,
                         issue: 'Estado inconsistente con fecha',
@@ -177,7 +177,7 @@ function verifyDataConsistency(clientId) {
         }
         
         // Verificar consistencia de multas
-        if (invoice.Estado === 'Pendiente' && invoice.DiasAtraso > 0) {
+        if (invoice.Estado === 'Vencido' && invoice.DiasAtraso > 0) {
             const expectedFines = invoice.DiasAtraso * 2000;
             const actualFines = parseFloat(invoice.MontoMultas || 0);
             
