@@ -40,9 +40,13 @@
         function generateInvoicesForClient(client) {
             const invoicesData = [];
             const signDate = parseDate(client.fechaContrato);
-            const contractStartDate = new Date(signDate);
+            const contractStartDate = signDate; // Usar directamente el Date devuelto por parseDate
             
             addResult(`📅 Fecha de firma: ${client.fechaContrato}`, 'info');
+            addResult(`📅 signDate (parseDate): ${signDate}`, 'info');
+            addResult(`📅 signDate.getFullYear(): ${signDate.getFullYear()}`, 'info');
+            addResult(`📅 contractStartDate: ${contractStartDate}`, 'info');
+            addResult(`📅 contractStartDate.getFullYear(): ${contractStartDate.getFullYear()}`, 'info');
             addResult(`📅 Fecha de inicio contrato: ${formatDateForDB(contractStartDate)}`, 'info');
             
             const weeklyAmount = parseAmount(client.montoContrato);
@@ -55,11 +59,11 @@
 
             for (let week = 1; week <= Math.min(5, totalWeeks); week++) {
                 // Calcular fecha de inicio de la semana
-                const weekStartDate = new Date(contractStartDate);
+                const weekStartDate = new Date(contractStartDate.getTime());
                 weekStartDate.setDate(contractStartDate.getDate() + (week - 1) * 7);
                 
                 // Calcular fecha de fin de la semana
-                const weekEndDate = new Date(weekStartDate);
+                const weekEndDate = new Date(weekStartDate.getTime());
                 weekEndDate.setDate(weekStartDate.getDate() + 6);
                 
                 // Calcular fecha de vencimiento
@@ -80,9 +84,9 @@
                 
                 addResult(`
                     <strong>Semana ${week}:</strong><br>
-                    📅 Inicio: ${formatDateForDB(weekStartDate)}<br>
-                    📅 Fin: ${formatDateForDB(weekEndDate)}<br>
-                    📅 Vencimiento: ${formatDateForStorage(dueDate)}<br>
+                    📅 Inicio: ${formatDateForDB(weekStartDate)} (año: ${weekStartDate.getFullYear()})<br>
+                    📅 Fin: ${formatDateForDB(weekEndDate)} (año: ${weekEndDate.getFullYear()})<br>
+                    📅 Vencimiento: ${formatDateForStorage(dueDate)} (año: ${dueDate.getFullYear()})<br>
                     💰 Monto: ${weeklyAmount}<br>
                     📝 Descripción: ${weekDescription}
                 `, 'success');
@@ -94,13 +98,13 @@
         function getNextPaymentDate(weekEndDate, paymentDay) {
             // Si el día de pago es 0 o no válido, usar el día siguiente al fin de semana
             if (!paymentDay || paymentDay <= 0 || paymentDay > 31) {
-                const dueDate = new Date(weekEndDate);
+                const dueDate = new Date(weekEndDate.getTime());
                 dueDate.setDate(weekEndDate.getDate() + 1);
                 return dueDate;
             }
             
             // Calcular la fecha de vencimiento
-            const dueDate = new Date(weekEndDate);
+            const dueDate = new Date(weekEndDate.getTime());
             
             // Si el día de pago ya pasó en el mes del fin de semana, ir al siguiente mes
             // Comparamos el día actual del mes con el día de pago
