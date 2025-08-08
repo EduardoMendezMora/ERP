@@ -5,7 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ERP - Gestión de Clientes</title>
     <link rel="stylesheet" href="styles.css">
-
+    <script>
+        // Función parseAmount específica para clientes.html (maneja formato Float 1.000.000,00)
+        function parseAmount(amount) {
+            if (!amount) return 0;
+            
+            // Si ya es un número, usarlo directamente
+            if (typeof amount === 'number') {
+                return amount;
+            }
+            
+            // Convertir a string y limpiar
+            const cleanAmount = amount.toString().trim();
+            
+            // Si está vacío, devolver 0
+            if (!cleanAmount) return 0;
+            
+            // Remover caracteres no numéricos excepto punto y coma
+            const numericOnly = cleanAmount.replace(/[^\d.,]/g, '');
+            
+            // Si no hay números, devolver 0
+            if (!numericOnly) return 0;
+            
+            let result;
+            
+            if (numericOnly.includes(',')) {
+                // Formato: "1.000.000,00" -> 1000000.00
+                const normalizedValue = numericOnly.replace(/\./g, '').replace(',', '.');
+                result = parseFloat(normalizedValue) || 0;
+            } else {
+                // Formato: "1000000" o "1.000.000" -> 1000000
+                const normalizedValue = numericOnly.replace(/\./g, '');
+                result = parseFloat(normalizedValue) || 0;
+            }
+            
+            return result;
+        }
+    </script>
     <style>
         * {
             margin: 0;
@@ -725,9 +761,6 @@
         </div>
     </div>
 
-    <!-- Cargar utils.js antes del script principal -->
-    <script src="utils.js"></script>
-
     <script>
         const API_URL_CLIENTS = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
         const API_URL_INVOICES = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
@@ -735,8 +768,8 @@
         let clients = [];
         let invoices = [];
         let vendors = [];
+        let currentClient = null;
         let isEditing = false;
-        let currentClient = null; // Declarar currentClient aquí para evitar conflictos
 
         // Inicializar la aplicación
         document.addEventListener('DOMContentLoaded', function() {
@@ -1018,7 +1051,7 @@
             let debugCount = 0;
             
             invoices.forEach(invoice => {
-                if (invoice.Estado === 'Pendiente' || invoice.Estado === 'Vencido') {
+                if (invoice.Estado === 'Pendiente') {
                     totalProcessed++;
                     const dueDateStr = invoice.FechaVencimiento;
                     
@@ -1064,15 +1097,15 @@
                     
                     // Comparación directa de fechas (objetos Date)
                     if (today > dueDate) {
-                        // Hoy es DESPUÉS del día de vencimiento = Vencida
+                        // Hoy es DESPUÉS del día de vencimiento = Pendiente con multas
                         const diffTime = today.getTime() - dueDate.getTime();
                         newDaysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                         newFines = newDaysOverdue * 2000;
-                        newStatus = 'Vencido';
+                        newStatus = 'Pendiente'; // Mantener como Pendiente, no cambiar a Vencido
                         totalOverdue++;
                         
                         if (debugCount <= 5) {
-                            console.log(`⚠️ FACTURA VENCIDA: ${invoice.NumeroFactura}, días: ${newDaysOverdue}`);
+                            console.log(`⚠️ FACTURA PENDIENTE CON MULTA: ${invoice.NumeroFactura}, días: ${newDaysOverdue}`);
                         }
                     } else {
                         // Hoy es el día de vencimiento o antes = Pendiente
@@ -1136,12 +1169,11 @@
             }
             
             // Contar por estado
-            const pending = clientInvoices.filter(inv => inv.Estado === 'Pendiente' && !isInvoiceOverdue(inv));
-            const overdue = clientInvoices.filter(inv => isInvoiceOverdue(inv));
-            const paid = clientInvoices.filter(inv => inv.Estado === 'Pagado');
+            const pending = clientInvoices.filter(inv => inv.Estado === 'Pendiente');
+            const cancelled = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
             
                     const totalPending = pending.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
-        const totalOverdue = overdue.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
+        const totalCancelled = cancelled.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
         const totalFines = clientInvoices.reduce((sum, inv) => sum + parseAmount(inv.MontoMultas || 0), 0);
             
             return {
@@ -1150,10 +1182,9 @@
                 summary: {
                     total: clientInvoices.length,
                     pending: pending.length,
-                    overdue: overdue.length,
-                    paid: paid.length,
+                    cancelled: cancelled.length,
                     totalPending,
-                    totalOverdue,
+                    totalCancelled,
                     totalFines
                 }
             };
@@ -1208,16 +1239,12 @@
                             <div class="billing-status">
                                 <div class="billing-summary">
                                     <div class="billing-item">
-                                        <div style="color: #34c759; font-weight: 600;">${s.paid}</div>
-                                        <div style="font-size: 0.75rem; color: #86868b;">Pagadas</div>
+                                        <div style="color: #34c759; font-weight: 600;">${s.cancelled}</div>
+                                        <div style="font-size: 0.75rem; color: #86868b;">Canceladas</div>
                                     </div>
                                     <div class="billing-item">
                                         <div style="color: #ff9500; font-weight: 600;">${s.pending}</div>
                                         <div style="font-size: 0.75rem; color: #86868b;">Pendientes</div>
-                                    </div>
-                                    <div class="billing-item">
-                                        <div style="color: #ff3b30; font-weight: 600;">${s.overdue}</div>
-                                        <div style="font-size: 0.75rem; color: #86868b;">Vencidas</div>
                                     </div>
                                     <div class="billing-item">
                                         <div style="color: #ff3b30; font-weight: 600;">₡${s.totalFines.toLocaleString('es-CR')}</div>
@@ -1617,9 +1644,60 @@
             }
         }
 
+        function parseDate(dateString) {
+            if (!dateString) return null;
+            
+            // Detectar si es formato DD/MM/YYYY (como viene de Google Sheets)
+            if (dateString.includes('/')) {
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                    const day = parseInt(parts[0]);
+                    const month = parseInt(parts[1]) - 1; // JavaScript usa meses 0-11
+                    const year = parseInt(parts[2]);
+                    
+                    // Validar que los valores sean razonables
+                    if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 2025) {
+                        return new Date(year, month, day);
+                    }
+                }
+            }
+            
+            // Si es formato YYYY-MM-DD (como formatDateForDB)
+            if (dateString.includes('-')) {
+                const parts = dateString.split('-');
+                if (parts.length === 3) {
+                    const year = parseInt(parts[0]);
+                    const month = parseInt(parts[1]) - 1; // JavaScript usa meses 0-11
+                    const day = parseInt(parts[2]);
+                    
+                    if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 2025) {
+                        return new Date(year, month, day);
+                    }
+                }
+            }
+            
+            console.warn('Fecha no reconocida:', dateString);
+            return null;
+        }
 
+        function formatDateForDisplay(dateString) {
+            const date = parseDate(dateString);
+            return date ? date.toLocaleDateString('es-CR') : dateString;
+        }
 
+        function formatDateForDB(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`; // YYYY-MM-DD para logging/debugging
+        }
 
+        function formatDateForStorage(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${day}/${month}/${year}`; // DD/MM/YYYY para Google Sheets
+        }
 
         // FUNCIÓN MODIFICADA: Ahora redirige a URL externa
         async function viewInvoices(clientId) {
@@ -1941,7 +2019,24 @@
             }
         }
 
+        function showToast(message, type) {
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
 
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('show'), 100);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
 
         // ===== FUNCIONES PARA BÚSQUEDA DE GRUPOS DE WHATSAPP =====
         

@@ -365,16 +365,13 @@ async function loadClientAndInvoices(clientId) {
             }
         });
 
-        // Filtrar: mostrar facturas pendientes, canceladas y pagadas
+        // Filtrar: mostrar facturas pendientes y canceladas
         clientInvoices = clientAllInvoices.filter(inv => {
             // Mostrar facturas pendientes
             if (inv.Estado === 'Pendiente') return true;
 
             // Mostrar facturas canceladas
             if (inv.Estado === 'Cancelado') return true;
-
-            // Mostrar facturas pagadas
-            if (inv.Estado === 'Pagado') return true;
 
             return false;
         });

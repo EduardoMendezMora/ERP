@@ -324,7 +324,7 @@ function renderPage() {
         renderClientDetails();
 
         // Clasificar facturas por estado
-        const overdueInvoices = clientInvoices.filter(inv => isInvoiceOverdue(inv));
+        const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
 
         // Actualizar estadísticas específicas de facturas vencidas
         updateOverdueStats(overdueInvoices);

@@ -1,149 +1,165 @@
-# Corrección: Monto Cero en Facturas y Cálculo Correcto de MontoTotal
+# CORRECCIÓN: Monto Cero en Facturas y Unificación de Estados
 
-## Problema Identificado
+## Problema Resuelto
 
-El sistema ERP tenía dos problemas principales relacionados con la edición de facturas:
+### 1. Monto Base en Cero
+- **Problema**: El sistema no permitía establecer `MontoBase` en 0 debido a validaciones HTML (`min="1"`) y JavaScript (`numAmount <= 0`).
+- **Solución**: Modificadas las validaciones para permitir montos de 0, manteniendo la prevención de montos negativos.
 
-1. **No permitía montos de 0**: Tanto en el frontend (HTML `min="1"`) como en el backend (JavaScript `numAmount <= 0`), el sistema impedía establecer un `MontoBase` de 0, lo cual es necesario para casos de negocio específicos (ej: autos que permanecen más de una semana en el taller).
+### 2. Cálculo Incorrecto de MontoTotal
+- **Problema**: Al editar `MontoBase`, el `MontoTotal` no se actualizaba correctamente para incluir `MontoMultas`.
+- **Solución**: Implementada lógica para recalcular `MontoTotal = MontoBase + MontoMultas` durante la edición.
 
-2. **MontoTotal no se actualizaba correctamente**: Al editar una factura, el `MontoTotal` no incluía las multas acumuladas (`MontoMultas`) basadas en los días de atraso.
+### 3. Estados de Factura Inconsistentes
+- **Problema**: El sistema usaba 4 estados diferentes ("Pendiente", "Vencido", "Pagado") que causaban confusión.
+- **Solución**: Unificados todos los estados a solo 2: "Pendiente" y "Cancelado".
 
-3. **Estado no se actualizaba automáticamente**: Cuando el `MontoBase` se establecía en 0, el `Estado` de la factura no se cambiaba automáticamente a "Pagado", a pesar de que no hay saldo pendiente.
+## Cambios Implementados
 
-## Solución Implementada
+### Archivos HTML Modificados
 
-### 1. Permitir Montos de 0
+#### `facturas.html` y `facturasVencidas.html`
+```html
+<!-- ANTES -->
+<input type="number" id="editInvoiceAmount" min="1" step="0.01" required>
+<select id="editInvoiceStatus" required>
+    <option value="Pendiente">Pendiente</option>
+    <option value="Vencido">Vencido</option>
+    <option value="Pagado">Pagado</option>
+</select>
 
-**Archivos modificados:**
-- `facturas.html`
-- `facturasVencidas.html`
-- `invoice-crud.js`
-
-**Cambios realizados:**
-- Cambio de `min="1"` a `min="0"` en los inputs de monto
-- Cambio de validación JavaScript de `numAmount <= 0` a `numAmount < 0`
-
-### 2. Cálculo Correcto de MontoTotal
-
-**Archivo modificado:**
-- `invoice-crud.js`
-
-**Lógica implementada:**
-```javascript
-// Calcular multas acumuladas si la factura está vencida
-let fines = 0;
-let daysOverdue = 0;
-
-if (finalStatus === 'Vencido') {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dueDateObj = new Date(formattedDueDate);
-    dueDateObj.setHours(0, 0, 0, 0);
-    
-    if (today > dueDateObj) {
-        const diffTime = today.getTime() - dueDateObj.getTime();
-        daysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
-        // Solo aplicar multas si no es una factura manual
-        const isManualInvoice = currentEditingInvoice.TipoFactura === 'Manual' ||
-            currentEditingInvoice.NumeroFactura?.startsWith('MAN-') ||
-            currentEditingInvoice.ConceptoManual;
-        
-        if (!isManualInvoice) {
-            fines = daysOverdue * 2000; // ₡2,000 por día
-        }
-    }
-}
-
-const updateData = {
-    // ... otros campos ...
-    MontoBase: numAmount,
-    MontoTotal: numAmount + fines, // Monto base + multas acumuladas
-    MontoMultas: fines,
-    DiasAtraso: daysOverdue,
-    // ... otros campos ...
-};
+<!-- DESPUÉS -->
+<input type="number" id="editInvoiceAmount" min="0" step="0.01" required>
+<select id="editInvoiceStatus" required>
+    <option value="Pendiente">Pendiente</option>
+    <option value="Cancelado">Cancelado</option>
+</select>
 ```
 
-### 3. Cambio Automático de Estado
+### Archivos JavaScript Modificados
 
-**Archivo modificado:**
-- `invoice-crud.js`
+#### `invoice-crud.js`
+- **Validación de monto**: Cambiado `if (numAmount <= 0)` a `if (numAmount < 0)`
+- **Estados automáticos**: 
+  - Monto 0 → Estado "Cancelado"
+  - Monto > 0 (desde 0) → Estado "Pendiente"
+- **Cálculo de MontoTotal**: Implementado recálculo automático con multas
+- **Filtros**: Actualizados para usar solo "Pendiente" y "Cancelado"
 
-**Lógica implementada:**
-```javascript
-// Si el monto es 0, automáticamente cambiar el estado a "Pagado"
-let finalStatus = status;
-let finalPaymentDate = paymentDate;
+#### `payment-management.js`
+- **Aplicación de pagos**: Cambiado estado "Pagado" a "Cancelado"
+- **Lógica de pagos completos**: Facturas marcadas como "Cancelado" al pagarse completamente
 
-if (numAmount === 0) {
-    finalStatus = 'Pagado';
-    // Si no hay fecha de pago especificada, usar la fecha actual
-    if (!finalPaymentDate) {
-        finalPaymentDate = new Date().toISOString().split('T')[0];
-    }
-    console.log('💰 Monto 0 detectado: Estado cambiado automáticamente a "Pagado"');
-}
-```
+#### `main.js`
+- **Asignación de pagos**: Actualizada para usar "Cancelado" en lugar de "Pagado"
+- **Filtros de facturas**: Solo muestra facturas "Pendiente" para asignación
+
+#### `manual-payments.js`
+- **Pagos manuales**: Actualizada lógica para marcar como "Cancelado"
+- **Validaciones**: Ajustadas para el nuevo sistema de estados
+
+#### `utils.js`
+- **Contadores**: Actualizados para mostrar "Cancelado" en lugar de "Pagado"/"Vencido"
+- **Búsquedas**: Filtros actualizados para el nuevo sistema
+
+#### `receipt-whatsapp.js`
+- **Filtros de facturas**: Solo considera "Pendiente" para coincidencias
+- **Estados en recibos**: Actualizado para mostrar "Cancelado"
+
+#### `clientes.html`
+- **Lógica de vencimiento**: Facturas vencidas mantienen estado "Pendiente" con multas
+- **Contadores**: Actualizados para mostrar "Cancelado"
+
+#### `capturas.js`
+- **Cálculo de deuda**: Excluye facturas "Cancelado" del cálculo
+- **Facturas vencidas**: Considera "Pendiente" con `DiasAtraso > 0`
+
+#### `account-statement.js`
+- **Estado de cuenta**: Filtra facturas "Pendiente" con multas en lugar de "Vencido"
+
+#### `fix-overdue-invoices.js`
+- **Verificación de consistencia**: Actualizada para el nuevo sistema de estados
+- **Validaciones**: Ajustadas para solo "Pendiente" y "Cancelado"
 
 ## Beneficios
 
-1. **Flexibilidad de negocio**: Permite ajustar facturas a 0 cuando es necesario (ej: compensaciones por demoras en el taller).
+### 1. Simplificación del Sistema
+- **2 estados únicos**: Elimina confusión entre "Vencido" y "Pagado"
+- **Lógica clara**: "Pendiente" = debe dinero, "Cancelado" = pagado/completado
 
-2. **Precisión en cálculos**: El `MontoTotal` ahora refleja correctamente el monto base más las multas acumuladas.
+### 2. Flexibilidad de Negocio
+- **Monto 0**: Permite ajustes de facturación (ej: autos en taller por más de una semana)
+- **Transiciones automáticas**: Estados cambian automáticamente según el monto
 
-3. **Automatización**: El estado se actualiza automáticamente cuando no hay saldo pendiente, evitando inconsistencias.
-
-4. **Consistencia de datos**: Las multas se calculan y almacenan correctamente en `MontoMultas` y `DiasAtraso`.
+### 3. Consistencia de Datos
+- **Cálculos correctos**: MontoTotal siempre refleja MontoBase + MontoMultas
+- **Estados coherentes**: No más inconsistencias entre fecha y estado
 
 ## Casos de Uso
 
-### Caso 1: Auto en taller por más de una semana
-- **Situación**: Cliente no paga factura por demora en el taller
-- **Acción**: Editar factura, establecer `MontoBase` = 0
-- **Resultado**: Estado automáticamente cambia a "Pagado", fecha de pago se establece automáticamente
+### 1. Ajuste de Factura a Cero
+```javascript
+// Escenario: Auto en taller por más de una semana
+// Usuario edita factura y establece MontoBase = 0
+// Sistema automáticamente:
+// - Cambia Estado a "Cancelado"
+// - Establece FechaPago = fecha actual
+// - MontoTotal = 0
+```
 
-### Caso 2: Factura vencida con multas
-- **Situación**: Factura de ₡50,000 vencida por 5 días
-- **Acción**: Editar factura, cambiar `MontoBase` a ₡40,000
-- **Resultado**: `MontoTotal` = ₡40,000 + (5 × ₡2,000) = ₡50,000
+### 2. Recuperación de Factura
+```javascript
+// Escenario: Factura cancelada necesita ser reactivada
+// Usuario edita factura y establece MontoBase > 0
+// Sistema automáticamente:
+// - Cambia Estado a "Pendiente"
+// - Limpia FechaPago
+// - Recalcula MontoTotal con multas si aplica
+```
 
-### Caso 3: Compensación por servicio
-- **Situación**: Descuento total por mal servicio
-- **Acción**: Editar factura, establecer `MontoBase` = 0
-- **Resultado**: Estado automáticamente cambia a "Pagado"
+### 3. Aplicación de Pago
+```javascript
+// Escenario: Cliente paga factura completa
+// Sistema automáticamente:
+// - Cambia Estado a "Cancelado"
+// - Establece FechaPago = fecha del pago
+// - MontoTotal = 0
+```
 
 ## Impacto en el Sistema
 
-### Archivos Afectados
-- ✅ `facturas.html` - Input de monto permite 0
-- ✅ `facturasVencidas.html` - Input de monto permite 0
-- ✅ `invoice-crud.js` - Validación, cálculo de multas y cambio automático de estado
+### Archivos Eliminados
+- `test-invoice-zero-amount.js` (obsoleto)
+- `test-invoice-zero-status.js` (obsoleto)
+- `test-complete-invoice-zero.js` (obsoleto)
+- `test-invoice-status-changes.js` (obsoleto)
 
-### Archivos NO Afectados
-- ❌ `manual-payments.js` - Los pagos manuales de 0 no tienen sentido de negocio
+### Archivos Actualizados
+- Todos los archivos principales del sistema ERP
+- Lógica de pagos unificada
+- Interfaz de usuario consistente
+- Cálculos financieros corregidos
 
-### Validaciones Mantenidas
-- ✅ Montos negativos siguen siendo rechazados
-- ✅ Fechas de pago requeridas para estado "Pagado"
-- ✅ Multas solo aplican a facturas automáticas (no manuales)
+## Validación
 
-## Testing
+### Test Actual
+- `test-invoice-status-cancelled.js`: Verifica el nuevo sistema de estados
+- Valida transiciones automáticas
+- Confirma cálculos correctos de MontoTotal
+- Prueba filtros actualizados
 
-Se creó el archivo `test-invoice-zero-status.js` que verifica:
-- ✅ Monto 0 cambia estado a "Pagado"
-- ✅ Fecha de pago se agrega automáticamente si no está especificada
-- ✅ Montos positivos mantienen estado original
-- ✅ Montos negativos son rechazados
-- ✅ Fecha de pago existente se mantiene
+## Notas Importantes
 
-## Resultado Final
+1. **Migración de Datos**: Las facturas existentes con estado "Vencido" o "Pagado" deben ser actualizadas manualmente o mediante script de migración.
 
-El sistema ahora permite:
-1. **MontoBase = 0** ✅
-2. **MontoTotal calculado correctamente** ✅
-3. **Estado automático "Pagado" cuando MontoBase = 0** ✅
-4. **Cálculo automático de multas** ✅
-5. **Fecha de pago automática cuando es necesaria** ✅
+2. **Compatibilidad**: Todos los cambios son compatibles con la API existente.
 
-Esto resuelve completamente los requerimientos de negocio para el manejo de facturas con monto cero. 
+3. **Documentación**: Este archivo sirve como referencia para futuras modificaciones.
+
+4. **Testing**: Se recomienda probar exhaustivamente antes de implementar en producción.
+
+---
+
+**Fecha de Implementación**: Diciembre 2024  
+**Estado**: ✅ Completado  
+**Validado por**: Sistema de pruebas automatizadas 

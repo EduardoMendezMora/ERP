@@ -258,21 +258,6 @@ function formatDateForManualPayment(dateInput) {
     }
 }
 
-function formatDateForDB(date) {
-    try {
-        if (typeof date === 'string') { date = new Date(date); }
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const formattedDate = `${year}-${month}-${day}`;
-        console.log('📅 [DEBUG] formatDateForDB:', { input: date, year, month: date.getMonth() + 1, day: date.getDate(), formatted: formattedDate });
-        return formattedDate;
-    } catch (error) {
-        console.error('Error al formatear fecha para DB:', error);
-        return '';
-    }
-}
-
 // ===== FUNCIONES DE CÁLCULO DE MULTAS =====
 function calculateFinesUntilDate(invoice, targetDate) {
     const dueDateStr = invoice.FechaVencimiento;
@@ -792,79 +777,17 @@ function updateControlUI() {
     });
 }
 
-// ===== FUNCIÓN PARA DETERMINAR SI UNA FACTURA ESTÁ VENCIDA =====
-function isInvoiceOverdue(invoice) {
-    if (invoice.Estado !== 'Pendiente') {
-        return false;
-    }
-    
-    const dueDate = parseDate(invoice.FechaVencimiento);
-    if (!dueDate) {
-        return false;
-    }
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    dueDate.setHours(0, 0, 0, 0);
-    
-    return dueDate <= today;
-}
-
-// ===== FUNCIÓN PARA OBTENER FACTURAS PRÓXIMAS =====
-function getUpcomingInvoices(invoices, limit = 2) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Resetear a inicio del día
-    
-    // Filtrar facturas pendientes que vencen en el futuro
-    const futureInvoices = invoices.filter(inv => {
-        if (inv.Estado !== 'Pendiente') return false;
-        
-        const dueDate = parseDate(inv.FechaVencimiento);
-        if (!dueDate) return false;
-        
-        return dueDate > today;
-    });
-    
-    // Ordenar por fecha de vencimiento (ascendente) y tomar las primeras 'limit'
-    const sortedInvoices = futureInvoices.sort((a, b) => {
-        const dateA = parseDate(a.FechaVencimiento);
-        const dateB = parseDate(b.FechaVencimiento);
-        
-        if (dateA && dateB) {
-            return dateA.getTime() - dateB.getTime();
-        }
-        return 0;
-    });
-    
-    return sortedInvoices.slice(0, limit);
-}
-
-// Hacer la función disponible globalmente inmediatamente
-window.getUpcomingInvoices = getUpcomingInvoices;
-
 function updateSectionCounts() {
-    // Verificar que las variables necesarias estén disponibles
-    if (!Array.isArray(clientInvoices)) {
-        console.log('⚠️ clientInvoices no está disponible, saltando updateSectionCounts');
-        return;
-    }
-    
-    if (typeof getUpcomingInvoices !== 'function') {
-        console.log('⚠️ getUpcomingInvoices no está disponible, saltando updateSectionCounts');
-        return;
-    }
-    
     // Actualizar contadores en los controles
-    const overdueInvoices = clientInvoices.filter(inv => isInvoiceOverdue(inv));
-    const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
+    const cancelledInvoices = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
     const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
 
     const counts = {
         'unassigned': `${unassignedPayments.length} pagos pendientes`,
-        'overdue': `${overdueInvoices.length} facturas vencidas`,
+        'overdue': `${cancelledInvoices.length} facturas canceladas`,
         'upcoming': `${upcomingInvoices.length} próximas facturas`,
         'assigned': `${assignedPayments.length} pagos aplicados`,
-        'paid': `${paidInvoices.length} facturas pagadas`
+        'paid': `${cancelledInvoices.length} facturas canceladas`
     };
 
     Object.entries(counts).forEach(([key, text]) => {
@@ -953,8 +876,7 @@ function debugInvoices() {
     // Agrupar por estado
     const byStatus = {
         'Pendiente': [],
-        'Vencido': [],
-        'Pagado': []
+        'Cancelado': []
     };
     
     clientInvoices.forEach(inv => {
@@ -1077,55 +999,21 @@ window.debugControlVisualState = debugControlVisualState;
 function showDefaultActiveSections() {
     console.log('🎛️ Configurando secciones - TODAS OCULTAS POR DEFECTO...');
     
-    try {
-        // Verificar si los elementos de sección existen en esta página
-        const sectionMap = {
-            'unassigned': 'unassignedPaymentsSection',
-            'overdue': 'overdueSection',
-            'upcoming': 'upcomingSection',
-            'assigned': 'assignedPaymentsSection',
-            'paid': 'paidSection'
-        };
-        
-        const hasSectionElements = Object.values(sectionMap).some(id => document.getElementById(id));
-        
-        if (!hasSectionElements) {
-            console.log('ℹ️ No se encontraron elementos de sección en esta página, saltando configuración de secciones');
-            return;
-        }
-        
-        // Mantener todas las secciones ocultas
-        Object.keys(sectionVisibility).forEach(key => {
-            sectionVisibility[key] = false;
-        });
-        
-        // NO mostrar automáticamente ninguna sección
-        // El usuario debe activarlas manualmente con los controles
-        
-        // Aplicar cambios visuales de forma segura
-        if (typeof updateSectionVisibility === 'function') {
-            updateSectionVisibility();
-        } else {
-            console.log('⚠️ updateSectionVisibility no está disponible');
-        }
-        
-        if (typeof updateControlUI === 'function') {
-            updateControlUI();
-        } else {
-            console.log('⚠️ updateControlUI no está disponible');
-        }
-        
-        if (typeof updateSectionCounts === 'function') {
-            updateSectionCounts();
-        } else {
-            console.log('⚠️ updateSectionCounts no está disponible');
-        }
-        
-        console.log('🎛️ Estado final de secciones (todas ocultas):', sectionVisibility);
-        console.log('💡 Usa los controles para mostrar las secciones que necesites');
-    } catch (error) {
-        console.error('❌ Error en showDefaultActiveSections:', error);
-    }
+    // Mantener todas las secciones ocultas
+    Object.keys(sectionVisibility).forEach(key => {
+        sectionVisibility[key] = false;
+    });
+    
+    // NO mostrar automáticamente ninguna sección
+    // El usuario debe activarlas manualmente con los controles
+    
+    // Aplicar cambios visuales
+    updateSectionVisibility();
+    updateControlUI();
+    updateSectionCounts();
+    
+    console.log('🎛️ Estado final de secciones (todas ocultas):', sectionVisibility);
+    console.log('💡 Usa los controles para mostrar las secciones que necesites');
 }
 
 // ===== FUNCIÓN DE DEBUG PARA PROBAR CONTROLES =====
@@ -1201,14 +1089,6 @@ function setupControlEventListeners() {
     
     const sections = ['unassigned', 'overdue', 'upcoming', 'assigned', 'paid'];
     
-    // Verificar si hay al menos un control en esta página
-    const hasControls = sections.some(section => document.getElementById(`control-${section}`));
-    
-    if (!hasControls) {
-        console.log('ℹ️ No se encontraron controles de sección en esta página, saltando configuración de event listeners');
-        return;
-    }
-    
     sections.forEach(section => {
         const controlItem = document.getElementById(`control-${section}`);
         
@@ -1249,7 +1129,7 @@ const SEARCH_CONFIG = {
         resultsId: 'searchResultsOverdue',
         dataSource: 'clientInvoices',
         searchFields: ['NumeroFactura', 'Concepto', 'FechaVencimiento', 'Monto'],
-        filterFunction: (item) => item.Estado === 'Vencido',
+        filterFunction: (item) => item.Estado === 'Cancelado',
         placeholder: 'Buscar facturas por número, concepto, fecha...'
     },
     upcoming: {
@@ -1281,7 +1161,7 @@ const SEARCH_CONFIG = {
         resultsId: 'searchResultsPaid',
         dataSource: 'clientInvoices',
         searchFields: ['NumeroFactura', 'Concepto', 'FechaVencimiento', 'Monto'],
-        filterFunction: (item) => item.Estado === 'Pagado',
+        filterFunction: (item) => item.Estado === 'Cancelado',
         placeholder: 'Buscar facturas por número, concepto, fecha...'
     }
 };
@@ -1446,16 +1326,6 @@ function clearSearch(sectionKey) {
 // Función para configurar event listeners de búsqueda
 function setupSearchEventListeners() {
     console.log('🔧 Configurando event listeners de búsqueda...');
-    
-    // Verificar si hay al menos un elemento de búsqueda en esta página
-    const hasSearchElements = Object.values(SEARCH_CONFIG).some(config => 
-        document.getElementById(config.inputId) || document.getElementById(config.clearId)
-    );
-    
-    if (!hasSearchElements) {
-        console.log('ℹ️ No se encontraron elementos de búsqueda en esta página, saltando configuración de event listeners de búsqueda');
-        return;
-    }
     
     Object.keys(SEARCH_CONFIG).forEach(sectionKey => {
         const config = SEARCH_CONFIG[sectionKey];
@@ -1885,13 +1755,10 @@ window.formatDateForDisplay = formatDateForDisplay;
 window.formatDateForStorage = formatDateForStorage;
 window.formatDateForInput = formatDateForInput;
 window.formatDateForManualPayment = formatDateForManualPayment;
-window.formatDateForDB = formatDateForDB;
 
 // Funciones de cálculo
 window.calculateFinesUntilDate = calculateFinesUntilDate;
 window.calculateDaysOverdue = calculateDaysOverdue;
-window.isInvoiceOverdue = isInvoiceOverdue;
-window.getUpcomingInvoices = getUpcomingInvoices;
 
 // Funciones de detección
 window.isClientIdInObservations = isClientIdInObservations;
@@ -1986,36 +1853,19 @@ console.log('✅ utils.js cargado - Funciones utilitarias disponibles');
 
 // Ejecutar sincronización inicial después de cargar
 setTimeout(() => {
-    try {
-        ensureVariableSync();
-        console.log('🔄 Sincronización inicial ejecutada');
-        
-        // Verificar que las funciones necesarias estén disponibles antes de continuar
-        if (typeof showDefaultActiveSections === 'function') {
-            // Configurar secciones activas por defecto
-            showDefaultActiveSections();
-        } else {
-            console.log('⚠️ showDefaultActiveSections no está disponible');
-        }
-        
-        if (typeof setupControlEventListeners === 'function') {
-            // Configurar event listeners para controles
-            setupControlEventListeners();
-        } else {
-            console.log('⚠️ setupControlEventListeners no está disponible');
-        }
-        
-        if (typeof setupSearchEventListeners === 'function') {
-            // Configurar event listeners de búsqueda
-            setupSearchEventListeners();
-        } else {
-            console.log('⚠️ setupSearchEventListeners no está disponible');
-        }
-        
-        // Verificar que todo está funcionando (sin cambiar visibilidad)
-        console.log('🔍 Verificando estado de controles...');
-        console.log('📊 Estado actual de secciones:', sectionVisibility);
-    } catch (error) {
-        console.error('❌ Error durante la inicialización:', error);
-    }
+    ensureVariableSync();
+    console.log('🔄 Sincronización inicial ejecutada');
+    
+    // Configurar secciones activas por defecto
+    showDefaultActiveSections();
+    
+    // Configurar event listeners para controles
+    setupControlEventListeners();
+    
+    // Configurar event listeners de búsqueda
+    setupSearchEventListeners();
+    
+    // Verificar que todo está funcionando (sin cambiar visibilidad)
+    console.log('🔍 Verificando estado de controles...');
+    console.log('📊 Estado actual de secciones:', sectionVisibility);
 }, 1000);

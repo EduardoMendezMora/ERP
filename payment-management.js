@@ -75,8 +75,8 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
         }
 
         // Verificar si hay facturas vencidas del mismo cliente que podrían pagarse
-        const overdueInvoices = clientInvoices.filter(inv => 
-            isInvoiceOverdue(inv) &&
+        const overdueInvoices = clientInvoices.filter(inv =>
+            inv.Estado === 'Vencido' &&
             inv.NumeroFactura !== invoiceNumber
         );
 
@@ -124,12 +124,12 @@ async function applySinglePayment(payment, invoice, availableAmount) {
         if (availableAmount >= totalOwedUntilPayment) {
             // Pago completo
             amountToApply = totalOwedUntilPayment;
-            newStatus = 'Pagado';
-            console.log('✅ Pago completo - Factura será marcada como PAGADA');
+            newStatus = 'Cancelado';
+            console.log('✅ Pago completo - Factura será marcada como CANCELADA');
         } else {
             // Pago parcial
             amountToApply = availableAmount;
-            newStatus = invoice.Estado; // Mantener estado actual (Pendiente/Vencido)
+            newStatus = invoice.Estado; // Mantener estado actual (Pendiente)
             newBalance = totalOwedUntilPayment - amountToApply;
             console.log(`⚠️ Pago parcial - Saldo restante: ₡${newBalance.toLocaleString('es-CR')}`);
         }
@@ -165,7 +165,7 @@ async function applySinglePayment(payment, invoice, availableAmount) {
             Pagos: formattedPayments // ✅ CRÍTICO: Agregar el campo Pagos
         };
 
-        if (newStatus === 'Pagado') {
+        if (newStatus === 'Cancelado') {
             // Guardar la fecha de la transacción bancaria exactamente como viene
             updateData.FechaPago = payment.Fecha || '';
         }
@@ -399,8 +399,8 @@ function updateDistributionCalculation(index) {
     if (assignedAmount === 0) {
         resultText = 'No se aplicará pago a esta factura';
     } else if (assignedAmount >= item.totalOwed) {
-        newStatus = 'Pagado';
-        resultText = `✅ Factura será marcada como PAGADA`;
+        newStatus = 'Cancelado';
+        resultText = `✅ Factura será marcada como CANCELADA`;
         resultColor = '#34c759';
 
         if (assignedAmount > item.totalOwed) {
@@ -514,7 +514,7 @@ async function confirmPaymentDistribution() {
             let newBalance = totalOwed - amountApplied;
 
             if (amountApplied >= totalOwed) {
-                newStatus = 'Pagado';
+                newStatus = 'Cancelado';
                 newBalance = 0;
             }
 
@@ -524,7 +524,7 @@ async function confirmPaymentDistribution() {
                 MontoTotal: newBalance > 0 ? newBalance : totalOwed
             };
 
-            if (newStatus === 'Pagado') {
+            if (newStatus === 'Cancelado') {
                 // Guardar la fecha de la transacción bancaria exactamente como viene
                 updateData.FechaPago = currentPaymentForDistribution.Fecha || '';
             }

@@ -97,19 +97,18 @@ function renderPage() {
         renderClientDetails();
 
         // Clasificar facturas por estado
-        const overdueInvoices = clientInvoices.filter(inv => isInvoiceOverdue(inv));
-        const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
+        const cancelledInvoices = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
         
         // Obtener las próximas 2 facturas por vencerse
         const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
 
         // Actualizar estadísticas
-        updateStatsWithoutPending(overdueInvoices, paidInvoices);
+        updateStatsWithoutPending(cancelledInvoices);
 
         // Renderizar secciones de facturas
-        renderInvoicesSection('overdue', overdueInvoices);
+        renderInvoicesSection('overdue', cancelledInvoices);
         renderInvoicesSection('upcoming', upcomingInvoices);
-        renderInvoicesSection('paid', paidInvoices);
+        renderInvoicesSection('paid', cancelledInvoices);
 
         // Renderizar secciones de pagos
         renderUnassignedPaymentsSection();
@@ -375,14 +374,14 @@ function renderAssignPaymentModal(payment) {
 
     // Opciones de facturas
     const eligibleInvoices = clientInvoices.filter(inv =>
-        inv.Estado === 'Pendiente' || inv.Estado === 'Vencido'
+        inv.Estado === 'Pendiente'
     );
 
     if (eligibleInvoices.length === 0) {
         document.getElementById('invoiceOptionsForPayment').innerHTML = `
             <div style="text-align: center; padding: 20px; color: #86868b;">
-                <h4>No hay facturas pendientes o vencidas</h4>
-                <p>Todas las facturas del cliente están pagadas.</p>
+                <h4>No hay facturas pendientes</h4>
+                <p>Todas las facturas del cliente están canceladas.</p>
             </div>
         `;
         return;
@@ -1446,8 +1445,8 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         if (availableAmount >= remainingBalance) {
             // Pago completo del saldo restante
             amountToApply = remainingBalance;
-            newStatus = 'Pagado';
-            console.log('✅ Pago completo - Factura será marcada como PAGADA');
+            newStatus = 'Cancelado';
+            console.log('✅ Pago completo - Factura será marcada como CANCELADA');
         } else {
             // Pago parcial
             amountToApply = availableAmount;
@@ -1493,11 +1492,11 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         const updateData = {
             Estado: newStatus,
             MontoMultas: finesUntilTransaction,
-            MontoTotal: newStatus === 'Pagado' ? 0 : Math.round(newBalance), // Asegurar que sea número entero
+            MontoTotal: newStatus === 'Cancelado' ? 0 : Math.round(newBalance), // Asegurar que sea número entero
             Pagos: formattedPayments
         };
 
-        if (newStatus === 'Pagado') {
+        if (newStatus === 'Cancelado') {
             updateData.FechaPago = transactionDate || '';
         }
 
