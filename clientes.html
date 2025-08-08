@@ -761,25 +761,14 @@
         </div>
     </div>
 
-    <!-- Cargar utils.js antes del script principal -->
-    <script src="utils.js"></script>
-
     <script>
-        // Verificar que utils.js se haya cargado correctamente
-        if (typeof formatDateForDB === 'undefined') {
-            console.error('❌ ERROR: formatDateForDB no está disponible. utils.js no se cargó correctamente.');
-            alert('Error: No se pudo cargar utils.js correctamente. Por favor, recarga la página.');
-        } else {
-            console.log('✅ utils.js cargado correctamente - formatDateForDB disponible');
-        }
-        
         const API_URL_CLIENTS = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
         const API_URL_INVOICES = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
         
         let clients = [];
         let invoices = [];
         let vendors = [];
-        // currentClient ya está declarado en utils.js
+        let currentClient = null;
         let isEditing = false;
 
         // Inicializar la aplicación
@@ -1062,7 +1051,7 @@
             let debugCount = 0;
             
             invoices.forEach(invoice => {
-                if (invoice.Estado === 'Pendiente') {
+                if (invoice.Estado === 'Pendiente' || invoice.Estado === 'Vencido') {
                     totalProcessed++;
                     const dueDateStr = invoice.FechaVencimiento;
                     
@@ -1180,9 +1169,9 @@
             }
             
             // Contar por estado
-                            const pending = clientInvoices.filter(inv => inv.Estado === 'Pendiente' && !isInvoiceOverdue(inv));
-                const overdue = clientInvoices.filter(inv => isInvoiceOverdue(inv));  
-                const paid = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
+            const pending = clientInvoices.filter(inv => inv.Estado === 'Pendiente');
+            const overdue = clientInvoices.filter(inv => inv.Estado === 'Vencido');  
+            const paid = clientInvoices.filter(inv => inv.Estado === 'Pagado');
             
                     const totalPending = pending.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
         const totalOverdue = overdue.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
@@ -1396,7 +1385,10 @@
             
                 const totalPending = invoices
                     .filter(inv => {
-                        // Incluir facturas pendientes que ya vencieron
+                        // Incluir facturas con estado "Vencido" O facturas pendientes que ya vencieron
+                        if (inv.Estado === 'Vencido') return true;
+                        
+                        // Verificar si es una factura pendiente que ya venció
                         if (inv.Estado === 'Pendiente' && inv.FechaVencimiento) {
                             const fechaVencimiento = parseDate(inv.FechaVencimiento);
                             const hoy = new Date();
@@ -1429,7 +1421,7 @@
             console.log('Total facturas cargadas:', invoices.length);
             
             // Verificar facturas vencidas por estado
-            const facturasVencidasPorEstado = invoices.filter(inv => isInvoiceOverdue(inv));
+            const facturasVencidasPorEstado = invoices.filter(inv => inv.Estado === 'Vencido');
             console.log('Facturas con estado "Vencido":', facturasVencidasPorEstado.length);
             
             // Verificar facturas pendientes que ya vencieron
@@ -1564,32 +1556,17 @@
         }
 
         function generateInvoicesForClient(client) {
-            // Verificar que las funciones necesarias estén disponibles
-            if (typeof formatDateForDB === 'undefined') {
-                throw new Error('formatDateForDB no está disponible. utils.js no se cargó correctamente.');
-            }
-            if (typeof parseDate === 'undefined') {
-                throw new Error('parseDate no está disponible. utils.js no se cargó correctamente.');
-            }
-            if (typeof formatDateForStorage === 'undefined') {
-                throw new Error('formatDateForStorage no está disponible. utils.js no se cargó correctamente.');
-            }
-            
             const invoicesData = [];
             const signDate = parseDate(client.fechaContrato); // Fecha de firma usando parseDate
-            const contractStartDate = signDate; // Usar directamente el Date devuelto por parseDate
-            // El contrato inicia el mismo día de la firma, no un día después
+            const contractStartDate = new Date(signDate);
+            contractStartDate.setDate(signDate.getDate() + 1); // Contrato inicia un día después
             
             console.log(`Fecha de firma: ${client.fechaContrato}`);
-            console.log(`signDate (parseDate): ${signDate}`);
-            console.log(`signDate.getFullYear(): ${signDate.getFullYear()}`);
-            console.log(`contractStartDate: ${contractStartDate}`);
-            console.log(`contractStartDate.getFullYear(): ${contractStartDate.getFullYear()}`);
             console.log(`Fecha de inicio contrato: ${formatDateForDB(contractStartDate)}`);
             
             const weeklyAmount = parseAmount(client.montoContrato);
             const totalWeeks = parseInt(client.plazoContrato);
-            const paymentDay = parseInt(client.diaPago);
+            const paymentDay = client.diaPago;
             
             // Obtener el último número de factura para generar consecutivos
             let lastInvoiceNumber = 0;
@@ -1604,14 +1581,14 @@
 
             for (let week = 1; week <= totalWeeks; week++) {
                 // Calcular fecha de inicio de la semana (desde el día que inicia el contrato)
-                const weekStartDate = new Date(contractStartDate.getTime());
+                const weekStartDate = new Date(contractStartDate);
                 weekStartDate.setDate(contractStartDate.getDate() + (week - 1) * 7);
                 
                 // Calcular fecha de fin de la semana
-                const weekEndDate = new Date(weekStartDate.getTime());
+                const weekEndDate = new Date(weekStartDate);
                 weekEndDate.setDate(weekStartDate.getDate() + 6);
                 
-                // Calcular fecha de vencimiento usando el día de pago del cliente
+                // Calcular fecha de vencimiento (un día después del fin de semana)
                 const dueDate = getNextPaymentDate(weekEndDate, paymentDay);
                 
                 // Generar descripción de la semana
@@ -1644,34 +1621,9 @@
         }
 
         function getNextPaymentDate(weekEndDate, paymentDay) {
-            // Calcular la fecha de vencimiento basada en el día de pago del cliente
-            // La fecha de vencimiento debe ser el día de pago después del fin de semana
-            
-            // Si el día de pago es 0 o no válido, usar el día siguiente al fin de semana
-            if (!paymentDay || paymentDay <= 0 || paymentDay > 31) {
-                const dueDate = new Date(weekEndDate.getTime());
-                dueDate.setDate(weekEndDate.getDate() + 1);
-                return dueDate;
-            }
-            
-            // Calcular la fecha de vencimiento
-            const dueDate = new Date(weekEndDate.getTime());
-            
-            // Si el día de pago ya pasó en el mes del fin de semana, ir al siguiente mes
-            // Comparamos el día actual del mes con el día de pago
-            if (dueDate.getDate() > paymentDay) {
-                dueDate.setMonth(dueDate.getMonth() + 1);
-            }
-            
-            // Establecer el día de pago
-            dueDate.setDate(paymentDay);
-            
-            console.log(`📅 [DEBUG] getNextPaymentDate:`, {
-                weekEndDate: formatDateForDB(weekEndDate),
-                paymentDay: paymentDay,
-                dueDate: formatDateForDB(dueDate)
-            });
-            
+            // La fecha de vencimiento es simplemente un día después del fin de semana
+            const dueDate = new Date(weekEndDate);
+            dueDate.setDate(weekEndDate.getDate() + 1);
             return dueDate;
         }
 
@@ -1698,7 +1650,60 @@
             }
         }
 
-        // Date functions are available from utils.js
+        function parseDate(dateString) {
+            if (!dateString) return null;
+            
+            // Detectar si es formato DD/MM/YYYY (como viene de Google Sheets)
+            if (dateString.includes('/')) {
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                    const day = parseInt(parts[0]);
+                    const month = parseInt(parts[1]) - 1; // JavaScript usa meses 0-11
+                    const year = parseInt(parts[2]);
+                    
+                    // Validar que los valores sean razonables
+                    if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 2025) {
+                        return new Date(year, month, day);
+                    }
+                }
+            }
+            
+            // Si es formato YYYY-MM-DD (como formatDateForDB)
+            if (dateString.includes('-')) {
+                const parts = dateString.split('-');
+                if (parts.length === 3) {
+                    const year = parseInt(parts[0]);
+                    const month = parseInt(parts[1]) - 1; // JavaScript usa meses 0-11
+                    const day = parseInt(parts[2]);
+                    
+                    if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 2025) {
+                        return new Date(year, month, day);
+                    }
+                }
+            }
+            
+            console.warn('Fecha no reconocida:', dateString);
+            return null;
+        }
+
+        function formatDateForDisplay(dateString) {
+            const date = parseDate(dateString);
+            return date ? date.toLocaleDateString('es-CR') : dateString;
+        }
+
+        function formatDateForDB(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`; // YYYY-MM-DD para logging/debugging
+        }
+
+        function formatDateForStorage(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${day}/${month}/${year}`; // DD/MM/YYYY para Google Sheets
+        }
 
         // FUNCIÓN MODIFICADA: Ahora redirige a URL externa
         async function viewInvoices(clientId) {
@@ -2020,7 +2025,24 @@
             }
         }
 
-        // showToast function is available from utils.js
+        function showToast(message, type) {
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('show'), 100);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
 
         // ===== FUNCIONES PARA BÚSQUEDA DE GRUPOS DE WHATSAPP =====
         

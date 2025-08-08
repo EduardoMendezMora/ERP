@@ -11,8 +11,8 @@ function sendAccountStatement() {
     const facturas = window.clientInvoices || [];
     const assignedPayments = window.assignedPayments || [];
 
-    // Filtrar solo facturas vencidas (Estado: 'Pendiente' con fecha vencida)
-    const vencidas = facturas.filter(f => isInvoiceOverdue(f));
+    // Filtrar solo facturas vencidas (Estado: 'Vencido')
+    const vencidas = facturas.filter(f => f.Estado === 'Vencido');
     if (vencidas.length === 0) {
         alert('No hay facturas vencidas para este cliente.');
         return;

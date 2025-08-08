@@ -59,7 +59,7 @@ function testModalAssignment() {
     
     // Encontrar una factura pendiente
     const pendingInvoice = window.clientInvoices.find(inv => 
-        inv.Estado === 'Pendiente'
+        inv.Estado === 'Pendiente' || inv.Estado === 'Vencido'
     );
     
     if (!pendingInvoice) {

@@ -156,7 +156,7 @@ function calculateTotalDebt(invoices, payments) {
         totalDebt += invoiceTotal;
         totalFines += fines;
         
-        if (isInvoiceOverdue(invoice)) {
+        if (invoice.Estado === 'Vencido') {
             overdueInvoices++;
         }
         

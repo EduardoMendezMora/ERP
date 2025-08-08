@@ -541,16 +541,16 @@ function renderInvoicesSection(status, invoices) {
         const dateA = parseDate(a.FechaVencimiento);
         const dateB = parseDate(b.FechaVencimiento);
 
-        // Para facturas canceladas, ordenar por fecha de cancelación si existe
+        // Para facturas pagadas, ordenar por fecha de pago si existe
         if (status === 'paid') {
-            const cancelDateA = parseDate(a.FechaCancelacion || a.FechaPago);
-            const cancelDateB = parseDate(b.FechaCancelacion || b.FechaPago);
+            const payDateA = parseDate(a.FechaPago);
+            const payDateB = parseDate(b.FechaPago);
 
-            if (cancelDateA && cancelDateB) {
-                return cancelDateB.getTime() - cancelDateA.getTime(); // Más recientes primero
+            if (payDateA && payDateB) {
+                return payDateB.getTime() - payDateA.getTime(); // Más recientes primero
             }
-            if (cancelDateA && !cancelDateB) return -1;
-            if (!cancelDateA && cancelDateB) return 1;
+            if (payDateA && !payDateB) return -1;
+            if (!payDateA && payDateB) return 1;
         }
 
         // Para vencidas, pendientes y próximas, ordenar por fecha de vencimiento

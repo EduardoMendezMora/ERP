@@ -721,7 +721,7 @@ function renderUnassignedPaymentsSection() {
 
         // Buscar facturas pendientes/vencidas que coincidan con el monto disponible
         const matchingInvoices = clientInvoices.filter(inv => {
-            if (inv.Estado !== 'Pendiente') return false;
+            if (inv.Estado !== 'Pendiente' && inv.Estado !== 'Vencido') return false;
 
             const invoiceTotal = parseAmount(inv.MontoTotal || inv.MontoBase || 0);
             const difference = Math.abs(invoiceTotal - availableAmount);

@@ -76,7 +76,7 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
 
         // Verificar si hay facturas vencidas del mismo cliente que podrían pagarse
         const overdueInvoices = clientInvoices.filter(inv =>
-            isInvoiceOverdue(inv) &&
+            inv.Estado === 'Vencido' &&
             inv.NumeroFactura !== invoiceNumber
         );
 
@@ -129,7 +129,7 @@ async function applySinglePayment(payment, invoice, availableAmount) {
         } else {
             // Pago parcial
             amountToApply = availableAmount;
-            newStatus = invoice.Estado; // Mantener estado actual (Pendiente)
+            newStatus = invoice.Estado; // Mantener estado actual (Pendiente/Vencido)
             newBalance = totalOwedUntilPayment - amountToApply;
             console.log(`⚠️ Pago parcial - Saldo restante: ₡${newBalance.toLocaleString('es-CR')}`);
         }

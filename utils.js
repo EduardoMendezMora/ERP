@@ -169,35 +169,6 @@ function formatDateForDisplay(dateString) {
     }
 }
 
-function formatDateForDB(date) {
-    try {
-        // Si la fecha viene como string, convertirla a Date
-        if (typeof date === 'string') {
-            date = new Date(date);
-        }
-        
-        // Asegurar que la fecha se interprete en zona local
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        
-        const formattedDate = `${year}-${month}-${day}`; // YYYY-MM-DD para base de datos
-        
-        console.log('📅 [DEBUG] formatDateForDB:', {
-            input: date,
-            year,
-            month: date.getMonth() + 1,
-            day: date.getDate(),
-            formatted: formattedDate
-        });
-        
-        return formattedDate;
-    } catch (error) {
-        console.error('Error al formatear fecha para DB:', error);
-        return '';
-    }
-}
-
 function formatDateForStorage(date) {
     try {
         // ✅ CORRECCIÓN: Manejar zona horaria correctamente
@@ -635,70 +606,17 @@ function showToast(message, type = 'info') {
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `
-        <div class="toast-content">
-            <span class="toast-message">${message}</span>
-            <button class="toast-close" onclick="this.parentElement.parentElement.remove()">✕</button>
-        </div>
-    `;
-
+    toast.textContent = message;
     document.body.appendChild(toast);
 
-    // Auto-remover después de 5 segundos
+    // Mostrar el toast
+    setTimeout(() => toast.classList.add('show'), 100);
+
+    // Ocultar y remover el toast después de 4 segundos
     setTimeout(() => {
-        if (toast.parentElement) {
-            toast.remove();
-        }
-    }, 5000);
-}
-
-// ===== FUNCIÓN AUXILIAR PARA DETERMINAR SI UNA FACTURA ESTÁ VENCIDA =====
-function isInvoiceOverdue(invoice) {
-    // Solo facturas pendientes pueden estar vencidas
-    if (invoice.Estado !== 'Pendiente') {
-        return false;
-    }
-    
-    const dueDate = parseDate(invoice.FechaVencimiento);
-    if (!dueDate) {
-        return false; // Si no se puede parsear la fecha, no considerarla vencida
-    }
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Resetear a inicio del día
-    dueDate.setHours(0, 0, 0, 0); // Resetear a inicio del día
-    
-    // La factura está vencida si la fecha de vencimiento es hoy o anterior
-    return dueDate <= today;
-}
-
-// ===== FUNCIÓN PARA OBTENER FACTURAS PRÓXIMAS =====
-function getUpcomingInvoices(invoices, limit = 2) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Resetear a inicio del día
-    
-    // Filtrar facturas pendientes que vencen en el futuro
-    const futureInvoices = invoices.filter(inv => {
-        if (inv.Estado !== 'Pendiente') return false;
-        
-        const dueDate = parseDate(inv.FechaVencimiento);
-        if (!dueDate) return false;
-        
-        return dueDate > today;
-    });
-    
-    // Ordenar por fecha de vencimiento (ascendente) y tomar las primeras 'limit'
-    const sortedInvoices = futureInvoices.sort((a, b) => {
-        const dateA = parseDate(a.FechaVencimiento);
-        const dateB = parseDate(b.FechaVencimiento);
-        
-        if (dateA && dateB) {
-            return dateA.getTime() - dateB.getTime();
-        }
-        return 0;
-    });
-    
-    return sortedInvoices.slice(0, limit);
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
 }
 
 function showLoading(show) {
@@ -860,9 +778,9 @@ function updateControlUI() {
 }
 
 function updateSectionCounts() {
-            // Actualizar contadores en los controles
-        const overdueInvoices = clientInvoices.filter(inv => isInvoiceOverdue(inv));
-        const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Cancelado');
+    // Actualizar contadores en los controles
+    const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
+    const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
     const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
 
     const counts = {
@@ -870,7 +788,7 @@ function updateSectionCounts() {
         'overdue': `${overdueInvoices.length} facturas vencidas`,
         'upcoming': `${upcomingInvoices.length} próximas facturas`,
         'assigned': `${assignedPayments.length} pagos aplicados`,
-                    'paid': `${paidInvoices.length} facturas canceladas`
+        'paid': `${paidInvoices.length} facturas pagadas`
     };
 
     Object.entries(counts).forEach(([key, text]) => {
@@ -1213,7 +1131,7 @@ const SEARCH_CONFIG = {
         resultsId: 'searchResultsOverdue',
         dataSource: 'clientInvoices',
         searchFields: ['NumeroFactura', 'Concepto', 'FechaVencimiento', 'Monto'],
-        filterFunction: (item) => isInvoiceOverdue(item),
+        filterFunction: (item) => item.Estado === 'Vencido',
         placeholder: 'Buscar facturas por número, concepto, fecha...'
     },
     upcoming: {
@@ -1245,7 +1163,7 @@ const SEARCH_CONFIG = {
         resultsId: 'searchResultsPaid',
         dataSource: 'clientInvoices',
         searchFields: ['NumeroFactura', 'Concepto', 'FechaVencimiento', 'Monto'],
-        filterFunction: (item) => item.Estado === 'Cancelado',
+        filterFunction: (item) => item.Estado === 'Pagado',
         placeholder: 'Buscar facturas por número, concepto, fecha...'
     }
 };
