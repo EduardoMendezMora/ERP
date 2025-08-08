@@ -177,7 +177,7 @@ function verifyDataConsistency(clientId) {
         }
         
         // Verificar consistencia de multas
-        if (invoice.Estado === 'Vencido' && invoice.DiasAtraso > 0) {
+        if (isInvoiceOverdue(invoice) && invoice.DiasAtraso > 0) {
             const expectedFines = invoice.DiasAtraso * 2000;
             const actualFines = parseFloat(invoice.MontoMultas || 0);
             

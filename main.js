@@ -97,7 +97,7 @@ function renderPage() {
         renderClientDetails();
 
         // Clasificar facturas por estado
-        const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
+        const overdueInvoices = clientInvoices.filter(inv => isInvoiceOverdue(inv));
         const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
         
         // Obtener las próximas 2 facturas por vencerse

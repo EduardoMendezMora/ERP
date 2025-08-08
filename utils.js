@@ -777,9 +777,27 @@ function updateControlUI() {
     });
 }
 
+// ===== FUNCIÓN PARA DETERMINAR SI UNA FACTURA ESTÁ VENCIDA =====
+function isInvoiceOverdue(invoice) {
+    if (invoice.Estado !== 'Pendiente') {
+        return false;
+    }
+    
+    const dueDate = parseDate(invoice.FechaVencimiento);
+    if (!dueDate) {
+        return false;
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    dueDate.setHours(0, 0, 0, 0);
+    
+    return dueDate <= today;
+}
+
 function updateSectionCounts() {
     // Actualizar contadores en los controles
-    const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
+    const overdueInvoices = clientInvoices.filter(inv => isInvoiceOverdue(inv));
     const paidInvoices = clientInvoices.filter(inv => inv.Estado === 'Pagado');
     const upcomingInvoices = getUpcomingInvoices(clientInvoices, 2);
 
@@ -1761,6 +1779,7 @@ window.formatDateForManualPayment = formatDateForManualPayment;
 // Funciones de cálculo
 window.calculateFinesUntilDate = calculateFinesUntilDate;
 window.calculateDaysOverdue = calculateDaysOverdue;
+window.isInvoiceOverdue = isInvoiceOverdue;
 
 // Funciones de detección
 window.isClientIdInObservations = isClientIdInObservations;

@@ -75,8 +75,8 @@ async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumbe
         }
 
         // Verificar si hay facturas vencidas del mismo cliente que podrían pagarse
-        const overdueInvoices = clientInvoices.filter(inv =>
-            inv.Estado === 'Vencido' &&
+        const overdueInvoices = clientInvoices.filter(inv => 
+            isInvoiceOverdue(inv) &&
             inv.NumeroFactura !== invoiceNumber
         );
 
