@@ -5,43 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ERP - Gestión de Clientes</title>
     <link rel="stylesheet" href="styles.css">
-    <script>
-        // Función parseAmount específica para clientes.html (maneja formato Float 1.000.000,00)
-        function parseAmount(amount) {
-            if (!amount) return 0;
-            
-            // Si ya es un número, usarlo directamente
-            if (typeof amount === 'number') {
-                return amount;
-            }
-            
-            // Convertir a string y limpiar
-            const cleanAmount = amount.toString().trim();
-            
-            // Si está vacío, devolver 0
-            if (!cleanAmount) return 0;
-            
-            // Remover caracteres no numéricos excepto punto y coma
-            const numericOnly = cleanAmount.replace(/[^\d.,]/g, '');
-            
-            // Si no hay números, devolver 0
-            if (!numericOnly) return 0;
-            
-            let result;
-            
-            if (numericOnly.includes(',')) {
-                // Formato: "1.000.000,00" -> 1000000.00
-                const normalizedValue = numericOnly.replace(/\./g, '').replace(',', '.');
-                result = parseFloat(normalizedValue) || 0;
-            } else {
-                // Formato: "1000000" o "1.000.000" -> 1000000
-                const normalizedValue = numericOnly.replace(/\./g, '');
-                result = parseFloat(normalizedValue) || 0;
-            }
-            
-            return result;
-        }
-    </script>
+
     <style>
         * {
             margin: 0;
@@ -771,8 +735,8 @@
         let clients = [];
         let invoices = [];
         let vendors = [];
-        let currentClient = null;
         let isEditing = false;
+        let currentClient = null; // Declarar currentClient aquí para evitar conflictos
 
         // Inicializar la aplicación
         document.addEventListener('DOMContentLoaded', function() {
@@ -1653,60 +1617,9 @@
             }
         }
 
-        function parseDate(dateString) {
-            if (!dateString) return null;
-            
-            // Detectar si es formato DD/MM/YYYY (como viene de Google Sheets)
-            if (dateString.includes('/')) {
-                const parts = dateString.split('/');
-                if (parts.length === 3) {
-                    const day = parseInt(parts[0]);
-                    const month = parseInt(parts[1]) - 1; // JavaScript usa meses 0-11
-                    const year = parseInt(parts[2]);
-                    
-                    // Validar que los valores sean razonables
-                    if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 2025) {
-                        return new Date(year, month, day);
-                    }
-                }
-            }
-            
-            // Si es formato YYYY-MM-DD (como formatDateForDB)
-            if (dateString.includes('-')) {
-                const parts = dateString.split('-');
-                if (parts.length === 3) {
-                    const year = parseInt(parts[0]);
-                    const month = parseInt(parts[1]) - 1; // JavaScript usa meses 0-11
-                    const day = parseInt(parts[2]);
-                    
-                    if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 2025) {
-                        return new Date(year, month, day);
-                    }
-                }
-            }
-            
-            console.warn('Fecha no reconocida:', dateString);
-            return null;
-        }
 
-        function formatDateForDisplay(dateString) {
-            const date = parseDate(dateString);
-            return date ? date.toLocaleDateString('es-CR') : dateString;
-        }
 
-        function formatDateForDB(date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`; // YYYY-MM-DD para logging/debugging
-        }
 
-        function formatDateForStorage(date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${day}/${month}/${year}`; // DD/MM/YYYY para Google Sheets
-        }
 
         // FUNCIÓN MODIFICADA: Ahora redirige a URL externa
         async function viewInvoices(clientId) {
@@ -2028,24 +1941,7 @@
             }
         }
 
-        function showToast(message, type) {
-            const existingToast = document.querySelector('.toast');
-            if (existingToast) {
-                existingToast.remove();
-            }
 
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
-
-            setTimeout(() => toast.classList.add('show'), 100);
-
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
 
         // ===== FUNCIONES PARA BÚSQUEDA DE GRUPOS DE WHATSAPP =====
         
