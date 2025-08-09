@@ -244,15 +244,6 @@
                                         <span class="amount-value">₡${formatNumber(invoice.remainingBalance)}</span>
                                     </div>
                                 </div>
-                                
-                                <div class="invoice-actions">
-                                    <button class="btn-action" onclick="markAsPaid('${invoice.NumeroFactura}')">
-                                        ✅ Pagar
-                                    </button>
-                                    <button class="btn-action" onclick="editInvoice('${invoice.NumeroFactura}')">
-                                        ✏️ Editar
-                                    </button>
-                                </div>
                             </div>
                         `).join('')}
                     </div>
@@ -500,15 +491,6 @@
                                         <span class="amount-value">₡${formatNumber(invoice.remainingBalance)}</span>
                                     </div>
                                 </div>
-                                
-                                <div class="invoice-actions">
-                                    <button class="btn-action" onclick="markAsPaid('${invoice.NumeroFactura}')">
-                                        ✅ Pagar
-                                    </button>
-                                    <button class="btn-action" onclick="editInvoice('${invoice.NumeroFactura}')">
-                                        ✏️ Editar
-                                    </button>
-                                </div>
                             </div>
                         `).join('')}
                     </div>
@@ -562,35 +544,7 @@
         window.location.href = 'clientes.html';
     }
 
-    async function markAsPaid(invoiceNumber) {
-        try {
-            const params = new URLSearchParams();
-            params.append('sheet', 'Facturas');
-            params.append('Estado', 'Pagado');
-            params.append('FechaPago', new Date().toLocaleDateString('es-CR'));
-            
-            const response = await fetch(`${API_URL_INVOICES}/NumeroFactura/${invoiceNumber}?${params.toString()}`, {
-                method: 'PATCH'
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            showToast('Factura marcada como pagada', 'success');
-            
-            await loadInvoices();
-            processOverdueInvoices();
-            
-        } catch (error) {
-            console.error('❌ Error al marcar como pagada:', error);
-            showToast('Error al actualizar factura', 'error');
-        }
-    }
 
-    function editInvoice(invoiceNumber) {
-        showToast('Función de edición en desarrollo', 'info');
-    }
 </script>
 
 <style>
@@ -685,7 +639,7 @@
     .invoice-card {
         background: #f8f9fa;
         border-radius: 8px;
-        padding: 16px;
+        padding: 20px;
         border-left: 4px solid #dc3545;
     }
 
@@ -738,7 +692,7 @@
     .invoice-amounts {
         display: flex;
         gap: 16px;
-        margin-bottom: 16px;
+        margin-bottom: 0;
         flex-wrap: wrap;
     }
 
@@ -780,39 +734,7 @@
         font-weight: 700;
     }
 
-    .invoice-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
 
-    .btn-action {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 6px;
-        font-size: 0.9rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .btn-action:first-child {
-        background: #28a745;
-        color: white;
-    }
-
-    .btn-action:first-child:hover {
-        background: #218838;
-    }
-
-    .btn-action:last-child {
-        background: #ffc107;
-        color: #212529;
-    }
-
-    .btn-action:last-child:hover {
-        background: #e0a800;
-    }
 
     @media (max-width: 768px) {
         .client-header {
@@ -830,9 +752,7 @@
             gap: 8px;
         }
 
-        .invoice-actions {
-            flex-direction: column;
-        }
+
     }
 </style>
 </body>
