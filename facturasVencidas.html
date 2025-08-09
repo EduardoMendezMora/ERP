@@ -194,6 +194,13 @@
                                 <span class="client-placa">Placa: ${client.Placa || 'Sin placa'}</span>
                                 <span class="client-phone">${client.numeroTelefono || 'Sin teléfono'}</span>
                             </div>
+                            ${client.Etiquetas ? `
+                                <div class="client-tags">
+                                    ${parseTags(client.Etiquetas).map(tag => `
+                                        <span class="client-tag-chip">${tag}</span>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
                         </div>
                         <div class="client-total">
                             <div class="total-amount">₡${formatNumber(totalDebt)}</div>
@@ -404,6 +411,14 @@
                 return true;
             }
             
+            // Buscar en etiquetas del cliente
+            if (client.Etiquetas) {
+                const clientTags = parseTags(client.Etiquetas);
+                if (clientTags.some(tag => tag.toLowerCase().includes(searchTerm))) {
+                    return true;
+                }
+            }
+            
             // Buscar en número de facturas
             return invoices.some(invoice => 
                 invoice.NumeroFactura.toLowerCase().includes(searchTerm) ||
@@ -441,6 +456,13 @@
                                 <span class="client-placa">Placa: ${client.Placa || 'Sin placa'}</span>
                                 <span class="client-phone">${client.numeroTelefono || 'Sin teléfono'}</span>
                             </div>
+                            ${client.Etiquetas ? `
+                                <div class="client-tags">
+                                    ${parseTags(client.Etiquetas).map(tag => `
+                                        <span class="client-tag-chip">${tag}</span>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
                         </div>
                         <div class="client-total">
                             <div class="total-amount">₡${formatNumber(totalDebt)}</div>
@@ -542,6 +564,14 @@
 
     function goBackToClients() {
         window.location.href = 'clientes.html';
+    }
+
+    // ===== FUNCIÓN PARA PARSEAR ETIQUETAS =====
+    function parseTags(tagsString) {
+        if (!tagsString || tagsString.trim() === '') {
+            return [];
+        }
+        return tagsString.split(';').map(tag => tag.trim()).filter(tag => tag !== '');
     }
 
 
@@ -752,7 +782,24 @@
             gap: 8px;
         }
 
+        /* ===== ESTILOS PARA ETIQUETAS ===== */
+        .client-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
 
+        .client-tag-chip {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border: 1px solid #bbdefb;
+        }
     }
 </style>
 </body>
