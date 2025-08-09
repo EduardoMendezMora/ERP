@@ -16,7 +16,7 @@
 
     <div class="header">
         <h1>🔴 Facturas Vencidas</h1>
-        <p>Gestión de facturas vencidas (NO manuales) agrupadas por cliente</p>
+        <p>Gestión de facturas vencidas (NO manuales) agrupadas por cliente - Solo clientes con ID de WhatsApp</p>
     </div>
 
     <div class="search-section">
@@ -30,10 +30,10 @@
     <div class="invoices-section" id="overdueSection">
         <div class="section-header">
             <h3 class="section-title">
-                🔴 Facturas Vencidas por Cliente (NO Manuales)
+                🔴 Facturas Vencidas por Cliente (NO Manuales + Con WhatsApp)
                 <span class="section-count" id="overdueCount">0</span>
             </h3>
-            <small style="color: #86868b; font-size: 0.8rem;">Ordenados del que debe más al que debe menos - Solo facturas con saldo pendiente</small>
+            <small style="color: #86868b; font-size: 0.8rem;">Ordenados del que debe más al que debe menos - Solo facturas con saldo pendiente y clientes con ID de WhatsApp</small>
         </div>
         
         <div class="clients-grid" id="clientsGrid"></div>
@@ -119,6 +119,12 @@
             if (!clientsMap.has(clientId)) {
                 const client = allClients.find(c => c.ID.toString() === clientId.toString());
                 if (client) {
+                    // DISCRIMINAR clientes sin ID de WhatsApp
+                    if (!client.idGrupoWhatsapp || client.idGrupoWhatsapp.trim() === '') {
+                        console.log(`⚠️ Cliente ${client.Nombre} (ID: ${client.ID}) sin ID de WhatsApp - EXCLUIDO`);
+                        return; // Saltar este cliente
+                    }
+                    
                     clientsMap.set(clientId, {
                         client: client,
                         invoices: [],
@@ -186,7 +192,7 @@
                             <div class="client-details">
                                 <span class="client-id">ID: ${client.ID}</span>
                                 <span class="client-placa">Placa: ${client.Placa || 'Sin placa'}</span>
-                                <span class="client-phone">${client.Telefono || 'Sin teléfono'}</span>
+                                <span class="client-phone">${client.numeroTelefono || 'Sin teléfono'}</span>
                             </div>
                         </div>
                         <div class="client-total">
@@ -442,7 +448,7 @@
                             <div class="client-details">
                                 <span class="client-id">ID: ${client.ID}</span>
                                 <span class="client-placa">Placa: ${client.Placa || 'Sin placa'}</span>
-                                <span class="client-phone">${client.Telefono || 'Sin teléfono'}</span>
+                                <span class="client-phone">${client.numeroTelefono || 'Sin teléfono'}</span>
                             </div>
                         </div>
                         <div class="client-total">
