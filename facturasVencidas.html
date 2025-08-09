@@ -22,7 +22,7 @@
     <div class="search-section">
         <div class="search-container">
             <div class="search-box">
-                <input type="text" id="searchOverdue" placeholder="🔍 Buscar por cliente o factura..." class="search-input">
+                <input type="text" id="searchOverdue" placeholder="🔍 Buscar por cliente, placa, ID o factura..." class="search-input">
             </div>
         </div>
     </div>
@@ -394,6 +394,16 @@
             
             // Buscar en nombre del cliente
             if (client.Nombre.toLowerCase().includes(searchTerm)) {
+                return true;
+            }
+            
+            // Buscar en placa del cliente
+            if (client.Placa && client.Placa.toLowerCase().includes(searchTerm)) {
+                return true;
+            }
+            
+            // Buscar en ID del cliente
+            if (client.ID.toString().includes(searchTerm)) {
                 return true;
             }
             
