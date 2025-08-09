@@ -2166,6 +2166,7 @@
                     });
                 }
             });
+            console.log('loadAllTags - Total tags loaded:', allTags);
         }
 
         function showTagSuggestions() {
@@ -2252,20 +2253,35 @@
             window.modalCurrentTags = [...currentClientTags];
             updateModalTagsDisplay();
             
-            // Event listeners para el modal
-            document.getElementById('modalTagInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addModalTag();
+            // Mostrar modal primero
+            setTimeout(() => {
+                modal.classList.add('show');
+                
+                // Event listeners para el modal (después de que esté visible)
+                const modalTagInput = document.getElementById('modalTagInput');
+                if (modalTagInput) {
+                    modalTagInput.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addModalTag();
+                        }
+                    });
+
+                    modalTagInput.addEventListener('input', function(e) {
+                        showModalTagSuggestions();
+                    });
                 }
-            });
-
-            document.getElementById('modalTagInput').addEventListener('input', function(e) {
-                showModalTagSuggestions();
-            });
-
-            // Mostrar modal
-            setTimeout(() => modal.classList.add('show'), 10);
+                
+                // Cerrar sugerencias al hacer clic fuera del modal
+                const modalContent = modal.querySelector('.modal-content');
+                const modalTagsSuggestions = document.getElementById('modalTagsSuggestions');
+                
+                document.addEventListener('click', function closeModalSuggestions(e) {
+                    if (!modalContent.contains(e.target) && !modalTagsSuggestions.contains(e.target)) {
+                        modalTagsSuggestions.style.display = 'none';
+                    }
+                });
+            }, 10);
         }
 
         function addModalTag() {
@@ -2304,6 +2320,10 @@
             const suggestionsList = document.getElementById('modalSuggestionsList');
             const inputValue = tagInput.value.toLowerCase();
             
+            console.log('Modal tag suggestions - Input value:', inputValue);
+            console.log('Modal tag suggestions - All tags:', allTags);
+            console.log('Modal tag suggestions - Current modal tags:', window.modalCurrentTags);
+            
             if (inputValue.length === 0) {
                 suggestions.style.display = 'none';
                 return;
@@ -2313,6 +2333,8 @@
                 tag.toLowerCase().includes(inputValue) && 
                 !window.modalCurrentTags.includes(tag)
             );
+            
+            console.log('Modal tag suggestions - Filtered tags:', filteredTags);
             
             if (filteredTags.length > 0) {
                 suggestionsList.innerHTML = filteredTags.map(tag => `
