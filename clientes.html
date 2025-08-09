@@ -709,6 +709,53 @@
             font-size: 0.75rem;
             font-weight: 500;
             border: 1px solid #bbdefb;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .client-tag-chip:hover {
+            background: #bbdefb;
+            transform: translateY(-1px);
+        }
+
+        .tag-remove-small {
+            font-weight: bold;
+            font-size: 0.9rem;
+            line-height: 1;
+            margin-left: 4px;
+            opacity: 0.7;
+        }
+
+        .client-tag-chip:hover .tag-remove-small {
+            opacity: 1;
+        }
+
+        .add-tag-placeholder {
+            display: inline-block;
+            padding: 4px 8px;
+            color: #86868b;
+            border: 1px dashed #d2d2d7;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .add-tag-placeholder:hover {
+            background: #f8f9fa;
+            border-color: #007aff;
+            color: #007aff;
+        }
+
+        .client-tags {
+            cursor: pointer;
+            min-height: 28px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
         }
     </style>
 
@@ -1423,18 +1470,19 @@
                                         <span class="detail-value" style="font-size: 0.85rem; word-break: break-all;">${client.idGrupoWhatsapp}</span>
                                     </div>
                                 ` : ''}
-                                ${client.Etiquetas ? `
-                                    <div class="detail-row" style="grid-column: 1 / -1;">
-                                        <span class="detail-label">Etiquetas</span>
-                                        <span class="detail-value">
-                                            <div class="client-tags">
-                                                ${parseTags(client.Etiquetas).map(tag => `
-                                                    <span class="client-tag-chip">${tag}</span>
-                                                `).join('')}
-                                            </div>
-                                        </span>
-                                    </div>
-                                ` : ''}
+                                <div class="detail-row" style="grid-column: 1 / -1;">
+                                    <span class="detail-label">Etiquetas</span>
+                                    <span class="detail-value">
+                                        <div class="client-tags" onclick="editClientTags('${client.ID}')">
+                                            ${client.Etiquetas ? parseTags(client.Etiquetas).map(tag => `
+                                                <span class="client-tag-chip" onclick="event.stopPropagation(); removeClientTag('${client.ID}', '${tag}')">
+                                                    ${tag} <span class="tag-remove-small">×</span>
+                                                </span>
+                                            `).join('') : ''}
+                                            <span class="add-tag-placeholder">+ Agregar etiqueta</span>
+                                        </div>
+                                    </span>
+                                </div>
                                 ${client.diaPago ? `
                                     <div class="detail-row">
                                         <span class="detail-label">Día de Pago</span>
@@ -2152,6 +2200,228 @@
             document.getElementById('tagInput').value = tag;
             document.getElementById('tagsSuggestions').style.display = 'none';
             addTag();
+        }
+
+        // ===== FUNCIONES PARA EDITAR ETIQUETAS DESDE TARJETAS =====
+        function editClientTags(clientId) {
+            const client = clients.find(c => c.ID.toString() === clientId.toString());
+            if (!client) {
+                showToast('Cliente no encontrado', 'error');
+                return;
+            }
+
+            // Crear modal para editar etiquetas
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'editTagsModal';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3>🏷️ Editar Etiquetas - ${client.Nombre}</h3>
+                        <button class="modal-close" onclick="closeEditTagsModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Etiquetas Actuales</label>
+                            <div class="tags-container">
+                                <div class="tags-input-container">
+                                    <input type="text" class="form-input" id="modalTagInput" placeholder="Escribir etiqueta y presionar Enter...">
+                                    <button type="button" class="btn btn-secondary" onclick="addModalTag()" style="white-space: nowrap; padding: 12px 16px; min-height: 44px;">
+                                        ➕ Agregar
+                                    </button>
+                                </div>
+                                <div class="tags-suggestions" id="modalTagsSuggestions" style="display: none;">
+                                    <div class="suggestions-list" id="modalSuggestionsList"></div>
+                                </div>
+                                <div class="tags-display" id="modalTagsDisplay"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeEditTagsModal()">Cancelar</button>
+                            <button type="button" class="btn btn-primary" onclick="saveClientTags('${clientId}')">💾 Guardar Cambios</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            
+            // Cargar etiquetas actuales
+            const currentClientTags = parseTags(client.Etiquetas || '');
+            window.modalCurrentTags = [...currentClientTags];
+            updateModalTagsDisplay();
+            
+            // Event listeners para el modal
+            document.getElementById('modalTagInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addModalTag();
+                }
+            });
+
+            document.getElementById('modalTagInput').addEventListener('input', function(e) {
+                showModalTagSuggestions();
+            });
+
+            // Mostrar modal
+            setTimeout(() => modal.classList.add('show'), 10);
+        }
+
+        function addModalTag() {
+            const tagInput = document.getElementById('modalTagInput');
+            const tag = tagInput.value.trim();
+            
+            if (tag && !window.modalCurrentTags.includes(tag)) {
+                window.modalCurrentTags.push(tag);
+                updateModalTagsDisplay();
+                tagInput.value = '';
+                
+                // Agregar a todas las etiquetas si no existe
+                if (!allTags.includes(tag)) {
+                    allTags.push(tag);
+                }
+            }
+        }
+
+        function removeModalTag(tagToRemove) {
+            window.modalCurrentTags = window.modalCurrentTags.filter(tag => tag !== tagToRemove);
+            updateModalTagsDisplay();
+        }
+
+        function updateModalTagsDisplay() {
+            const tagsDisplay = document.getElementById('modalTagsDisplay');
+            tagsDisplay.innerHTML = window.modalCurrentTags.map(tag => `
+                <span class="tag-chip" onclick="removeModalTag('${tag}')">
+                    ${tag} <span class="tag-remove">×</span>
+                </span>
+            `).join('');
+        }
+
+        function showModalTagSuggestions() {
+            const tagInput = document.getElementById('modalTagInput');
+            const suggestions = document.getElementById('modalTagsSuggestions');
+            const suggestionsList = document.getElementById('modalSuggestionsList');
+            const inputValue = tagInput.value.toLowerCase();
+            
+            if (inputValue.length === 0) {
+                suggestions.style.display = 'none';
+                return;
+            }
+            
+            const filteredTags = allTags.filter(tag => 
+                tag.toLowerCase().includes(inputValue) && 
+                !window.modalCurrentTags.includes(tag)
+            );
+            
+            if (filteredTags.length > 0) {
+                suggestionsList.innerHTML = filteredTags.map(tag => `
+                    <div class="suggestion-item" onclick="selectModalSuggestion('${tag}')">
+                        ${tag}
+                    </div>
+                `).join('');
+                suggestions.style.display = 'block';
+            } else {
+                suggestions.style.display = 'none';
+            }
+        }
+
+        function selectModalSuggestion(tag) {
+            document.getElementById('modalTagInput').value = tag;
+            document.getElementById('modalTagsSuggestions').style.display = 'none';
+            addModalTag();
+        }
+
+        async function saveClientTags(clientId) {
+            try {
+                const client = clients.find(c => c.ID.toString() === clientId.toString());
+                if (!client) {
+                    showToast('Cliente no encontrado', 'error');
+                    return;
+                }
+
+                const updatedTags = formatTags(window.modalCurrentTags);
+                
+                // Actualizar en la API
+                const response = await fetch(`${API_URL_CLIENTS}/ID/${clientId}?sheet=Clientes`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        Etiquetas: updatedTags
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                // Actualizar cliente local
+                client.Etiquetas = updatedTags;
+                
+                // Re-renderizar clientes
+                renderClients(clients);
+                
+                // Cerrar modal
+                closeEditTagsModal();
+                
+                showToast('Etiquetas actualizadas correctamente', 'success');
+                
+            } catch (error) {
+                console.error('Error al guardar etiquetas:', error);
+                showToast('Error al actualizar etiquetas: ' + error.message, 'error');
+            }
+        }
+
+        function closeEditTagsModal() {
+            const modal = document.getElementById('editTagsModal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => modal.remove(), 300);
+            }
+            window.modalCurrentTags = [];
+        }
+
+        async function removeClientTag(clientId, tagToRemove) {
+            try {
+                const client = clients.find(c => c.ID.toString() === clientId.toString());
+                if (!client) {
+                    showToast('Cliente no encontrado', 'error');
+                    return;
+                }
+
+                const currentTags = parseTags(client.Etiquetas || '');
+                const updatedTags = currentTags.filter(tag => tag !== tagToRemove);
+                const updatedTagsString = formatTags(updatedTags);
+                
+                // Actualizar en la API
+                const response = await fetch(`${API_URL_CLIENTS}/ID/${clientId}?sheet=Clientes`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        Etiquetas: updatedTagsString
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                // Actualizar cliente local
+                client.Etiquetas = updatedTagsString;
+                
+                // Re-renderizar clientes
+                renderClients(clients);
+                
+                showToast(`Etiqueta "${tagToRemove}" eliminada`, 'success');
+                
+            } catch (error) {
+                console.error('Error al eliminar etiqueta:', error);
+                showToast('Error al eliminar etiqueta: ' + error.message, 'error');
+            }
         }
 
         async function saveClient() {
