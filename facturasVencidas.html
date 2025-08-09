@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ERP - Facturas Vencidas</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="utils.js"></script>
 </head>
 <body>
 <div class="container">
@@ -182,71 +183,25 @@
     }
 
     function getDaysOverdue(invoice) {
-        if (!invoice.FechaVencimiento) return 0;
-        
-        const dueDate = parseDate(invoice.FechaVencimiento);
-        if (!dueDate) return 0;
-        
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        dueDate.setHours(0, 0, 0, 0);
-        
-        const diffTime = today - dueDate;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        return Math.max(0, diffDays);
+        return calculateDaysOverdue(invoice.FechaVencimiento);
     }
 
-    function parseAmount(amount) {
-        if (!amount) return 0;
-        
-        // Si ya es un número, usarlo directamente
-        if (typeof amount === 'number') {
-            return amount;
-        }
-        
-        // Convertir a string y limpiar
-        const cleanAmount = amount.toString().trim();
-        
-        // Si está vacío, devolver 0
-        if (!cleanAmount) return 0;
-        
-        // Remover caracteres no numéricos excepto punto y coma
-        const numericOnly = cleanAmount.replace(/[^\d.,]/g, '');
-        
-        // Si no hay números, devolver 0
-        if (!numericOnly) return 0;
-        
-        let result;
-        
-        if (numericOnly.includes(',')) {
-            // Formato: "1.000.000,00" -> 1000000.00
-            const normalizedValue = numericOnly.replace(/\./g, '').replace(',', '.');
-            result = parseFloat(normalizedValue) || 0;
-        } else {
-            // Formato: "1000000" o "1.000.000" -> 1000000
-            const normalizedValue = numericOnly.replace(/\./g, '');
-            result = parseFloat(normalizedValue) || 0;
-        }
-        
-        return result;
-    }
+    // Usar parseAmount de utils.js
 
     function calculateFine(invoice) {
+        // Solo calcular multas para facturas de arrendamiento (NO manuales)
+        const isManualInvoice = invoice.TipoFactura === 'Manual' ||
+            invoice.NumeroFactura?.startsWith('MAN-') ||
+            invoice.ConceptoManual;
+
+        if (isManualInvoice) return 0;
+        
         const daysOverdue = getDaysOverdue(invoice);
-        const baseAmount = parseAmount(invoice.MontoBase || 0);
         
         if (daysOverdue <= 0) return 0;
         
-        if (daysOverdue > 30) {
-            return baseAmount * 0.10;
-        }
-        
-        if (daysOverdue > 7) {
-            return baseAmount * 0.05;
-        }
-        
-        return 0;
+        // ₡2,000 por día de atraso (como en utils.js)
+        return daysOverdue * 2000;
     }
 
     function setupEventListeners() {
@@ -343,72 +298,23 @@
         }).join('');
     }
 
-    function parseDate(dateString) {
-        if (!dateString) return null;
-        
-        if (dateString.includes('/')) {
-            const parts = dateString.split('/');
-            if (parts.length === 3) {
-                const day = parseInt(parts[0]);
-                const month = parseInt(parts[1]) - 1;
-                const year = parseInt(parts[2]);
-                return new Date(year, month, day);
-            }
-        }
-        
-        return new Date(dateString);
-    }
+    // Usar parseDate de utils.js
 
     function formatDate(dateString) {
-        const date = parseDate(dateString);
-        if (!date) return dateString;
-        
-        return date.toLocaleDateString('es-CR');
+        return formatDateForDisplay(dateString);
     }
 
     function formatNumber(number) {
-        if (number === null || number === undefined || isNaN(number)) {
-            return '0';
-        }
-        
-        // Convertir a número si es string
-        const num = typeof number === 'string' ? parseFloat(number.replace(/[^\d.,]/g, '').replace(',', '.')) : parseFloat(number);
-        
-        if (isNaN(num)) {
-            return '0';
-        }
-        
+        const num = parseAmount(number);
         return new Intl.NumberFormat('es-CR', {
             minimumFractionDigits: 0,
             maximumFractionDigits: 0
         }).format(num);
     }
 
-    function showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.textContent = message;
-        toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 8px;
-            color: white;
-            font-weight: 500;
-            z-index: 10000;
-            background: ${type === 'error' ? '#ff4444' : type === 'success' ? '#00c851' : '#2196F3'};
-        `;
-        
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.remove();
-        }, 3000);
-    }
+    // Usar showToast de utils.js
 
-    function goBackToClients() {
-        window.location.href = 'clientes.html';
-    }
+    // Usar goBackToClients de utils.js
 
     async function markAsPaid(invoiceNumber) {
         try {
