@@ -246,6 +246,16 @@
           };
           capturasBtn.textContent = '📊 Capturas';
           buttonGroup.appendChild(capturasBtn);
+          
+          // Botón de Facturas Vencidas
+          const facturasVencidasBtn = document.createElement('button');
+          facturasVencidasBtn.className = 'main-btn';
+          facturasVencidasBtn.style.background = '#ff6b35';
+          facturasVencidasBtn.onclick = function() {
+            window.location.href = '/facturasVencidas.html';
+          };
+          facturasVencidasBtn.textContent = '🔴 Facturas Vencidas';
+          buttonGroup.appendChild(facturasVencidasBtn);
         });
       // }
       

@@ -4,466 +4,392 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ERP - Facturas Vencidas</title>
-
-    <!-- External Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
-    <!-- Local Stylesheets -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="container">
-    <!-- Navigation -->
     <div class="navigation">
         <button class="btn btn-secondary btn-large" onclick="goBackToClients()">
             ← Volver a Clientes
         </button>
-        <button class="btn btn-primary btn-large" style="margin-left: 12px;" onclick="window.location.href='facturas.html' + window.location.search">
-            📄 Ver Todas las Facturas
-        </button>
     </div>
 
-    <!-- Header -->
     <div class="header">
         <h1>🔴 Facturas Vencidas</h1>
-        <p id="clientName">Cargando información del cliente...</p>
+        <p>Gestión de facturas vencidas y con multas</p>
     </div>
 
-    <!-- Loading State -->
-    <div class="loading" id="loading">
-        <div class="spinner"></div>
-        <p>Cargando facturas vencidas...</p>
+    <div class="search-section">
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" id="searchOverdue" placeholder="🔍 Buscar facturas..." class="search-input">
+            </div>
+        </div>
     </div>
 
-    <!-- Botón Volver al Inicio -->
-    <a href="index.html" class="home-button" title="Volver al Inicio">
-        🏠
-    </a>
-
-    <!-- Error State -->
-    <div class="error-state" id="errorState" style="display: none;">
-        <h3>❌ Error al cargar datos</h3>
-        <p id="errorMessage">No se pudieron cargar las facturas vencidas del cliente</p>
-        <button class="btn btn-primary" onclick="retryLoad()" style="margin-top: 16px;">
-            🔄 Reintentar
-        </button>
-    </div>
-
-    <!-- Main Content -->
-    <div id="mainContent" style="display: none;">
-        <!-- Client Information -->
-        <div class="client-info">
-            <div class="client-header">
-                <div>
-                    <h2 id="clientNameDetail">Cliente</h2>
-                    <p id="clientIdDetail" style="color: #86868b;">ID: </p>
-                </div>
-            </div>
-            <div class="client-details" id="clientDetails">
-                <!-- Se llenará dinámicamente -->
-            </div>
+    <div class="invoices-section" id="overdueSection">
+        <div class="section-header">
+            <h3 class="section-title">
+                🔴 Facturas Vencidas
+                <span class="section-count" id="overdueCount">0</span>
+            </h3>
         </div>
-
-        <!-- Summary Statistics -->
-        <div class="stats-summary">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value stat-overdue" id="statOverdue">0</div>
-                    <div class="stat-label">Vencidas</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value stat-fines" id="statFines">₡0</div>
-                    <div class="stat-label">Total Multas</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value stat-total" id="statTotal">₡0</div>
-                    <div class="stat-label">Total Pendiente</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value stat-days" id="statDays">0</div>
-                    <div class="stat-label">Días Promedio</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="actions-section">
-            <button class="btn btn-warning btn-large" onclick="sendAccountStatement()">
-                📝 Estado de Cuenta - Arrendamiento
-            </button>
-            <button class="btn btn-secondary btn-large" style="margin-left: 12px;" onclick="diagnoseOverdueInvoices()">
-                🔍 Diagnosticar Problemas
-            </button>
-            <button class="btn btn-primary btn-large" style="margin-left: 12px;" onclick="fixOverdueInvoices()">
-                🔧 Corregir Datos
-            </button>
-        </div>
-
-        <!-- Overdue Invoices Section -->
-        <div class="invoices-section section-overdue" id="overdueSection">
-            <div class="section-header">
-                <h3 class="section-title">
-                    🔴 Facturas Vencidas
-                    <span class="section-count" id="overdueCount">0</span>
-                </h3>
-                <small style="color: #86868b; font-size: 0.8rem;">Incluye facturas que vencen HOY (sin multa) y las ya vencidas (con multa)</small>
-            </div>
-            <div class="invoices-grid" id="overdueInvoices"></div>
-            <div class="empty-section" id="emptyOverdue" style="display: none;">
-                <h4>✅ No hay facturas vencidas</h4>
-                <p>No hay facturas que venzan hoy o ya vencidas</p>
-            </div>
+        
+        <div class="invoices-grid" id="overdueInvoices"></div>
+        
+        <div class="empty-section" id="emptyOverdue" style="display: none;">
+            <h4>✅ No hay facturas vencidas</h4>
+            <p>¡Excelente! Todas las facturas están al día</p>
         </div>
     </div>
 </div>
 
-<!-- Loading Overlay -->
-<div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-content">
-        <div class="loading-spinner"></div>
-        <h4 style="margin-bottom: 8px; color: #25d366;">🚀 Enviando al Grupo de WhatsApp</h4>
-        <p style="color: #666; margin: 0;">Generando PDF del recibo y enviando automáticamente...</p>
-        <small style="color: #999; margin-top: 8px; display: block;">Powered by ULTRAMSG</small>
-    </div>
-</div>
+<script>
+    const API_URL_INVOICES = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
+    const API_URL_CLIENTS = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
+    
+    let allInvoices = [];
+    let allClients = [];
+    let filteredInvoices = [];
 
-<!-- Edit Invoice Modal -->
-<div class="modal-overlay" id="editInvoiceModal" onclick="closeEditInvoiceModal()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3>✏️ Editar Factura</h3>
-            <button class="modal-close" onclick="closeEditInvoiceModal()">✕</button>
-        </div>
-
-        <div class="modal-body">
-            <form id="editInvoiceForm">
-                <input type="hidden" id="editInvoiceNumber" />
-
-                <div class="form-group">
-                    <label>Número de Factura</label>
-                    <input type="text" id="editInvoiceNumberDisplay" disabled>
-                </div>
-
-                <div class="form-group">
-                    <label for="editInvoiceConcept">Concepto *</label>
-                    <select id="editInvoiceConcept" required>
-                        <option value="">Seleccione un concepto</option>
-                        <option value="Arrendamiento Semanal">Arrendamiento Semanal</option>
-                        <option value="Multa por Retraso">Multa por Retraso</option>
-                        <option value="Mantenimiento">Mantenimiento</option>
-                        <option value="Seguro">Seguro</option>
-                        <option value="Combustible">Combustible</option>
-                        <option value="Reparación">Reparación</option>
-                        <option value="Limpieza">Limpieza</option>
-                        <option value="Documentos">Tramites de Documentos</option>
-                        <option value="Multa de Tránsito">Multa de Tránsito</option>
-                        <option value="Otros">Otros</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="editInvoiceDescription">Descripción</label>
-                    <textarea id="editInvoiceDescription" placeholder="Descripción detallada del concepto"></textarea>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="editInvoiceAmount">Monto Base (₡) *</label>
-                        <input type="number" id="editInvoiceAmount" min="1" step="0.01" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="editInvoiceDueDate">Fecha de Vencimiento *</label>
-                        <input type="date" id="editInvoiceDueDate" required>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="editInvoiceStatus">Estado *</label>
-                        <select id="editInvoiceStatus" required>
-                            <option value="Pendiente">Pendiente</option>
-                            <option value="Vencido">Vencido</option>
-                            <option value="Pagado">Pagado</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group" id="editPaymentDateGroup" style="display: none;">
-                        <label for="editInvoicePaymentDate">Fecha de Pago</label>
-                        <input type="date" id="editInvoicePaymentDate">
-                    </div>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeEditInvoiceModal()">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        💾 Guardar Cambios
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Invoice Modal -->
-<div class="modal-overlay" id="deleteInvoiceModal" onclick="closeDeleteInvoiceModal()">
-    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 400px;">
-        <div class="modal-header">
-            <h3>🗑️ Eliminar Factura</h3>
-            <button class="modal-close" onclick="closeDeleteInvoiceModal()">✕</button>
-        </div>
-
-        <div class="modal-body">
-            <div style="text-align: center; margin-bottom: 24px;">
-                <div style="font-size: 3rem; margin-bottom: 16px;">⚠️</div>
-                <h4 style="margin-bottom: 8px;">¿Está seguro?</h4>
-                <p style="color: #86868b; margin-bottom: 16px;">
-                    Esta acción eliminará permanentemente la factura:
-                </p>
-                <div style="background: #f9f9f9; padding: 12px; border-radius: 8px; font-weight: 600;" id="deleteInvoiceInfo">
-                    <!-- Se llenará dinámicamente -->
-                </div>
-            </div>
-
-            <div class="form-actions" style="margin-top: 0; border: none; padding: 0;">
-                <button type="button" class="btn btn-secondary" onclick="closeDeleteInvoiceModal()">
-                    Cancelar
-                </button>
-                <button type="button" class="btn btn-danger" onclick="confirmDeleteInvoice()" id="confirmDeleteBtn">
-                    🗑️ Eliminar Factura
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Scripts -->
-<script src="utils.js"></script>
-<script src="invoice-crud.js"></script>
-<script src="account-statement.js"></script>
-<script src="fix-overdue-invoices.js"></script>
-
-            <script>
-            // ===== VARIABLES GLOBALES ESPECÍFICAS PARA FACTURAS VENCIDAS =====
-            // Las variables globales ya están declaradas en utils.js y expuestas al scope global
-            // currentClientId, currentClient, clientInvoices, assignedPayments
-
-// ===== INICIALIZACIÓN DE LA APLICACIÓN =====
-async function initializeApp() {
-    console.log('🚀 Inicializando aplicación de facturas vencidas...');
-
-    try {
-        // Obtener ID del cliente desde la URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const clientId = urlParams.get('clientId') || urlParams.get('id') || urlParams.get('cliente');
-
-        console.log('🔍 Parámetros de URL encontrados:', window.location.search);
-        console.log('🆔 ID del cliente extraído:', clientId);
-
-        if (!clientId) {
-            // Redirigir automáticamente a la página de clientes si no hay parámetro
-            window.location.href = '/clientes.html';
-            return;
-        }
-
-        // ✅ Establecer ID del cliente globalmente
-        currentClientId = clientId;
-        window.currentClientId = clientId;
-
-        console.log('🆔 Cliente ID obtenido:', clientId);
-
-        // Mostrar loading
-        showLoading(true);
-
-        // Cargar datos del cliente y facturas
-        console.log('🔄 Iniciando carga de cliente y facturas...');
-        await loadClientAndInvoices(clientId);
-        console.log('✅ Cliente y facturas cargados');
-
-        // Cargar pagos asignados
-        console.log('🔄 Iniciando carga de pagos asignados...');
-        try {
-            await loadAssignedPayments(clientId).catch(error => {
-                console.error('❌ Error en loadAssignedPayments:', error);
-                return null;
-            });
-            console.log('✅ Pagos asignados cargados');
-        } catch (error) {
-            console.error('❌ Error general en carga de pagos:', error);
-        }
-
-        // Renderizar la página completa
-        console.log('🔄 Iniciando renderizado de página...');
-        renderPage();
-        console.log('✅ Página renderizada');
-
-        // Mostrar contenido principal
-        document.getElementById('mainContent').style.display = 'block';
-        showLoading(false);
-
-        console.log('✅ Aplicación de facturas vencidas inicializada correctamente');
-
-    } catch (error) {
-        console.error('❌ Error al inicializar aplicación:', error);
-        showError(error.message);
-        showLoading(false);
-    }
-}
-
-// ===== FUNCIÓN PRINCIPAL DE RENDERIZADO =====
-function renderPage() {
-    console.log('🎨 Renderizando página de facturas vencidas...');
-
-    try {
-        // Actualizar nombre del cliente en header
-        updateClientHeader();
-
-        // Renderizar detalles del cliente
-        renderClientDetails();
-
-        // Clasificar facturas por estado
-        const overdueInvoices = clientInvoices.filter(inv => inv.Estado === 'Vencido');
-
-        // Actualizar estadísticas específicas de facturas vencidas
-        updateOverdueStats(overdueInvoices);
-
-        // Renderizar sección de facturas vencidas
-        renderInvoicesSection('overdue', overdueInvoices);
-
-        console.log('✅ Página de facturas vencidas renderizada completamente');
-
-    } catch (error) {
-        console.error('❌ Error al renderizar página:', error);
-        showToast('Error al renderizar la página: ' + error.message, 'error');
-    }
-}
-
-// ===== FUNCIÓN PARA ACTUALIZAR HEADER DEL CLIENTE =====
-function updateClientHeader() {
-    const client = window.currentClient || currentClient;
-
-    if (!client) {
-        console.error('❌ No hay cliente disponible para actualizar header');
-        return;
-    }
-
-    // Actualizar nombre en header
-    const clientNameElement = document.getElementById('clientName');
-    if (clientNameElement) {
-        clientNameElement.textContent = `Cliente: ${client.Nombre}`;
-    }
-
-    // Actualizar detalles del cliente
-    const clientNameDetailElement = document.getElementById('clientNameDetail');
-    const clientIdDetailElement = document.getElementById('clientIdDetail');
-
-    if (clientNameDetailElement) {
-        clientNameDetailElement.textContent = client.Nombre;
-    }
-
-    if (clientIdDetailElement) {
-        clientIdDetailElement.textContent = `ID: ${client.ID}`;
-    }
-}
-
-// ===== FUNCIÓN DE REINTENTO DE CARGA =====
-async function retryLoad() {
-    console.log('🔄 Reintentando cargar datos...');
-
-    // Ocultar error y mostrar loading
-    document.getElementById('errorState').style.display = 'none';
-
-    // Reinicializar la aplicación
-    await initializeApp();
-}
-
-// ===== FUNCIÓN PARA ACTUALIZAR ESTADÍSTICAS DE FACTURAS VENCIDAS =====
-function updateOverdueStats(overdueInvoices) {
-    console.log('📊 Actualizando estadísticas de facturas vencidas...');
-
-    const totalOverdue = overdueInvoices.length;
-    let totalFines = 0;
-    let totalAmount = 0;
-    let totalDays = 0;
-
-    overdueInvoices.forEach(invoice => {
-        const fines = parseAmount(invoice.MontoMultas || 0);
-        const baseAmount = parseAmount(invoice.MontoBase || 0);
-        const daysOverdue = parseInt(invoice.DiasAtraso || 0);
-
-        totalFines += fines;
-        totalAmount += baseAmount + fines;
-        totalDays += daysOverdue;
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Iniciando página de Facturas Vencidas');
+        initializePage();
     });
 
-    const averageDays = totalOverdue > 0 ? Math.round(totalDays / totalOverdue) : 0;
-
-    // Actualizar elementos en el DOM
-    document.getElementById('statOverdue').textContent = totalOverdue;
-    document.getElementById('statFines').textContent = `₡${totalFines.toLocaleString('es-CR')}`;
-    document.getElementById('statTotal').textContent = `₡${totalAmount.toLocaleString('es-CR')}`;
-    document.getElementById('statDays').textContent = averageDays;
-
-    // Actualizar contador en el header de la sección
-    document.getElementById('overdueCount').textContent = totalOverdue;
-
-    // Mostrar/ocultar sección vacía
-    const emptySection = document.getElementById('emptyOverdue');
-    const invoicesGrid = document.getElementById('overdueInvoices');
-    
-    if (totalOverdue === 0) {
-        emptySection.style.display = 'block';
-        invoicesGrid.style.display = 'none';
-    } else {
-        emptySection.style.display = 'none';
-        invoicesGrid.style.display = 'grid';
+    async function initializePage() {
+        try {
+            await Promise.all([
+                loadInvoices(),
+                loadClients()
+            ]);
+            
+            processOverdueInvoices();
+            setupEventListeners();
+            
+        } catch (error) {
+            console.error('❌ Error al inicializar:', error);
+            showToast('Error al cargar datos', 'error');
+        }
     }
 
-    console.log(`✅ Estadísticas actualizadas: ${totalOverdue} vencidas, ₡${totalFines} multas, ₡${totalAmount} total, ${averageDays} días promedio`);
-}
+    async function loadInvoices() {
+        const response = await fetch(`${API_URL_INVOICES}?sheet=Facturas`);
+        allInvoices = await response.json();
+        console.log(`📄 Facturas cargadas: ${allInvoices.length}`);
+    }
 
-// ===== FUNCIÓN PARA CARGAR PAGOS ASIGNADOS =====
-async function loadAssignedPayments(clientId) {
-    console.log('💰 Cargando pagos asignados...');
+    async function loadClients() {
+        const response = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`);
+        allClients = await response.json();
+        console.log(`👥 Clientes cargados: ${allClients.length}`);
+    }
 
-    try {
-        const response = await fetch(`/api/payments/assigned?clientId=${clientId}`);
+    function processOverdueInvoices() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        filteredInvoices = allInvoices.filter(invoice => {
+            if (!invoice.FechaVencimiento || invoice.Estado === 'Pagado') {
+                return false;
+            }
+            
+            const dueDate = parseDate(invoice.FechaVencimiento);
+            if (!dueDate) return false;
+            
+            return dueDate <= today;
+        });
+        
+        console.log(`🔴 Facturas vencidas encontradas: ${filteredInvoices.length}`);
+        renderOverdueInvoices();
+    }
+
+    function renderOverdueInvoices() {
+        const container = document.getElementById('overdueInvoices');
+        const emptySection = document.getElementById('emptyOverdue');
+        const countElement = document.getElementById('overdueCount');
+        
+        if (filteredInvoices.length === 0) {
+            container.innerHTML = '';
+            emptySection.style.display = 'block';
+            countElement.textContent = '0';
+            return;
         }
         
-        const data = await response.json();
-        assignedPayments = data.payments || [];
+        emptySection.style.display = 'none';
+        countElement.textContent = filteredInvoices.length;
         
-        console.log(`✅ ${assignedPayments.length} pagos asignados cargados`);
+        const sortedInvoices = filteredInvoices.sort((a, b) => {
+            const daysA = getDaysOverdue(a);
+            const daysB = getDaysOverdue(b);
+            return daysB - daysA;
+        });
         
-    } catch (error) {
-        console.error('❌ Error al cargar pagos asignados:', error);
-        assignedPayments = [];
-        throw error;
+        container.innerHTML = sortedInvoices.map(invoice => {
+            const client = allClients.find(c => c.ID.toString() === invoice.ID_Cliente.toString());
+            const daysOverdue = getDaysOverdue(invoice);
+            const fineAmount = calculateFine(invoice);
+            const totalAmount = parseFloat(invoice.MontoBase || 0) + fineAmount;
+            
+            return `
+                <div class="invoice-card overdue-card">
+                    <div class="invoice-header">
+                        <div class="invoice-number">${invoice.NumeroFactura}</div>
+                        <div class="invoice-status overdue">${daysOverdue} días vencida</div>
+                    </div>
+                    
+                    <div class="invoice-client">
+                        <strong>${client ? client.Nombre : 'Cliente no encontrado'}</strong>
+                    </div>
+                    
+                    <div class="invoice-description">
+                        ${invoice.SemanaDescripcion || 'Sin descripción'}
+                    </div>
+                    
+                    <div class="invoice-dates">
+                        <div class="date-item">
+                            <span class="date-label">Vence:</span>
+                            <span class="date-value">${formatDate(invoice.FechaVencimiento)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="invoice-amounts">
+                        <div class="amount-item">
+                            <span class="amount-label">Base:</span>
+                            <span class="amount-value">₡${formatNumber(invoice.MontoBase || 0)}</span>
+                        </div>
+                        <div class="amount-item fine">
+                            <span class="amount-label">Multa:</span>
+                            <span class="amount-value">₡${formatNumber(fineAmount)}</span>
+                        </div>
+                        <div class="amount-item total">
+                            <span class="amount-label">Total:</span>
+                            <span class="amount-value">₡${formatNumber(totalAmount)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="invoice-actions">
+                        <button class="btn-action" onclick="markAsPaid('${invoice.NumeroFactura}')">
+                            ✅ Pagar
+                        </button>
+                        <button class="btn-action" onclick="editInvoice('${invoice.NumeroFactura}')">
+                            ✏️ Editar
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
-}
 
-// ===== FUNCIÓN PARA IR A CLIENTES =====
-function goBackToClients() {
-    window.location.href = '/clientes.html';
-}
+    function getDaysOverdue(invoice) {
+        if (!invoice.FechaVencimiento) return 0;
+        
+        const dueDate = parseDate(invoice.FechaVencimiento);
+        if (!dueDate) return 0;
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        dueDate.setHours(0, 0, 0, 0);
+        
+        const diffTime = today - dueDate;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        return Math.max(0, diffDays);
+    }
 
-// ===== INICIALIZACIÓN AL CARGAR LA PÁGINA =====
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 Página de facturas vencidas cargada');
-    initializeApp();
-});
+    function calculateFine(invoice) {
+        const daysOverdue = getDaysOverdue(invoice);
+        const baseAmount = parseFloat(invoice.MontoBase || 0);
+        
+        if (daysOverdue <= 0) return 0;
+        
+        if (daysOverdue > 30) {
+            return baseAmount * 0.10;
+        }
+        
+        if (daysOverdue > 7) {
+            return baseAmount * 0.05;
+        }
+        
+        return 0;
+    }
 
-// ===== EXPORTAR FUNCIONES AL SCOPE GLOBAL =====
-window.retryLoad = retryLoad;
-window.goBackToClients = goBackToClients;
-window.updateOverdueStats = updateOverdueStats;
+    function setupEventListeners() {
+        const searchInput = document.getElementById('searchOverdue');
+        searchInput.addEventListener('input', function() {
+            filterInvoices();
+        });
+    }
+
+    function filterInvoices() {
+        const searchTerm = document.getElementById('searchOverdue').value.toLowerCase();
+        
+        let filtered = filteredInvoices.filter(invoice => {
+            if (searchTerm) {
+                const searchText = `${invoice.NumeroFactura} ${invoice.SemanaDescripcion}`.toLowerCase();
+                if (!searchText.includes(searchTerm)) return false;
+            }
+            return true;
+        });
+        
+        renderFilteredInvoices(filtered);
+    }
+
+    function renderFilteredInvoices(invoices) {
+        const container = document.getElementById('overdueInvoices');
+        const countElement = document.getElementById('overdueCount');
+        
+        countElement.textContent = invoices.length;
+        
+        if (invoices.length === 0) {
+            container.innerHTML = '<div class="empty-section"><h4>🔍 No se encontraron facturas</h4><p>Intenta con otros filtros de búsqueda</p></div>';
+            return;
+        }
+        
+        const sortedInvoices = invoices.sort((a, b) => {
+            const daysA = getDaysOverdue(a);
+            const daysB = getDaysOverdue(b);
+            return daysB - daysA;
+        });
+        
+        container.innerHTML = sortedInvoices.map(invoice => {
+            const client = allClients.find(c => c.ID.toString() === invoice.ID_Cliente.toString());
+            const daysOverdue = getDaysOverdue(invoice);
+            const fineAmount = calculateFine(invoice);
+            const totalAmount = parseFloat(invoice.MontoBase || 0) + fineAmount;
+            
+            return `
+                <div class="invoice-card overdue-card">
+                    <div class="invoice-header">
+                        <div class="invoice-number">${invoice.NumeroFactura}</div>
+                        <div class="invoice-status overdue">${daysOverdue} días vencida</div>
+                    </div>
+                    
+                    <div class="invoice-client">
+                        <strong>${client ? client.Nombre : 'Cliente no encontrado'}</strong>
+                    </div>
+                    
+                    <div class="invoice-description">
+                        ${invoice.SemanaDescripcion || 'Sin descripción'}
+                    </div>
+                    
+                    <div class="invoice-dates">
+                        <div class="date-item">
+                            <span class="date-label">Vence:</span>
+                            <span class="date-value">${formatDate(invoice.FechaVencimiento)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="invoice-amounts">
+                        <div class="amount-item">
+                            <span class="amount-label">Base:</span>
+                            <span class="amount-value">₡${formatNumber(invoice.MontoBase || 0)}</span>
+                        </div>
+                        <div class="amount-item fine">
+                            <span class="amount-label">Multa:</span>
+                            <span class="amount-value">₡${formatNumber(fineAmount)}</span>
+                        </div>
+                        <div class="amount-item total">
+                            <span class="amount-label">Total:</span>
+                            <span class="amount-value">₡${formatNumber(totalAmount)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="invoice-actions">
+                        <button class="btn-action" onclick="markAsPaid('${invoice.NumeroFactura}')">
+                            ✅ Pagar
+                        </button>
+                        <button class="btn-action" onclick="editInvoice('${invoice.NumeroFactura}')">
+                            ✏️ Editar
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function parseDate(dateString) {
+        if (!dateString) return null;
+        
+        if (dateString.includes('/')) {
+            const parts = dateString.split('/');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0]);
+                const month = parseInt(parts[1]) - 1;
+                const year = parseInt(parts[2]);
+                return new Date(year, month, day);
+            }
+        }
+        
+        return new Date(dateString);
+    }
+
+    function formatDate(dateString) {
+        const date = parseDate(dateString);
+        if (!date) return dateString;
+        
+        return date.toLocaleDateString('es-CR');
+    }
+
+    function formatNumber(number) {
+        return new Intl.NumberFormat('es-CR').format(number);
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            background: ${type === 'error' ? '#ff4444' : type === 'success' ? '#00c851' : '#2196F3'};
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+
+    function goBackToClients() {
+        window.location.href = 'clientes.html';
+    }
+
+    async function markAsPaid(invoiceNumber) {
+        try {
+            const params = new URLSearchParams();
+            params.append('sheet', 'Facturas');
+            params.append('Estado', 'Pagado');
+            params.append('FechaPago', new Date().toLocaleDateString('es-CR'));
+            
+            const response = await fetch(`${API_URL_INVOICES}/NumeroFactura/${invoiceNumber}?${params.toString()}`, {
+                method: 'PATCH'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            showToast('Factura marcada como pagada', 'success');
+            
+            await loadInvoices();
+            processOverdueInvoices();
+            
+        } catch (error) {
+            console.error('❌ Error al marcar como pagada:', error);
+            showToast('Error al actualizar factura', 'error');
+        }
+    }
+
+    function editInvoice(invoiceNumber) {
+        showToast('Función de edición en desarrollo', 'info');
+    }
 </script>
-
 </body>
 </html> 
