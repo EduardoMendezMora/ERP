@@ -128,8 +128,9 @@
         container.innerHTML = sortedInvoices.map(invoice => {
             const client = allClients.find(c => c.ID.toString() === invoice.ID_Cliente.toString());
             const daysOverdue = getDaysOverdue(invoice);
+            const baseAmount = parseAmount(invoice.MontoBase || 0);
             const fineAmount = calculateFine(invoice);
-            const totalAmount = parseFloat(invoice.MontoBase || 0) + fineAmount;
+            const totalAmount = baseAmount + fineAmount;
             
             return `
                 <div class="invoice-card overdue-card">
@@ -156,7 +157,7 @@
                     <div class="invoice-amounts">
                         <div class="amount-item">
                             <span class="amount-label">Base:</span>
-                            <span class="amount-value">₡${formatNumber(invoice.MontoBase || 0)}</span>
+                            <span class="amount-value">₡${formatNumber(baseAmount)}</span>
                         </div>
                         <div class="amount-item fine">
                             <span class="amount-label">Multa:</span>
@@ -290,8 +291,9 @@
         container.innerHTML = sortedInvoices.map(invoice => {
             const client = allClients.find(c => c.ID.toString() === invoice.ID_Cliente.toString());
             const daysOverdue = getDaysOverdue(invoice);
+            const baseAmount = parseAmount(invoice.MontoBase || 0);
             const fineAmount = calculateFine(invoice);
-            const totalAmount = parseFloat(invoice.MontoBase || 0) + fineAmount;
+            const totalAmount = baseAmount + fineAmount;
             
             return `
                 <div class="invoice-card overdue-card">
@@ -318,7 +320,7 @@
                     <div class="invoice-amounts">
                         <div class="amount-item">
                             <span class="amount-label">Base:</span>
-                            <span class="amount-value">₡${formatNumber(invoice.MontoBase || 0)}</span>
+                            <span class="amount-value">₡${formatNumber(baseAmount)}</span>
                         </div>
                         <div class="amount-item fine">
                             <span class="amount-label">Multa:</span>
@@ -441,4 +443,4 @@
     }
 </script>
 </body>
-</html> 
+</html>
