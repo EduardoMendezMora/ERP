@@ -727,6 +727,37 @@
             opacity: 0.7;
         }
 
+        /* Estilos específicos para el modal de etiquetas */
+        #editTagsModal .tags-suggestions {
+            z-index: 1001;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        #editTagsModal .suggestion-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s;
+            color: #333;
+        }
+
+        #editTagsModal .suggestion-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        #editTagsModal .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
         .client-tag-chip:hover .tag-remove-small {
             opacity: 1;
         }
@@ -2166,7 +2197,8 @@
                     });
                 }
             });
-            console.log('loadAllTags - Total tags loaded:', allTags);
+            console.log('loadAllTags - Total tags loaded:', allTags.length);
+            console.log('loadAllTags - All tags content:', JSON.stringify(allTags));
         }
 
         function showTagSuggestions() {
@@ -2323,9 +2355,22 @@
             console.log('Modal tag suggestions - Input value:', inputValue);
             console.log('Modal tag suggestions - All tags:', allTags);
             console.log('Modal tag suggestions - Current modal tags:', window.modalCurrentTags);
+            console.log('Modal tag suggestions - All tags content:', JSON.stringify(allTags));
+            console.log('Modal tag suggestions - Current modal tags content:', JSON.stringify(window.modalCurrentTags));
+            
+            // Verificar si los elementos existen
+            console.log('Modal tag suggestions - tagInput exists:', !!tagInput);
+            console.log('Modal tag suggestions - suggestions exists:', !!suggestions);
+            console.log('Modal tag suggestions - suggestionsList exists:', !!suggestionsList);
+            
+            if (!tagInput || !suggestions || !suggestionsList) {
+                console.error('Modal tag suggestions - Missing DOM elements');
+                return;
+            }
             
             if (inputValue.length === 0) {
                 suggestions.style.display = 'none';
+                console.log('Modal tag suggestions - Hiding suggestions (empty input)');
                 return;
             }
             
@@ -2337,14 +2382,23 @@
             console.log('Modal tag suggestions - Filtered tags:', filteredTags);
             
             if (filteredTags.length > 0) {
-                suggestionsList.innerHTML = filteredTags.map(tag => `
+                const suggestionsHTML = filteredTags.map(tag => `
                     <div class="suggestion-item" onclick="selectModalSuggestion('${tag}')">
                         ${tag}
                     </div>
                 `).join('');
+                
+                console.log('Modal tag suggestions - Generated HTML:', suggestionsHTML);
+                
+                suggestionsList.innerHTML = suggestionsHTML;
                 suggestions.style.display = 'block';
+                
+                console.log('Modal tag suggestions - Suggestions displayed, count:', suggestionsList.children.length);
+                console.log('Modal tag suggestions - Suggestions style display:', suggestions.style.display);
+                console.log('Modal tag suggestions - Suggestions computed style:', window.getComputedStyle(suggestions).display);
             } else {
                 suggestions.style.display = 'none';
+                console.log('Modal tag suggestions - Hiding suggestions (no matches)');
             }
         }
 
