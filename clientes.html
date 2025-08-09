@@ -2187,9 +2187,13 @@
         function loadAllTags() {
             // Extraer todas las etiquetas de todos los clientes
             allTags = [];
-            clients.forEach(client => {
+            console.log('loadAllTags - Total clients:', clients.length);
+            
+            clients.forEach((client, index) => {
+                console.log(`loadAllTags - Client ${index + 1}:`, client.Nombre, 'Etiquetas:', client.Etiquetas);
                 if (client.Etiquetas) {
                     const clientTags = parseTags(client.Etiquetas);
+                    console.log(`loadAllTags - Parsed tags for ${client.Nombre}:`, clientTags);
                     clientTags.forEach(tag => {
                         if (!allTags.includes(tag)) {
                             allTags.push(tag);
@@ -2242,6 +2246,10 @@
                 showToast('Cliente no encontrado', 'error');
                 return;
             }
+
+            // Cargar todas las etiquetas antes de abrir el modal
+            loadAllTags();
+            console.log('editClientTags - All tags after loading:', allTags);
 
             // Crear modal para editar etiquetas
             const modal = document.createElement('div');
