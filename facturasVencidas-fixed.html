@@ -182,72 +182,79 @@
         }).join('');
     }
 
-    function getDaysOverdue(invoice) {
-        if (!invoice.FechaVencimiento) return 0;
-        
-        const dueDate = parseDate(invoice.FechaVencimiento);
-        if (!dueDate) return 0;
-        
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        dueDate.setHours(0, 0, 0, 0);
-        
-        const diffTime = today - dueDate;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        return Math.max(0, diffDays);
-    }
-
     function parseAmount(amount) {
         if (!amount) return 0;
         
-        // Si ya es un número, usarlo directamente
+        // Si es un número, usarlo directamente
         if (typeof amount === 'number') {
             return amount;
-        }
-        
-        // Convertir a string y limpiar
-        const cleanAmount = amount.toString().trim();
-        
-        // Si está vacío, devolver 0
-        if (!cleanAmount) return 0;
-        
-        // Remover caracteres no numéricos excepto punto y coma
-        const numericOnly = cleanAmount.replace(/[^\d.,]/g, '');
-        
-        // Si no hay números, devolver 0
-        if (!numericOnly) return 0;
-        
-        let result;
-        
-        if (numericOnly.includes(',')) {
-            // Formato: "1.000.000,00" -> 1000000.00
-            const normalizedValue = numericOnly.replace(/\./g, '').replace(',', '.');
-            result = parseFloat(normalizedValue) || 0;
+        } else if (typeof amount === 'string') {
+            // Limpiar el string de caracteres no numéricos excepto punto y coma
+            const cleanAmount = amount.toString().trim().replace(/[^\d.,]/g, '');
+            
+            if (cleanAmount.includes(',')) {
+                // Formato: "1.000.000,00" -> 1000000.00
+                const normalizedValue = cleanAmount.replace(/\./g, '').replace(',', '.');
+                return parseFloat(normalizedValue) || 0;
+            } else {
+                // Formato: "1000000" o "1.000.000" -> 1000000
+                const normalizedValue = cleanAmount.replace(/\./g, '');
+                return parseFloat(normalizedValue) || 0;
+            }
         } else {
-            // Formato: "1000000" o "1.000.000" -> 1000000
-            const normalizedValue = numericOnly.replace(/\./g, '');
-            result = parseFloat(normalizedValue) || 0;
+            // Otros tipos: intentar conversión directa
+            return parseFloat(amount) || 0;
+        }
+    }
+
+    function parseDate(dateStr) {
+        if (!dateStr) return null;
+        
+        if (dateStr.includes('/')) {
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0]);
+                const month = parseInt(parts[1]) - 1;
+                const year = parseInt(parts[2]);
+                return new Date(year, month, day);
+            }
         }
         
-        return result;
+        return new Date(dateStr);
+    }
+
+    function calculateDaysOverdue(dueDateString, referenceDate = new Date()) {
+        const dueDate = parseDate(dueDateString);
+        if (!dueDate) return 0;
+
+        const today = new Date(referenceDate);
+        today.setHours(0, 0, 0, 0);
+        dueDate.setHours(0, 0, 0, 0);
+
+        if (today <= dueDate) return 0;
+
+        const diffTime = today.getTime() - dueDate.getTime();
+        return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    function getDaysOverdue(invoice) {
+        return calculateDaysOverdue(invoice.FechaVencimiento);
     }
 
     function calculateFine(invoice) {
+        // Solo calcular multas para facturas de arrendamiento (NO manuales)
+        const isManualInvoice = invoice.TipoFactura === 'Manual' ||
+            invoice.NumeroFactura?.startsWith('MAN-') ||
+            invoice.ConceptoManual;
+
+        if (isManualInvoice) return 0;
+        
         const daysOverdue = getDaysOverdue(invoice);
-        const baseAmount = parseAmount(invoice.MontoBase || 0);
         
         if (daysOverdue <= 0) return 0;
         
-        if (daysOverdue > 30) {
-            return baseAmount * 0.10;
-        }
-        
-        if (daysOverdue > 7) {
-            return baseAmount * 0.05;
-        }
-        
-        return 0;
+        // ₡2,000 por día de atraso (como en utils.js)
+        return daysOverdue * 2000;
     }
 
     function setupEventListeners() {
@@ -345,41 +352,19 @@
         }).join('');
     }
 
-    function parseDate(dateString) {
-        if (!dateString) return null;
-        
-        if (dateString.includes('/')) {
-            const parts = dateString.split('/');
-            if (parts.length === 3) {
-                const day = parseInt(parts[0]);
-                const month = parseInt(parts[1]) - 1;
-                const year = parseInt(parts[2]);
-                return new Date(year, month, day);
-            }
-        }
-        
-        return new Date(dateString);
-    }
-
-    function formatDate(dateString) {
+    function formatDateForDisplay(dateString) {
         const date = parseDate(dateString);
         if (!date) return dateString;
         
         return date.toLocaleDateString('es-CR');
     }
 
+    function formatDate(dateString) {
+        return formatDateForDisplay(dateString);
+    }
+
     function formatNumber(number) {
-        if (number === null || number === undefined || isNaN(number)) {
-            return '0';
-        }
-        
-        // Convertir a número si es string
-        const num = typeof number === 'string' ? parseFloat(number.replace(/[^\d.,]/g, '').replace(',', '.')) : parseFloat(number);
-        
-        if (isNaN(num)) {
-            return '0';
-        }
-        
+        const num = parseAmount(number);
         return new Intl.NumberFormat('es-CR', {
             minimumFractionDigits: 0,
             maximumFractionDigits: 0

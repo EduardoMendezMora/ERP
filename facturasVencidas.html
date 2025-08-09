@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ERP - Facturas Vencidas</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="utils.js"></script>
 </head>
 <body>
 <div class="container">
@@ -17,13 +16,13 @@
 
     <div class="header">
         <h1>🔴 Facturas Vencidas</h1>
-        <p>Gestión de facturas vencidas y con multas</p>
+        <p>Gestión de facturas vencidas agrupadas por cliente</p>
     </div>
 
     <div class="search-section">
         <div class="search-container">
             <div class="search-box">
-                <input type="text" id="searchOverdue" placeholder="🔍 Buscar facturas..." class="search-input">
+                <input type="text" id="searchOverdue" placeholder="🔍 Buscar por cliente o factura..." class="search-input">
             </div>
         </div>
     </div>
@@ -31,12 +30,13 @@
     <div class="invoices-section" id="overdueSection">
         <div class="section-header">
             <h3 class="section-title">
-                🔴 Facturas Vencidas
+                🔴 Facturas Vencidas por Cliente
                 <span class="section-count" id="overdueCount">0</span>
             </h3>
+            <small style="color: #86868b; font-size: 0.8rem;">Ordenados del que debe más al que debe menos</small>
         </div>
         
-        <div class="invoices-grid" id="overdueInvoices"></div>
+        <div class="clients-grid" id="clientsGrid"></div>
         
         <div class="empty-section" id="emptyOverdue" style="display: none;">
             <h4>✅ No hay facturas vencidas</h4>
@@ -51,7 +51,7 @@
     
     let allInvoices = [];
     let allClients = [];
-    let filteredInvoices = [];
+    let clientsWithOverdueInvoices = [];
 
     document.addEventListener('DOMContentLoaded', function() {
         console.log('🚀 Iniciando página de Facturas Vencidas');
@@ -90,7 +90,8 @@
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        filteredInvoices = allInvoices.filter(invoice => {
+        // Filtrar facturas vencidas
+        const overdueInvoices = allInvoices.filter(invoice => {
             if (!invoice.FechaVencimiento || invoice.Estado === 'Pagado') {
                 return false;
             }
@@ -101,16 +102,54 @@
             return dueDate <= today;
         });
         
-        console.log(`🔴 Facturas vencidas encontradas: ${filteredInvoices.length}`);
-        renderOverdueInvoices();
+        // Agrupar por cliente
+        const clientsMap = new Map();
+        
+        overdueInvoices.forEach(invoice => {
+            const clientId = invoice.ID_Cliente;
+            if (!clientsMap.has(clientId)) {
+                const client = allClients.find(c => c.ID.toString() === clientId.toString());
+                if (client) {
+                    clientsMap.set(clientId, {
+                        client: client,
+                        invoices: [],
+                        totalDebt: 0
+                    });
+                }
+            }
+            
+            if (clientsMap.has(clientId)) {
+                const clientData = clientsMap.get(clientId);
+                const baseAmount = parseAmount(invoice.MontoBase || 0);
+                const fineAmount = calculateFine(invoice);
+                const totalAmount = baseAmount + fineAmount;
+                
+                clientData.invoices.push({
+                    ...invoice,
+                    baseAmount: baseAmount,
+                    fineAmount: fineAmount,
+                    totalAmount: totalAmount,
+                    daysOverdue: getDaysOverdue(invoice)
+                });
+                
+                clientData.totalDebt += totalAmount;
+            }
+        });
+        
+        // Convertir a array y ordenar por deuda total (mayor a menor)
+        clientsWithOverdueInvoices = Array.from(clientsMap.values())
+            .sort((a, b) => b.totalDebt - a.totalDebt);
+        
+        console.log(`🔴 Clientes con facturas vencidas: ${clientsWithOverdueInvoices.length}`);
+        renderClientsGrid();
     }
 
-    function renderOverdueInvoices() {
-        const container = document.getElementById('overdueInvoices');
+    function renderClientsGrid() {
+        const container = document.getElementById('clientsGrid');
         const emptySection = document.getElementById('emptyOverdue');
         const countElement = document.getElementById('overdueCount');
         
-        if (filteredInvoices.length === 0) {
+        if (clientsWithOverdueInvoices.length === 0) {
             container.innerHTML = '';
             emptySection.style.display = 'block';
             countElement.textContent = '0';
@@ -118,75 +157,138 @@
         }
         
         emptySection.style.display = 'none';
-        countElement.textContent = filteredInvoices.length;
+        countElement.textContent = clientsWithOverdueInvoices.length;
         
-        const sortedInvoices = filteredInvoices.sort((a, b) => {
-            const daysA = getDaysOverdue(a);
-            const daysB = getDaysOverdue(b);
-            return daysB - daysA;
-        });
-        
-        container.innerHTML = sortedInvoices.map(invoice => {
-            const client = allClients.find(c => c.ID.toString() === invoice.ID_Cliente.toString());
-            const daysOverdue = getDaysOverdue(invoice);
-            const fineAmount = calculateFine(invoice);
-            const totalAmount = parseFloat(invoice.MontoBase || 0) + fineAmount;
+        container.innerHTML = clientsWithOverdueInvoices.map(clientData => {
+            const { client, invoices, totalDebt } = clientData;
+            
+            // Ordenar facturas por días vencidos (mayor a menor)
+            const sortedInvoices = invoices.sort((a, b) => b.daysOverdue - a.daysOverdue);
             
             return `
-                <div class="invoice-card overdue-card">
-                    <div class="invoice-header">
-                        <div class="invoice-number">${invoice.NumeroFactura}</div>
-                        <div class="invoice-status overdue">${daysOverdue} días vencida</div>
-                    </div>
-                    
-                    <div class="invoice-client">
-                        <strong>${client ? client.Nombre : 'Cliente no encontrado'}</strong>
-                    </div>
-                    
-                    <div class="invoice-description">
-                        ${invoice.SemanaDescripcion || 'Sin descripción'}
-                    </div>
-                    
-                    <div class="invoice-dates">
-                        <div class="date-item">
-                            <span class="date-label">Vence:</span>
-                            <span class="date-value">${formatDate(invoice.FechaVencimiento)}</span>
+                <div class="client-card">
+                    <div class="client-header">
+                        <div class="client-info">
+                            <h3 class="client-name">${client.Nombre}</h3>
+                            <div class="client-details">
+                                <span class="client-id">ID: ${client.ID}</span>
+                                <span class="client-phone">${client.Telefono || 'Sin teléfono'}</span>
+                            </div>
+                        </div>
+                        <div class="client-total">
+                            <div class="total-amount">₡${formatNumber(totalDebt)}</div>
+                            <div class="total-label">Total Vencido</div>
                         </div>
                     </div>
                     
-                    <div class="invoice-amounts">
-                        <div class="amount-item">
-                            <span class="amount-label">Base:</span>
-                            <span class="amount-value">₡${formatNumber(invoice.MontoBase || 0)}</span>
-                        </div>
-                        <div class="amount-item fine">
-                            <span class="amount-label">Multa:</span>
-                            <span class="amount-value">₡${formatNumber(fineAmount)}</span>
-                        </div>
-                        <div class="amount-item total">
-                            <span class="amount-label">Total:</span>
-                            <span class="amount-value">₡${formatNumber(totalAmount)}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="invoice-actions">
-                        <button class="btn-action" onclick="markAsPaid('${invoice.NumeroFactura}')">
-                            ✅ Pagar
-                        </button>
-                        <button class="btn-action" onclick="editInvoice('${invoice.NumeroFactura}')">
-                            ✏️ Editar
-                        </button>
+                    <div class="invoices-list">
+                        ${sortedInvoices.map(invoice => `
+                            <div class="invoice-card overdue-card">
+                                <div class="invoice-header">
+                                    <div class="invoice-number">${invoice.NumeroFactura}</div>
+                                    <div class="invoice-status overdue">${invoice.daysOverdue} días vencida</div>
+                                </div>
+                                
+                                <div class="invoice-description">
+                                    ${invoice.SemanaDescripcion || 'Sin descripción'}
+                                </div>
+                                
+                                <div class="invoice-dates">
+                                    <div class="date-item">
+                                        <span class="date-label">Vence:</span>
+                                        <span class="date-value">${formatDate(invoice.FechaVencimiento)}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="invoice-amounts">
+                                    <div class="amount-item">
+                                        <span class="amount-label">Base:</span>
+                                        <span class="amount-value">₡${formatNumber(invoice.baseAmount)}</span>
+                                    </div>
+                                    <div class="amount-item fine">
+                                        <span class="amount-label">Multa:</span>
+                                        <span class="amount-value">₡${formatNumber(invoice.fineAmount)}</span>
+                                    </div>
+                                    <div class="amount-item total">
+                                        <span class="amount-label">Total:</span>
+                                        <span class="amount-value">₡${formatNumber(invoice.totalAmount)}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="invoice-actions">
+                                    <button class="btn-action" onclick="markAsPaid('${invoice.NumeroFactura}')">
+                                        ✅ Pagar
+                                    </button>
+                                    <button class="btn-action" onclick="editInvoice('${invoice.NumeroFactura}')">
+                                        ✏️ Editar
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             `;
         }).join('');
     }
 
+    function parseAmount(amount) {
+        if (!amount) return 0;
+        
+        // Si es un número, usarlo directamente
+        if (typeof amount === 'number') {
+            return amount;
+        } else if (typeof amount === 'string') {
+            // Limpiar el string de caracteres no numéricos excepto punto y coma
+            const cleanAmount = amount.toString().trim().replace(/[^\d.,]/g, '');
+            
+            if (cleanAmount.includes(',')) {
+                // Formato: "1.000.000,00" -> 1000000.00
+                const normalizedValue = cleanAmount.replace(/\./g, '').replace(',', '.');
+                return parseFloat(normalizedValue) || 0;
+            } else {
+                // Formato: "1000000" o "1.000.000" -> 1000000
+                const normalizedValue = cleanAmount.replace(/\./g, '');
+                return parseFloat(normalizedValue) || 0;
+            }
+        } else {
+            // Otros tipos: intentar conversión directa
+            return parseFloat(amount) || 0;
+        }
+    }
+
+    function parseDate(dateStr) {
+        if (!dateStr) return null;
+        
+        if (dateStr.includes('/')) {
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0]);
+                const month = parseInt(parts[1]) - 1;
+                const year = parseInt(parts[2]);
+                return new Date(year, month, day);
+            }
+        }
+        
+        return new Date(dateStr);
+    }
+
+    function calculateDaysOverdue(dueDateString, referenceDate = new Date()) {
+        const dueDate = parseDate(dueDateString);
+        if (!dueDate) return 0;
+
+        const today = new Date(referenceDate);
+        today.setHours(0, 0, 0, 0);
+        dueDate.setHours(0, 0, 0, 0);
+
+        if (today <= dueDate) return 0;
+
+        const diffTime = today.getTime() - dueDate.getTime();
+        return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    }
+
     function getDaysOverdue(invoice) {
         return calculateDaysOverdue(invoice.FechaVencimiento);
     }
-
-    // Usar parseAmount de utils.js
 
     function calculateFine(invoice) {
         // Solo calcular multas para facturas de arrendamiento (NO manuales)
@@ -207,98 +309,125 @@
     function setupEventListeners() {
         const searchInput = document.getElementById('searchOverdue');
         searchInput.addEventListener('input', function() {
-            filterInvoices();
+            filterClients();
         });
     }
 
-    function filterInvoices() {
+    function filterClients() {
         const searchTerm = document.getElementById('searchOverdue').value.toLowerCase();
         
-        let filtered = filteredInvoices.filter(invoice => {
-            if (searchTerm) {
-                const searchText = `${invoice.NumeroFactura} ${invoice.SemanaDescripcion}`.toLowerCase();
-                if (!searchText.includes(searchTerm)) return false;
-            }
-            return true;
-        });
-        
-        renderFilteredInvoices(filtered);
-    }
-
-    function renderFilteredInvoices(invoices) {
-        const container = document.getElementById('overdueInvoices');
-        const countElement = document.getElementById('overdueCount');
-        
-        countElement.textContent = invoices.length;
-        
-        if (invoices.length === 0) {
-            container.innerHTML = '<div class="empty-section"><h4>🔍 No se encontraron facturas</h4><p>Intenta con otros filtros de búsqueda</p></div>';
+        if (!searchTerm) {
+            renderClientsGrid();
             return;
         }
         
-        const sortedInvoices = invoices.sort((a, b) => {
-            const daysA = getDaysOverdue(a);
-            const daysB = getDaysOverdue(b);
-            return daysB - daysA;
+        const filteredClients = clientsWithOverdueInvoices.filter(clientData => {
+            const { client, invoices } = clientData;
+            
+            // Buscar en nombre del cliente
+            if (client.Nombre.toLowerCase().includes(searchTerm)) {
+                return true;
+            }
+            
+            // Buscar en número de facturas
+            return invoices.some(invoice => 
+                invoice.NumeroFactura.toLowerCase().includes(searchTerm) ||
+                (invoice.SemanaDescripcion && invoice.SemanaDescripcion.toLowerCase().includes(searchTerm))
+            );
         });
         
-        container.innerHTML = sortedInvoices.map(invoice => {
-            const client = allClients.find(c => c.ID.toString() === invoice.ID_Cliente.toString());
-            const daysOverdue = getDaysOverdue(invoice);
-            const fineAmount = calculateFine(invoice);
-            const totalAmount = parseFloat(invoice.MontoBase || 0) + fineAmount;
+        renderFilteredClients(filteredClients);
+    }
+
+    function renderFilteredClients(filteredClients) {
+        const container = document.getElementById('clientsGrid');
+        const countElement = document.getElementById('overdueCount');
+        
+        countElement.textContent = filteredClients.length;
+        
+        if (filteredClients.length === 0) {
+            container.innerHTML = '<div class="empty-section"><h4>🔍 No se encontraron clientes</h4><p>Intenta con otros filtros de búsqueda</p></div>';
+            return;
+        }
+        
+        container.innerHTML = filteredClients.map(clientData => {
+            const { client, invoices, totalDebt } = clientData;
+            
+            // Ordenar facturas por días vencidos (mayor a menor)
+            const sortedInvoices = invoices.sort((a, b) => b.daysOverdue - a.daysOverdue);
             
             return `
-                <div class="invoice-card overdue-card">
-                    <div class="invoice-header">
-                        <div class="invoice-number">${invoice.NumeroFactura}</div>
-                        <div class="invoice-status overdue">${daysOverdue} días vencida</div>
-                    </div>
-                    
-                    <div class="invoice-client">
-                        <strong>${client ? client.Nombre : 'Cliente no encontrado'}</strong>
-                    </div>
-                    
-                    <div class="invoice-description">
-                        ${invoice.SemanaDescripcion || 'Sin descripción'}
-                    </div>
-                    
-                    <div class="invoice-dates">
-                        <div class="date-item">
-                            <span class="date-label">Vence:</span>
-                            <span class="date-value">${formatDate(invoice.FechaVencimiento)}</span>
+                <div class="client-card">
+                    <div class="client-header">
+                        <div class="client-info">
+                            <h3 class="client-name">${client.Nombre}</h3>
+                            <div class="client-details">
+                                <span class="client-id">ID: ${client.ID}</span>
+                                <span class="client-phone">${client.Telefono || 'Sin teléfono'}</span>
+                            </div>
+                        </div>
+                        <div class="client-total">
+                            <div class="total-amount">₡${formatNumber(totalDebt)}</div>
+                            <div class="total-label">Total Vencido</div>
                         </div>
                     </div>
                     
-                    <div class="invoice-amounts">
-                        <div class="amount-item">
-                            <span class="amount-label">Base:</span>
-                            <span class="amount-value">₡${formatNumber(invoice.MontoBase || 0)}</span>
-                        </div>
-                        <div class="amount-item fine">
-                            <span class="amount-label">Multa:</span>
-                            <span class="amount-value">₡${formatNumber(fineAmount)}</span>
-                        </div>
-                        <div class="amount-item total">
-                            <span class="amount-label">Total:</span>
-                            <span class="amount-value">₡${formatNumber(totalAmount)}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="invoice-actions">
-                        <button class="btn-action" onclick="markAsPaid('${invoice.NumeroFactura}')">
-                            ✅ Pagar
-                        </button>
-                        <button class="btn-action" onclick="editInvoice('${invoice.NumeroFactura}')">
-                            ✏️ Editar
-                        </button>
+                    <div class="invoices-list">
+                        ${sortedInvoices.map(invoice => `
+                            <div class="invoice-card overdue-card">
+                                <div class="invoice-header">
+                                    <div class="invoice-number">${invoice.NumeroFactura}</div>
+                                    <div class="invoice-status overdue">${invoice.daysOverdue} días vencida</div>
+                                </div>
+                                
+                                <div class="invoice-description">
+                                    ${invoice.SemanaDescripcion || 'Sin descripción'}
+                                </div>
+                                
+                                <div class="invoice-dates">
+                                    <div class="date-item">
+                                        <span class="date-label">Vence:</span>
+                                        <span class="date-value">${formatDate(invoice.FechaVencimiento)}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="invoice-amounts">
+                                    <div class="amount-item">
+                                        <span class="amount-label">Base:</span>
+                                        <span class="amount-value">₡${formatNumber(invoice.baseAmount)}</span>
+                                    </div>
+                                    <div class="amount-item fine">
+                                        <span class="amount-label">Multa:</span>
+                                        <span class="amount-value">₡${formatNumber(invoice.fineAmount)}</span>
+                                    </div>
+                                    <div class="amount-item total">
+                                        <span class="amount-label">Total:</span>
+                                        <span class="amount-value">₡${formatNumber(invoice.totalAmount)}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="invoice-actions">
+                                    <button class="btn-action" onclick="markAsPaid('${invoice.NumeroFactura}')">
+                                        ✅ Pagar
+                                    </button>
+                                    <button class="btn-action" onclick="editInvoice('${invoice.NumeroFactura}')">
+                                        ✏️ Editar
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             `;
         }).join('');
     }
 
-    // Usar parseDate de utils.js
+    function formatDateForDisplay(dateString) {
+        const date = parseDate(dateString);
+        if (!date) return dateString;
+        
+        return date.toLocaleDateString('es-CR');
+    }
 
     function formatDate(dateString) {
         return formatDateForDisplay(dateString);
@@ -312,9 +441,31 @@
         }).format(num);
     }
 
-    // Usar showToast de utils.js
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            background: ${type === 'error' ? '#ff4444' : type === 'success' ? '#00c851' : '#2196F3'};
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
 
-    // Usar goBackToClients de utils.js
+    function goBackToClients() {
+        window.location.href = 'clientes.html';
+    }
 
     async function markAsPaid(invoiceNumber) {
         try {
@@ -346,5 +497,212 @@
         showToast('Función de edición en desarrollo', 'info');
     }
 </script>
+
+<style>
+    .clients-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        margin-top: 24px;
+    }
+
+    .client-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+        border: 1px solid #e1e5e9;
+    }
+
+    .client-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .client-info {
+        flex: 1;
+    }
+
+    .client-name {
+        margin: 0 0 8px 0;
+        font-size: 1.4rem;
+        font-weight: 600;
+    }
+
+    .client-details {
+        display: flex;
+        gap: 16px;
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+
+    .client-total {
+        text-align: right;
+    }
+
+    .total-amount {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+
+    .total-label {
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+
+    .invoices-list {
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .invoice-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 16px;
+        border-left: 4px solid #dc3545;
+    }
+
+    .invoice-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .invoice-number {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .invoice-status.overdue {
+        background: #dc3545;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .invoice-description {
+        color: #6c757d;
+        margin-bottom: 12px;
+        font-size: 0.9rem;
+    }
+
+    .invoice-dates {
+        margin-bottom: 12px;
+    }
+
+    .date-item {
+        display: flex;
+        gap: 8px;
+        font-size: 0.9rem;
+    }
+
+    .date-label {
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .date-value {
+        color: #495057;
+    }
+
+    .invoice-amounts {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+
+    .amount-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .amount-label {
+        font-size: 0.8rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .amount-value {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #28a745;
+    }
+
+    .amount-item.fine .amount-value {
+        color: #dc3545;
+    }
+
+    .amount-item.total .amount-value {
+        color: #007bff;
+        font-size: 1.2rem;
+    }
+
+    .invoice-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .btn-action {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-action:first-child {
+        background: #28a745;
+        color: white;
+    }
+
+    .btn-action:first-child:hover {
+        background: #218838;
+    }
+
+    .btn-action:last-child {
+        background: #ffc107;
+        color: #212529;
+    }
+
+    .btn-action:last-child:hover {
+        background: #e0a800;
+    }
+
+    @media (max-width: 768px) {
+        .client-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .client-total {
+            text-align: left;
+        }
+
+        .invoice-amounts {
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .invoice-actions {
+            flex-direction: column;
+        }
+    }
+</style>
 </body>
-</html> 
+</html>
