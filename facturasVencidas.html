@@ -33,7 +33,7 @@
                 🔴 Facturas Vencidas por Cliente (NO Manuales)
                 <span class="section-count" id="overdueCount">0</span>
             </h3>
-            <small style="color: #86868b; font-size: 0.8rem;">Ordenados del que debe más al que debe menos - Solo facturas de arrendamiento</small>
+            <small style="color: #86868b; font-size: 0.8rem;">Ordenados del que debe más al que debe menos - Solo facturas con saldo pendiente</small>
         </div>
         
         <div class="clients-grid" id="clientsGrid"></div>
@@ -129,19 +129,23 @@
             
             if (clientsMap.has(clientId)) {
                 const clientData = clientsMap.get(clientId);
-                const baseAmount = parseAmount(invoice.MontoBase || 0);
-                const fineAmount = calculateFine(invoice);
-                const totalAmount = baseAmount + fineAmount;
+                const balanceInfo = calculateRemainingBalance(invoice);
                 
-                clientData.invoices.push({
-                    ...invoice,
-                    baseAmount: baseAmount,
-                    fineAmount: fineAmount,
-                    totalAmount: totalAmount,
-                    daysOverdue: getDaysOverdue(invoice)
-                });
-                
-                clientData.totalDebt += totalAmount;
+                // Solo incluir facturas con saldo pendiente
+                if (balanceInfo.remainingBalance > 0) {
+                    clientData.invoices.push({
+                        ...invoice,
+                        baseAmount: parseAmount(invoice.MontoBase || 0),
+                        fineAmount: calculateFine(invoice),
+                        totalOwed: balanceInfo.totalOwed,
+                        totalPaid: balanceInfo.totalPaid,
+                        remainingBalance: balanceInfo.remainingBalance,
+                        hasPayments: balanceInfo.hasPayments,
+                        daysOverdue: getDaysOverdue(invoice)
+                    });
+                    
+                    clientData.totalDebt += balanceInfo.remainingBalance;
+                }
             }
         });
         
@@ -187,7 +191,7 @@
                         </div>
                         <div class="client-total">
                             <div class="total-amount">₡${formatNumber(totalDebt)}</div>
-                            <div class="total-label">Total Vencido</div>
+                            <div class="total-label">Total Pendiente</div>
                         </div>
                     </div>
                     
@@ -220,8 +224,18 @@
                                         <span class="amount-value">₡${formatNumber(invoice.fineAmount)}</span>
                                     </div>
                                     <div class="amount-item total">
-                                        <span class="amount-label">Total:</span>
-                                        <span class="amount-value">₡${formatNumber(invoice.totalAmount)}</span>
+                                        <span class="amount-label">Total Deuda:</span>
+                                        <span class="amount-value">₡${formatNumber(invoice.totalOwed)}</span>
+                                    </div>
+                                    ${invoice.hasPayments ? `
+                                        <div class="amount-item paid">
+                                            <span class="amount-label">Pagado:</span>
+                                            <span class="amount-value">₡${formatNumber(invoice.totalPaid)}</span>
+                                        </div>
+                                    ` : ''}
+                                    <div class="amount-item remaining">
+                                        <span class="amount-label">Pendiente:</span>
+                                        <span class="amount-value">₡${formatNumber(invoice.remainingBalance)}</span>
                                     </div>
                                 </div>
                                 
@@ -300,6 +314,30 @@
         return calculateDaysOverdue(invoice.FechaVencimiento);
     }
 
+    function parseInvoicePayments(paymentsString) {
+        if (!paymentsString || paymentsString.trim() === '') {
+            return [];
+        }
+        
+        try {
+            const payments = paymentsString.split(',').map(payment => {
+                const parts = payment.trim().split(':');
+                if (parts.length >= 2) {
+                    const reference = parts[0];
+                    const amount = parseFloat(parts[1]) || 0;
+                    const date = parts[2] || '';
+                    return { reference, amount, date };
+                }
+                return null;
+            }).filter(payment => payment !== null);
+            
+            return payments;
+        } catch (error) {
+            console.error('Error parseando pagos de factura:', error);
+            return [];
+        }
+    }
+
     function calculateFine(invoice) {
         // Solo calcular multas para facturas de arrendamiento (NO manuales)
         const isManualInvoice = invoice.TipoFactura === 'Manual' ||
@@ -314,6 +352,26 @@
         
         // ₡2,000 por día de atraso (como en utils.js)
         return daysOverdue * 2000;
+    }
+
+    function calculateRemainingBalance(invoice) {
+        const baseAmount = parseAmount(invoice.MontoBase || 0);
+        const fineAmount = calculateFine(invoice);
+        const totalOwed = baseAmount + fineAmount;
+        
+        // Calcular pagos aplicados
+        const previousPayments = parseInvoicePayments(invoice.Pagos || '');
+        const totalPreviousPayments = previousPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        
+        // Saldo pendiente
+        const remainingBalance = totalOwed - totalPreviousPayments;
+        
+        return {
+            totalOwed: totalOwed,
+            totalPaid: totalPreviousPayments,
+            remainingBalance: Math.max(0, remainingBalance),
+            hasPayments: totalPreviousPayments > 0
+        };
     }
 
     function setupEventListeners() {
@@ -379,7 +437,7 @@
                         </div>
                         <div class="client-total">
                             <div class="total-amount">₡${formatNumber(totalDebt)}</div>
-                            <div class="total-label">Total Vencido</div>
+                            <div class="total-label">Total Pendiente</div>
                         </div>
                     </div>
                     
@@ -412,8 +470,18 @@
                                         <span class="amount-value">₡${formatNumber(invoice.fineAmount)}</span>
                                     </div>
                                     <div class="amount-item total">
-                                        <span class="amount-label">Total:</span>
-                                        <span class="amount-value">₡${formatNumber(invoice.totalAmount)}</span>
+                                        <span class="amount-label">Total Deuda:</span>
+                                        <span class="amount-value">₡${formatNumber(invoice.totalOwed)}</span>
+                                    </div>
+                                    ${invoice.hasPayments ? `
+                                        <div class="amount-item paid">
+                                            <span class="amount-label">Pagado:</span>
+                                            <span class="amount-value">₡${formatNumber(invoice.totalPaid)}</span>
+                                        </div>
+                                    ` : ''}
+                                    <div class="amount-item remaining">
+                                        <span class="amount-label">Pendiente:</span>
+                                        <span class="amount-value">₡${formatNumber(invoice.remainingBalance)}</span>
                                     </div>
                                 </div>
                                 
@@ -683,6 +751,17 @@
     .amount-item.total .amount-value {
         color: #007bff;
         font-size: 1.2rem;
+    }
+
+    .amount-item.paid .amount-value {
+        color: #28a745;
+        font-size: 1.1rem;
+    }
+
+    .amount-item.remaining .amount-value {
+        color: #dc3545;
+        font-size: 1.3rem;
+        font-weight: 700;
     }
 
     .invoice-actions {
