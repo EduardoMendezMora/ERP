@@ -2,6 +2,24 @@
 
 console.log('🧪 === PRUEBA: Validación de ID Duplicado ===');
 
+// Simular variables globales necesarias para las pruebas
+if (typeof currentEditingClient === 'undefined') {
+    console.log('⚠️  currentEditingClient no está definido, simulando...');
+    window.currentEditingClient = null;
+}
+
+if (typeof clients === 'undefined') {
+    console.log('⚠️  clients no está definido, simulando array vacío...');
+    window.clients = [];
+}
+
+if (typeof showToast === 'undefined') {
+    console.log('⚠️  showToast no está definido, simulando...');
+    window.showToast = function(message, type) {
+        console.log(`🍞 Toast (${type}): ${message}`);
+    };
+}
+
 // Función para probar la validación de ID
 function testIDValidation() {
     console.log('\n📋 Verificando funcionalidad de validación de ID...');
@@ -72,6 +90,7 @@ function simulateIDCheck() {
     
     if (!clients || clients.length === 0) {
         console.log('❌ No hay clientes cargados para probar');
+        console.log('💡 Para probar con datos reales, ejecuta este script en la página clientes.html');
         return;
     }
     
@@ -107,10 +126,157 @@ function simulateIDCheck() {
     }
 }
 
+// Función para probar checkIDExists directamente
+async function testCheckIDExists() {
+    console.log('\n🧪 Probando función checkIDExists directamente...');
+    
+    if (typeof checkIDExists !== 'function') {
+        console.log('❌ checkIDExists no está disponible');
+        return;
+    }
+    
+    const idInput = document.getElementById('ID');
+    if (!idInput) {
+        console.log('❌ Campo ID no encontrado en el DOM');
+        return;
+    }
+    
+    // Simular modo de agregar nuevo cliente
+    currentEditingClient = null;
+    console.log('📝 Modo: Agregando nuevo cliente');
+    
+    if (clients && clients.length > 0) {
+        // Probar con ID existente
+        const existingID = clients[0].ID;
+        console.log(`🔍 Probando checkIDExists con ID existente: ${existingID}`);
+        idInput.value = existingID;
+        
+        try {
+            const exists = await checkIDExists(idInput);
+            console.log(`✅ Resultado: ${exists ? 'ID existe (correcto)' : 'ID no existe (incorrecto)'}`);
+        } catch (error) {
+            console.log(`❌ Error en checkIDExists: ${error.message}`);
+        }
+        
+        // Probar con ID nuevo
+        const newID = '999999999';
+        console.log(`🔍 Probando checkIDExists con ID nuevo: ${newID}`);
+        idInput.value = newID;
+        
+        try {
+            const exists = await checkIDExists(idInput);
+            console.log(`✅ Resultado: ${exists ? 'ID existe (incorrecto)' : 'ID no existe (correcto)'}`);
+        } catch (error) {
+            console.log(`❌ Error en checkIDExists: ${error.message}`);
+        }
+        
+        // Limpiar
+        idInput.value = '';
+    } else {
+        console.log('⚠️  No hay clientes para probar checkIDExists');
+    }
+}
+
+// Función específica para probar en clientes.html
+function testInClientesPage() {
+    console.log('\n🎯 === PRUEBA ESPECÍFICA PARA CLIENTES.HTML ===');
+    
+    // Verificar que estamos en la página correcta
+    if (!document.getElementById('clientForm')) {
+        console.log('❌ No estás en la página clientes.html');
+        console.log('💡 Ve a clientes.html y ejecuta: testInClientesPage()');
+        return;
+    }
+    
+    console.log('✅ Estás en clientes.html');
+    
+    // Verificar que los clientes estén cargados
+    if (!clients || clients.length === 0) {
+        console.log('❌ No hay clientes cargados');
+        console.log('💡 Espera a que se carguen los clientes o recarga la página');
+        return;
+    }
+    
+    console.log(`✅ ${clients.length} clientes cargados`);
+    
+    // Mostrar algunos IDs existentes para probar
+    console.log('\n📋 IDs existentes para probar:');
+    clients.slice(0, 5).forEach((client, index) => {
+        console.log(`   ${index + 1}. ID: ${client.ID} - ${client.Nombre}`);
+    });
+    
+    // Verificar que las funciones estén disponibles
+    console.log('\n🔧 Funciones disponibles:');
+    console.log('   - validateID:', typeof validateID === 'function' ? '✅' : '❌');
+    console.log('   - checkIDExists:', typeof checkIDExists === 'function' ? '✅' : '❌');
+    console.log('   - validateForm:', typeof validateForm === 'function' ? '✅' : '❌');
+    
+    // Verificar event listeners
+    const idInput = document.getElementById('ID');
+    if (idInput) {
+        console.log('\n🎧 Event listeners configurados:');
+        console.log('   - Campo ID encontrado: ✅');
+        console.log('   - Event listeners deberían estar activos');
+    }
+    
+    console.log('\n🧪 Para probar manualmente:');
+    console.log('1. Haz clic en "➕ Agregar Cliente"');
+    console.log('2. Escribe uno de los IDs mostrados arriba');
+    console.log('3. Presiona Tab o haz clic fuera del campo');
+    console.log('4. Deberías ver un mensaje de error rojo');
+    console.log('5. El campo se limpiará automáticamente');
+    
+    console.log('\n💡 Comando para probar automáticamente:');
+    console.log('testIDDuplication()');
+}
+
+// Función para probar automáticamente la duplicación
+function testIDDuplication() {
+    console.log('\n🤖 === PRUEBA AUTOMÁTICA DE DUPLICACIÓN ===');
+    
+    if (!clients || clients.length === 0) {
+        console.log('❌ No hay clientes para probar');
+        return;
+    }
+    
+    const idInput = document.getElementById('ID');
+    if (!idInput) {
+        console.log('❌ Campo ID no encontrado');
+        return;
+    }
+    
+    // Asegurar que estamos en modo agregar
+    currentEditingClient = null;
+    
+    // Tomar un ID existente
+    const existingID = clients[0].ID;
+    console.log(`🔍 Probando con ID existente: ${existingID}`);
+    
+    // Simular el evento blur
+    idInput.value = existingID;
+    idInput.focus();
+    
+    // Simular salir del campo
+    setTimeout(() => {
+        idInput.blur();
+        console.log('✅ Evento blur disparado');
+        
+        // Verificar si el campo se limpió
+        setTimeout(() => {
+            if (idInput.value === '') {
+                console.log('✅ Campo se limpió correctamente');
+            } else {
+                console.log('❌ Campo no se limpió');
+            }
+        }, 100);
+    }, 100);
+}
+
 // Ejecutar pruebas
 console.log('🚀 Iniciando pruebas de validación de ID...');
 testIDValidation();
 simulateIDCheck();
+testCheckIDExists();
 
 console.log('\n📝 Instrucciones para probar manualmente:');
 console.log('1. Ve a clientes.html');
@@ -127,3 +293,9 @@ console.log('- Al escribir un ID duplicado y salir del campo: mensaje de error')
 console.log('- Al intentar guardar con ID duplicado: mensaje de error');
 console.log('- Al escribir un ID válido y nuevo: sin errores');
 console.log('- Solo funciona al agregar nuevo cliente, no al editar');
+
+console.log('\n💡 Para probar con datos reales:');
+console.log('- Ejecuta este script en la página clientes.html después de cargar los clientes');
+console.log('- O copia y pega las funciones de validación en la consola de clientes.html');
+console.log('- Para prueba específica en clientes.html: testInClientesPage()');
+console.log('- Para prueba automática: testIDDuplication()');
