@@ -3,9 +3,14 @@
 console.log('🧪 === PRUEBA: Validación de ID Duplicado ===');
 
 // Simular variables globales necesarias para las pruebas
-if (typeof currentEditingClient === 'undefined') {
-    console.log('⚠️  currentEditingClient no está definido, simulando...');
-    window.currentEditingClient = null;
+if (typeof isEditing === 'undefined') {
+    console.log('⚠️  isEditing no está definido, simulando...');
+    window.isEditing = false;
+}
+
+if (typeof currentClient === 'undefined') {
+    console.log('⚠️  currentClient no está definido, simulando...');
+    window.currentClient = null;
 }
 
 if (typeof clients === 'undefined') {
@@ -49,10 +54,11 @@ function testIDValidation() {
         });
     }
     
-    // Verificar variable currentEditingClient
+    // Verificar variables de estado
     console.log('\n4. Estado de edición:');
-    console.log('   - currentEditingClient:', currentEditingClient);
-    console.log('   - Modo actual:', currentEditingClient ? 'Editando' : 'Agregando nuevo');
+    console.log('   - isEditing:', isEditing);
+    console.log('   - currentClient:', currentClient);
+    console.log('   - Modo actual:', isEditing ? 'Editando' : 'Agregando nuevo');
     
     // Simular validación de ID
     console.log('\n5. Simulando validaciones:');
@@ -142,7 +148,7 @@ async function testCheckIDExists() {
     }
     
     // Simular modo de agregar nuevo cliente
-    currentEditingClient = null;
+    isEditing = false;
     console.log('📝 Modo: Agregando nuevo cliente');
     
     if (clients && clients.length > 0) {
@@ -211,6 +217,12 @@ function testInClientesPage() {
     console.log('   - checkIDExists:', typeof checkIDExists === 'function' ? '✅' : '❌');
     console.log('   - validateForm:', typeof validateForm === 'function' ? '✅' : '❌');
     
+    // Verificar variables de estado
+    console.log('\n📊 Variables de estado:');
+    console.log('   - isEditing:', isEditing);
+    console.log('   - currentClient:', currentClient);
+    console.log('   - clients.length:', clients.length);
+    
     // Verificar event listeners
     const idInput = document.getElementById('ID');
     if (idInput) {
@@ -246,7 +258,7 @@ function testIDDuplication() {
     }
     
     // Asegurar que estamos en modo agregar
-    currentEditingClient = null;
+    isEditing = false;
     
     // Tomar un ID existente
     const existingID = clients[0].ID;
@@ -270,6 +282,38 @@ function testIDDuplication() {
             }
         }, 100);
     }, 100);
+}
+
+// Función para probar el modo de edición
+function testEditMode() {
+    console.log('\n✏️  === PRUEBA DEL MODO DE EDICIÓN ===');
+    
+    if (!clients || clients.length === 0) {
+        console.log('❌ No hay clientes para probar');
+        return;
+    }
+    
+    console.log('📝 Simulando modo de edición...');
+    isEditing = true;
+    currentClient = clients[0];
+    
+    console.log('✅ Modo de edición activado');
+    console.log('   - isEditing:', isEditing);
+    console.log('   - currentClient:', currentClient ? currentClient.Nombre : 'null');
+    
+    console.log('\n🧪 Para probar manualmente:');
+    console.log('1. Haz clic en "✏️ Editar" en cualquier tarjeta de cliente');
+    console.log('2. Modifica el ID del cliente');
+    console.log('3. Presiona Tab o haz clic fuera del campo');
+    console.log('4. NO deberías ver mensaje de error (porque estás editando)');
+    console.log('5. Intenta guardar - debería permitirlo');
+    
+    // Restaurar modo normal
+    setTimeout(() => {
+        isEditing = false;
+        currentClient = null;
+        console.log('✅ Modo normal restaurado');
+    }, 2000);
 }
 
 // Ejecutar pruebas
@@ -299,3 +343,4 @@ console.log('- Ejecuta este script en la página clientes.html después de carga
 console.log('- O copia y pega las funciones de validación en la consola de clientes.html');
 console.log('- Para prueba específica en clientes.html: testInClientesPage()');
 console.log('- Para prueba automática: testIDDuplication()');
+console.log('- Para probar modo edición: testEditMode()');

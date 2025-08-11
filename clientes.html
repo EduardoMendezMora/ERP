@@ -1175,7 +1175,7 @@
             // ===== NUEVO: VERIFICACIÓN DE ID DUPLICADO AL SALIR DEL CAMPO =====
             document.getElementById('ID').addEventListener('blur', function(e) {
                 // Solo verificar si estamos en modo de agregar nuevo cliente (no editando)
-                if (!currentEditingClient) {
+                if (!isEditing) {
                     checkIDExists(e.target);
                 }
             });
@@ -2183,7 +2183,7 @@
             }
             
             // ===== NUEVO: VERIFICAR SI EL ID YA EXISTE (solo al agregar nuevo cliente) =====
-            if (!currentEditingClient) {
+            if (!isEditing) {
                 const idExists = await checkIDExists(idInput);
                 if (idExists) {
                     return false; // El ID ya existe, no continuar
