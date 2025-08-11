@@ -173,10 +173,13 @@ async function updateManualPayment(paymentData) {
 
         console.log('✅ Pago manual actualizado exitosamente');
 
-        // Actualizar pago localmente
-        const payment = manualPayments.find(p => p.Referencia === paymentData.Referencia);
-        if (payment) {
-            Object.assign(payment, paymentData);
+        // Recargar datos completos desde la API para mostrar los cambios
+        console.log('🔄 Recargando datos después de actualizar pago manual...');
+        await loadManualPayments();
+        
+        // Re-renderizar la página con los datos actualizados
+        if (typeof renderPage === 'function') {
+            renderPage();
         }
 
         return true;
@@ -229,6 +232,7 @@ async function loadManualPayments() {
         if (!response.ok) {
             console.warn('Error al cargar pagos manuales:', response.status);
             manualPayments = [];
+            window.manualPayments = []; // Sincronizar globalmente
             return;
         }
 
@@ -242,11 +246,16 @@ async function loadManualPayments() {
             payment.ID_Cliente.toString() === currentClientId.toString()
         );
 
+        // Sincronizar globalmente para que esté disponible en account-statement.js
+        window.manualPayments = manualPayments;
+
         console.log(`📋 Pagos manuales cargados: ${manualPayments.length}`);
+        console.log('✅ Pagos manuales expuestos globalmente como window.manualPayments');
 
     } catch (error) {
         console.warn('No se pudieron cargar los pagos manuales:', error);
         manualPayments = [];
+        window.manualPayments = []; // Sincronizar globalmente
     }
 }
 
