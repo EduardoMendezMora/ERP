@@ -1158,9 +1158,9 @@
             });
 
             // Formulario de cliente
-            document.getElementById('clientForm').addEventListener('submit', function(e) {
+            document.getElementById('clientForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
-                if (validateForm()) {
+                if (await validateForm()) {
                     saveClient();
                 }
             });
@@ -1170,6 +1170,14 @@
                 const value = e.target.value;
                 e.target.value = value.replace(/[^0-9]/g, '');
                 validateID(e.target);
+            });
+
+            // ===== NUEVO: VERIFICACIÓN DE ID DUPLICADO AL SALIR DEL CAMPO =====
+            document.getElementById('ID').addEventListener('blur', function(e) {
+                // Solo verificar si estamos en modo de agregar nuevo cliente (no editando)
+                if (!currentEditingClient) {
+                    checkIDExists(e.target);
+                }
             });
 
             // Validación en tiempo real del teléfono
@@ -2073,6 +2081,59 @@
             return isValid;
         }
 
+        // ===== NUEVA FUNCIÓN: VERIFICAR SI EL ID YA EXISTE =====
+        async function checkIDExists(input) {
+            const value = input.value.trim();
+            
+            // Si no hay valor, no verificar
+            if (!value) {
+                return false;
+            }
+            
+            // Verificar formato básico primero
+            if (!validateID(input)) {
+                return false;
+            }
+            
+            try {
+                console.log('🔍 Verificando si el ID ya existe:', value);
+                
+                // Buscar en la lista de clientes cargados
+                const existingClient = clients.find(client => 
+                    client.ID && client.ID.toString() === value.toString()
+                );
+                
+                if (existingClient) {
+                    console.log('❌ ID ya existe:', existingClient.Nombre);
+                    
+                    // Mostrar error visual
+                    input.style.borderColor = '#ff3b30';
+                    input.style.boxShadow = '0 0 0 3px rgba(255, 59, 48, 0.2)';
+                    
+                    // Mostrar mensaje de error
+                    showToast(`❌ El ID ${value} ya está registrado por el cliente: ${existingClient.Nombre}`, 'error');
+                    
+                    // Limpiar el campo
+                    input.value = '';
+                    input.focus();
+                    
+                    return true; // El ID existe
+                } else {
+                    console.log('✅ ID disponible:', value);
+                    
+                    // Mostrar confirmación visual
+                    input.style.borderColor = '#34c759';
+                    input.style.boxShadow = '0 0 0 3px rgba(52, 199, 89, 0.1)';
+                    
+                    return false; // El ID no existe
+                }
+                
+            } catch (error) {
+                console.error('❌ Error verificando ID:', error);
+                return false;
+            }
+        }
+
         function validatePhone(input) {
             const value = input.value;
             const isValid = value === '' || (/^506[0-9]{8}$/.test(value) && value.length === 11);
@@ -2103,7 +2164,7 @@
             return isValid;
         }
 
-        function validateForm() {
+        async function validateForm() {
             const idInput = document.getElementById('ID');
             const phoneInput = document.getElementById('numeroTelefono');
             const whatsappInput = document.getElementById('idGrupoWhatsapp');
@@ -2119,6 +2180,14 @@
                 showToast('El ID debe tener entre 9 y 15 dígitos numéricos', 'error');
                 idInput.focus();
                 return false;
+            }
+            
+            // ===== NUEVO: VERIFICAR SI EL ID YA EXISTE (solo al agregar nuevo cliente) =====
+            if (!currentEditingClient) {
+                const idExists = await checkIDExists(idInput);
+                if (idExists) {
+                    return false; // El ID ya existe, no continuar
+                }
             }
             
             if (!nameInput.value.trim()) {
