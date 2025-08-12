@@ -617,6 +617,57 @@
             .stats { grid-template-columns: 1fr 1fr; }
         }
 
+        /* ===== ESTILOS PARA FORMULARIO OCULTO ===== */
+        .form-section {
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .form-section.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .show-form-btn {
+            background: linear-gradient(135deg, #007aff, #0056cc);
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .show-form-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 122, 255, 0.4);
+        }
+
+        .show-form-btn:active {
+            transform: translateY(0);
+        }
+
+        #hideFormBtn {
+            display: none;
+        }
+
         /* ===== ESTILOS PARA ETIQUETAS ===== */
         .tags-container {
             position: relative;
@@ -811,8 +862,13 @@
         </div>
 
         <div class="main-content">
+            <!-- Botón para mostrar formulario -->
+            <button class="show-form-btn" id="showFormBtn" onclick="showForm()">
+                ➕ Agregar Nuevo Cliente
+            </button>
+
             <!-- Formulario de Cliente -->
-            <div class="form-section">
+            <div class="form-section" id="formSection">
                 <h2 id="formTitle">Nuevo Cliente</h2>
                 
                 <div class="stats">
@@ -920,6 +976,9 @@
                         </button>
                         <button type="button" class="btn btn-secondary btn-large" id="cancelBtn" onclick="cancelEdit()" style="display: none;">
                             ❌ Cancelar Edición
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-large" onclick="hideForm()" id="hideFormBtn">
+                            👁️ Ocultar Formulario
                         </button>
                         <button type="button" class="btn btn-secondary btn-large" onclick="toggleDebug()">
                             🐛 Debug
@@ -2009,10 +2068,36 @@
             });
             document.getElementById(`card-${clientId}`).classList.add('editing');
 
-            document.querySelector('.form-section').scrollIntoView({ 
+            // Mostrar el formulario
+            showForm();
+        }
+
+        function showForm() {
+            const formSection = document.getElementById('formSection');
+            const showFormBtn = document.getElementById('showFormBtn');
+            const hideFormBtn = document.getElementById('hideFormBtn');
+            
+            formSection.classList.add('show');
+            showFormBtn.style.display = 'none';
+            
+            // Mostrar u ocultar el botón "Ocultar Formulario" según el modo
+            if (hideFormBtn) {
+                hideFormBtn.style.display = isEditing ? 'none' : 'inline-flex';
+            }
+            
+            // Hacer scroll suave hacia el formulario
+            formSection.scrollIntoView({ 
                 behavior: 'smooth', 
                 block: 'start' 
             });
+        }
+
+        function hideForm() {
+            const formSection = document.getElementById('formSection');
+            const showFormBtn = document.getElementById('showFormBtn');
+            
+            formSection.classList.remove('show');
+            showFormBtn.style.display = 'flex';
         }
 
         function cancelEdit() {
@@ -2030,6 +2115,9 @@
             document.querySelectorAll('.client-card').forEach(card => {
                 card.classList.remove('editing');
             });
+
+            // Ocultar el formulario después de cancelar
+            hideForm();
         }
 
         function clearValidationStyles() {
