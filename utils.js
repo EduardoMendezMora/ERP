@@ -1,7 +1,7 @@
 // ===== CONFIGURACIÓN DE APIs =====
 const API_CONFIG = {
-    CLIENTS: 'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Clientes',
-    INVOICES: 'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Facturas',
+    CLIENTS: 'https://sheetdb.io/api/v1/qu62bagiwlgqy',
+    INVOICES: 'https://sheetdb.io/api/v1/qu62bagiwlgqy',
     PAYMENTS: 'https://sheetdb.io/api/v1/a7oekivxzreg7'
 };
 
@@ -353,28 +353,41 @@ function testClientIdDetection(clientId, observationsText) {
 function parseAmount(amount) {
     if (!amount) return 0;
     
+    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+    console.log(`🔍 [DEBUG PARSE AMOUNT] === PARSEO UNIVERSAL ${amount} ===`);
+    console.log(`🔍 [DEBUG PARSE AMOUNT] Amount original: ${amount} (tipo: ${typeof amount})`);
+    
     let result = 0;
     
     // Si es un número, usarlo directamente
     if (typeof amount === 'number') {
         result = amount;
+        console.log(`🔍 [DEBUG PARSE AMOUNT] Es número, usando directamente: ${result}`);
     } else if (typeof amount === 'string') {
         // Limpiar el string de caracteres no numéricos excepto punto y coma
         const cleanAmount = amount.toString().trim().replace(/[^\d.,]/g, '');
+        console.log(`🔍 [DEBUG PARSE AMOUNT] String limpio: "${cleanAmount}"`);
         
         if (cleanAmount.includes(',')) {
             // Formato: "1.000.000,00" -> 1000000.00
             const normalizedValue = cleanAmount.replace(/\./g, '').replace(',', '.');
             result = parseFloat(normalizedValue) || 0;
+            console.log(`🔍 [DEBUG PARSE AMOUNT] Con coma decimal: "${cleanAmount}" -> "${normalizedValue}" -> ${result}`);
         } else {
             // Formato: "1000000" o "1.000.000" -> 1000000
             const normalizedValue = cleanAmount.replace(/\./g, '');
             result = parseFloat(normalizedValue) || 0;
+            console.log(`🔍 [DEBUG PARSE AMOUNT] Sin coma decimal: "${cleanAmount}" -> "${normalizedValue}" -> ${result}`);
         }
     } else {
         // Otros tipos: intentar conversión directa
         result = parseFloat(amount) || 0;
+        console.log(`🔍 [DEBUG PARSE AMOUNT] Otro tipo, conversión directa: ${result}`);
     }
+    
+    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+    console.log(`🔍 [DEBUG PARSE AMOUNT] Resultado final: ${result}`);
+    console.log(`🔍 [DEBUG PARSE AMOUNT] === FIN DEBUG PARSE AMOUNT ===`);
     
     return result;
 }
@@ -383,10 +396,26 @@ function parseAmount(amount) {
 function parsePaymentAmount(paymentAmount, bankSource) {
     if (!paymentAmount) return 0;
     
+    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+    console.log(`🔍 [DEBUG PARSE] === PARSEO ${bankSource} ${paymentAmount} ===`);
+    console.log(`🔍 [DEBUG PARSE] Amount original: ${paymentAmount} (tipo: ${typeof paymentAmount})`);
+    console.log(`🔍 [DEBUG PARSE] BankSource: "${bankSource}"`);
+    
     // Usar la nueva función universal
     const result = parseAmount(paymentAmount);
     
+    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
+    console.log(`🔍 [DEBUG PARSE] Resultado final: ${result}`);
+    console.log(`🔍 [DEBUG PARSE] === FIN DEBUG PARSE ===`);
+    
     return result;
+}
+
+// ===== FUNCIÓN CORREGIDA PARA PARSEAR MONTOS BAC (DEPRECATED - BACKEND YA DEVUELVE FLOAT) =====
+function parsePaymentAmountFixed(paymentAmount, bankSource) {
+    // Esta función ya no es necesaria, el backend devuelve Float directamente
+    console.log(`⚠️ [DEPRECATED] parsePaymentAmountFixed ya no es necesaria, usando parsePaymentAmount`);
+    return parsePaymentAmount(paymentAmount, bankSource);
 }
 
 // ===== FUNCIONES DE BANCO =====
@@ -1821,83 +1850,6 @@ window.clearAllVisualFilters = clearAllVisualFilters;
 window.setupRealTimeSearch = setupRealTimeSearch;
 window.highlightSearchTerms = highlightSearchTerms;
 window.restoreOriginalText = restoreOriginalText;
-window.filterInvoicesOptimized = filterInvoicesOptimized;
-window.loadInvoicesOptimized = loadInvoicesOptimized;
-
-// ===== FUNCIÓN DE FILTRADO OPTIMIZADO DE FACTURAS =====
-function filterInvoicesOptimized(allInvoices) {
-    console.log('🚀 Aplicando filtrado optimizado de facturas...');
-    console.log(`📋 Total facturas recibidas: ${allInvoices.length}`);
-    
-    // ⚡ OPTIMIZACIÓN: Filtrar facturas inteligentemente
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // Fecha límite: 3 semanas desde hoy
-    const futureLimit = new Date();
-    futureLimit.setDate(futureLimit.getDate() + 21); // 3 semanas
-    futureLimit.setHours(23, 59, 59, 999);
-    
-    console.log('📅 Filtros aplicados:');
-    console.log('  - Hoy:', today.toISOString().split('T')[0]);
-    console.log('  - Límite futuro:', futureLimit.toISOString().split('T')[0]);
-    
-    // Filtrar facturas según la estrategia optimizada
-    const filteredInvoices = allInvoices.filter(invoice => {
-        if (!invoice.FechaVencimiento) {
-            return true; // Mantener facturas sin fecha (manuales, etc.)
-        }
-        
-        const dueDate = parseDate(invoice.FechaVencimiento);
-        if (!dueDate) {
-            return true; // Mantener facturas con fecha inválida
-        }
-        
-        // ✅ Cargar TODAS las facturas del pasado
-        if (dueDate < today) {
-            return true;
-        }
-        
-        // ✅ Cargar facturas vencidas (sin importar fecha)
-        if (invoice.Estado === 'Vencido') {
-            return true;
-        }
-        
-        // ✅ Cargar facturas futuras solo hasta 3 semanas
-        if (dueDate <= futureLimit) {
-            return true;
-        }
-        
-        // ❌ Excluir facturas futuras más allá de 3 semanas
-        return false;
-    });
-    
-    const excludedCount = allInvoices.length - filteredInvoices.length;
-    console.log(`✅ Facturas filtradas (optimizadas): ${filteredInvoices.length}`);
-    console.log(`❌ Facturas excluidas (futuras lejanas): ${excludedCount}`);
-    console.log(`⚡ Reducción: ${((excludedCount / allInvoices.length) * 100).toFixed(1)}%`);
-    
-    return filteredInvoices;
-}
-
-// ===== FUNCIÓN PARA CARGAR FACTURAS OPTIMIZADAS =====
-async function loadInvoicesOptimized(apiUrl) {
-    console.log('🚀 Cargando facturas optimizadas desde:', apiUrl);
-    
-    try {
-        const response = await fetch(apiUrl);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const allInvoices = await response.json();
-        return filterInvoicesOptimized(allInvoices);
-        
-    } catch (error) {
-        console.error('❌ Error cargando facturas:', error);
-        throw error;
-    }
-}
 
 console.log('✅ utils.js cargado - Funciones utilitarias disponibles');
 
