@@ -1850,6 +1850,83 @@ window.clearAllVisualFilters = clearAllVisualFilters;
 window.setupRealTimeSearch = setupRealTimeSearch;
 window.highlightSearchTerms = highlightSearchTerms;
 window.restoreOriginalText = restoreOriginalText;
+window.filterInvoicesOptimized = filterInvoicesOptimized;
+window.loadInvoicesOptimized = loadInvoicesOptimized;
+
+// ===== FUNCIÓN DE FILTRADO OPTIMIZADO DE FACTURAS =====
+function filterInvoicesOptimized(allInvoices) {
+    console.log('🚀 Aplicando filtrado optimizado de facturas...');
+    console.log(`📋 Total facturas recibidas: ${allInvoices.length}`);
+    
+    // ⚡ OPTIMIZACIÓN: Filtrar facturas inteligentemente
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Fecha límite: 3 semanas desde hoy
+    const futureLimit = new Date();
+    futureLimit.setDate(futureLimit.getDate() + 21); // 3 semanas
+    futureLimit.setHours(23, 59, 59, 999);
+    
+    console.log('📅 Filtros aplicados:');
+    console.log('  - Hoy:', today.toISOString().split('T')[0]);
+    console.log('  - Límite futuro:', futureLimit.toISOString().split('T')[0]);
+    
+    // Filtrar facturas según la estrategia optimizada
+    const filteredInvoices = allInvoices.filter(invoice => {
+        if (!invoice.FechaVencimiento) {
+            return true; // Mantener facturas sin fecha (manuales, etc.)
+        }
+        
+        const dueDate = parseDate(invoice.FechaVencimiento);
+        if (!dueDate) {
+            return true; // Mantener facturas con fecha inválida
+        }
+        
+        // ✅ Cargar TODAS las facturas del pasado
+        if (dueDate < today) {
+            return true;
+        }
+        
+        // ✅ Cargar facturas vencidas (sin importar fecha)
+        if (invoice.Estado === 'Vencido') {
+            return true;
+        }
+        
+        // ✅ Cargar facturas futuras solo hasta 3 semanas
+        if (dueDate <= futureLimit) {
+            return true;
+        }
+        
+        // ❌ Excluir facturas futuras más allá de 3 semanas
+        return false;
+    });
+    
+    const excludedCount = allInvoices.length - filteredInvoices.length;
+    console.log(`✅ Facturas filtradas (optimizadas): ${filteredInvoices.length}`);
+    console.log(`❌ Facturas excluidas (futuras lejanas): ${excludedCount}`);
+    console.log(`⚡ Reducción: ${((excludedCount / allInvoices.length) * 100).toFixed(1)}%`);
+    
+    return filteredInvoices;
+}
+
+// ===== FUNCIÓN PARA CARGAR FACTURAS OPTIMIZADAS =====
+async function loadInvoicesOptimized(apiUrl) {
+    console.log('🚀 Cargando facturas optimizadas desde:', apiUrl);
+    
+    try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const allInvoices = await response.json();
+        return filterInvoicesOptimized(allInvoices);
+        
+    } catch (error) {
+        console.error('❌ Error cargando facturas:', error);
+        throw error;
+    }
+}
 
 console.log('✅ utils.js cargado - Funciones utilitarias disponibles');
 

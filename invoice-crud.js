@@ -300,12 +300,63 @@ async function loadClientAndInvoices(clientId) {
         console.log('✅ Cliente encontrado:', foundClient.Nombre);
         console.log('🔗 Variables sincronizadas - currentClient y window.currentClient actualizadas');
 
-        // Cargar facturas
+        // Cargar facturas optimizadas
         let invoicesData = [];
         try {
+            console.log('🚀 Cargando facturas optimizadas...');
             const invoicesResponse = await fetch(`${API_CONFIG.INVOICES}?sheet=Facturas`);
             if (invoicesResponse.ok) {
-                invoicesData = await invoicesResponse.json();
+                const allInvoicesData = await invoicesResponse.json();
+                console.log(`📋 Total facturas en API: ${allInvoicesData.length}`);
+                
+                // ⚡ OPTIMIZACIÓN: Filtrar facturas inteligentemente
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                // Fecha límite: 3 semanas desde hoy
+                const futureLimit = new Date();
+                futureLimit.setDate(futureLimit.getDate() + 21); // 3 semanas
+                futureLimit.setHours(23, 59, 59, 999);
+                
+                console.log('📅 Filtros aplicados:');
+                console.log('  - Hoy:', today.toISOString().split('T')[0]);
+                console.log('  - Límite futuro:', futureLimit.toISOString().split('T')[0]);
+                
+                // Filtrar facturas según la estrategia optimizada
+                invoicesData = allInvoicesData.filter(invoice => {
+                    if (!invoice.FechaVencimiento) {
+                        return true; // Mantener facturas sin fecha (manuales, etc.)
+                    }
+                    
+                    const dueDate = parseDate(invoice.FechaVencimiento);
+                    if (!dueDate) {
+                        return true; // Mantener facturas con fecha inválida
+                    }
+                    
+                    // ✅ Cargar TODAS las facturas del pasado
+                    if (dueDate < today) {
+                        return true;
+                    }
+                    
+                    // ✅ Cargar facturas vencidas (sin importar fecha)
+                    if (invoice.Estado === 'Vencido') {
+                        return true;
+                    }
+                    
+                    // ✅ Cargar facturas futuras solo hasta 3 semanas
+                    if (dueDate <= futureLimit) {
+                        return true;
+                    }
+                    
+                    // ❌ Excluir facturas futuras más allá de 3 semanas
+                    return false;
+                });
+                
+                const excludedCount = allInvoicesData.length - invoicesData.length;
+                console.log(`✅ Facturas cargadas (optimizadas): ${invoicesData.length}`);
+                console.log(`❌ Facturas excluidas (futuras lejanas): ${excludedCount}`);
+                console.log(`⚡ Reducción: ${((excludedCount / allInvoicesData.length) * 100).toFixed(1)}%`);
+                
             } else if (invoicesResponse.status !== 404) {
                 console.warn('Error al cargar facturas:', invoicesResponse.status);
             }
