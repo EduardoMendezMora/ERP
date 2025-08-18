@@ -1,7 +1,7 @@
 // ===== CONFIGURACIÓN DE APIs =====
 const API_CONFIG = {
-    CLIENTS: 'https://sheetdb.io/api/v1/qu62bagiwlgqy',
-    INVOICES: 'https://sheetdb.io/api/v1/qu62bagiwlgqy',
+    CLIENTS: 'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Clientes',
+    INVOICES: 'https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Facturas',
     PAYMENTS: 'https://sheetdb.io/api/v1/a7oekivxzreg7'
 };
 
@@ -353,41 +353,28 @@ function testClientIdDetection(clientId, observationsText) {
 function parseAmount(amount) {
     if (!amount) return 0;
     
-    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-    console.log(`🔍 [DEBUG PARSE AMOUNT] === PARSEO UNIVERSAL ${amount} ===`);
-    console.log(`🔍 [DEBUG PARSE AMOUNT] Amount original: ${amount} (tipo: ${typeof amount})`);
-    
     let result = 0;
     
     // Si es un número, usarlo directamente
     if (typeof amount === 'number') {
         result = amount;
-        console.log(`🔍 [DEBUG PARSE AMOUNT] Es número, usando directamente: ${result}`);
     } else if (typeof amount === 'string') {
         // Limpiar el string de caracteres no numéricos excepto punto y coma
         const cleanAmount = amount.toString().trim().replace(/[^\d.,]/g, '');
-        console.log(`🔍 [DEBUG PARSE AMOUNT] String limpio: "${cleanAmount}"`);
         
         if (cleanAmount.includes(',')) {
             // Formato: "1.000.000,00" -> 1000000.00
             const normalizedValue = cleanAmount.replace(/\./g, '').replace(',', '.');
             result = parseFloat(normalizedValue) || 0;
-            console.log(`🔍 [DEBUG PARSE AMOUNT] Con coma decimal: "${cleanAmount}" -> "${normalizedValue}" -> ${result}`);
         } else {
             // Formato: "1000000" o "1.000.000" -> 1000000
             const normalizedValue = cleanAmount.replace(/\./g, '');
             result = parseFloat(normalizedValue) || 0;
-            console.log(`🔍 [DEBUG PARSE AMOUNT] Sin coma decimal: "${cleanAmount}" -> "${normalizedValue}" -> ${result}`);
         }
     } else {
         // Otros tipos: intentar conversión directa
         result = parseFloat(amount) || 0;
-        console.log(`🔍 [DEBUG PARSE AMOUNT] Otro tipo, conversión directa: ${result}`);
     }
-    
-    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-    console.log(`🔍 [DEBUG PARSE AMOUNT] Resultado final: ${result}`);
-    console.log(`🔍 [DEBUG PARSE AMOUNT] === FIN DEBUG PARSE AMOUNT ===`);
     
     return result;
 }
@@ -396,26 +383,10 @@ function parseAmount(amount) {
 function parsePaymentAmount(paymentAmount, bankSource) {
     if (!paymentAmount) return 0;
     
-    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-    console.log(`🔍 [DEBUG PARSE] === PARSEO ${bankSource} ${paymentAmount} ===`);
-    console.log(`🔍 [DEBUG PARSE] Amount original: ${paymentAmount} (tipo: ${typeof paymentAmount})`);
-    console.log(`🔍 [DEBUG PARSE] BankSource: "${bankSource}"`);
-    
     // Usar la nueva función universal
     const result = parseAmount(paymentAmount);
     
-    // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
-    console.log(`🔍 [DEBUG PARSE] Resultado final: ${result}`);
-    console.log(`🔍 [DEBUG PARSE] === FIN DEBUG PARSE ===`);
-    
     return result;
-}
-
-// ===== FUNCIÓN CORREGIDA PARA PARSEAR MONTOS BAC (DEPRECATED - BACKEND YA DEVUELVE FLOAT) =====
-function parsePaymentAmountFixed(paymentAmount, bankSource) {
-    // Esta función ya no es necesaria, el backend devuelve Float directamente
-    console.log(`⚠️ [DEPRECATED] parsePaymentAmountFixed ya no es necesaria, usando parsePaymentAmount`);
-    return parsePaymentAmount(paymentAmount, bankSource);
 }
 
 // ===== FUNCIONES DE BANCO =====

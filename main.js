@@ -1601,9 +1601,13 @@ async function syncExistingPayments() {
                             console.log(`📝 Actualizando transacción ${payment.reference} con asignación a ${invoice.NumeroFactura}`);
                             
                             // Agregar la asignación
+                            // CORREGIDO: Usar el monto que realmente se aplica a esta factura específica
+                            const invoiceTotal = parseAmount(invoice.MontoTotal || invoice.MontoBase || 0);
+                            const amountToApply = Math.min(payment.amount, invoiceTotal);
+                            
                             const newAssignments = [...currentAssignments, {
                                 invoiceNumber: invoice.NumeroFactura,
-                                amount: payment.amount
+                                amount: amountToApply
                             }];
                             
                             const formattedAssignments = formatTransactionAssignments(newAssignments);

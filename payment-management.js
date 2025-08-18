@@ -897,15 +897,8 @@ function parseAssignedInvoices(assignedString) {
 function formatAssignedInvoices(assignments, availableAmount = null) {
     if (!assignments || assignments.length === 0) return '';
 
-    // Nuevo formato: "FAC-001:15000(13000);FAC-002:25000(0)" donde (13000) es el saldo disponible
-    if (availableAmount !== null) {
-        return assignments
-            .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
-            .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}(${availableAmount})`)
-            .join(';');
-    }
-    
-    // Formato original: "FAC-001:15000;FAC-002:25000"
+    // Formato corregido: "FAC-001:15000;FAC-002:25000" donde el número es el monto APLICADO del pago
+    // NO el monto total de la factura
     return assignments
         .filter(assignment => assignment.invoiceNumber && assignment.amount > 0)
         .map(assignment => `${assignment.invoiceNumber}:${assignment.amount}`)

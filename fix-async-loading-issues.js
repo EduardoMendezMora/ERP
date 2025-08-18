@@ -128,7 +128,7 @@ async function loadClientAndInvoicesFixed(clientId) {
     
     try {
         // Cargar cliente
-        const clientResponse = await fetch(`${API_CONFIG.CLIENTS}?sheet=Clientes`);
+        const clientResponse = await fetch(API_CONFIG.CLIENTS);
         if (!clientResponse.ok) {
             throw new Error(`Error al cargar clientes: HTTP ${clientResponse.status}`);
         }
@@ -153,7 +153,7 @@ async function loadClientAndInvoicesFixed(clientId) {
         let invoicesData = [];
         try {
             console.log('🚀 Cargando facturas con filtrado corregido...');
-            const invoicesResponse = await fetch(`${API_CONFIG.INVOICES}?sheet=Facturas`);
+            const invoicesResponse = await fetch(API_CONFIG.INVOICES);
             if (invoicesResponse.ok) {
                 const allInvoicesData = await invoicesResponse.json();
                 console.log(`📋 Total facturas en API: ${allInvoicesData.length}`);
