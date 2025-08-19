@@ -137,7 +137,10 @@ function generateInvoicesForClientFixed(client) {
         }
     });
 
-    for (let week = 1; week <= totalWeeks; week++) {
+    // MODIFICADO: Solo generar las primeras 26 semanas para mejorar rendimiento
+    const weeksToGenerate = Math.min(totalWeeks, 26);
+    
+    for (let week = 1; week <= weeksToGenerate; week++) {
         // Calcular fecha de inicio de la semana
         const weekStartDate = new Date(contractStartDate);
         weekStartDate.setDate(contractStartDate.getDate() + (week - 1) * 7);
@@ -169,7 +172,7 @@ function generateInvoicesForClientFixed(client) {
             Estado: 'Pendiente',
             FechaCreacion: formatDateForStorageFixed(new Date()),
             FechaPago: '', // Campo vacío para facturas nuevas
-            Observaciones: `Factura generada automáticamente para ${client.Nombre}`
+            Observaciones: `Factura generada automáticamente para ${client.Nombre} (${weeksToGenerate} de ${totalWeeks} semanas)`
         };
         
         invoicesData.push(invoiceData);

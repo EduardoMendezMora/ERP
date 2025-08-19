@@ -1824,7 +1824,10 @@
                 }
             });
 
-            for (let week = 1; week <= totalWeeks; week++) {
+            // MODIFICADO: Solo generar las primeras 26 semanas para mejorar rendimiento
+            const weeksToGenerate = Math.min(totalWeeks, 26);
+            
+            for (let week = 1; week <= weeksToGenerate; week++) {
                 // Calcular fecha de inicio de la semana (desde el día que inicia el contrato)
                 const weekStartDate = new Date(contractStartDate);
                 weekStartDate.setDate(contractStartDate.getDate() + (week - 1) * 7);
@@ -1856,7 +1859,7 @@
                     Estado: 'Pendiente',
                     FechaCreacion: formatDateForStorage(new Date()), // DD/MM/YYYY para Google Sheets
                     FechaPago: '',
-                    Observaciones: `Factura generada automáticamente para ${client.Nombre}`
+                    Observaciones: `Factura generada automáticamente para ${client.Nombre} (${weeksToGenerate} de ${totalWeeks} semanas)`
                 };
                 
                 invoicesData.push(invoiceData);
