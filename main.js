@@ -210,12 +210,12 @@ async function retryLoad() {
 }
 
 // ===== MODALES DE ASIGNACIÓN DE PAGOS =====
-function openAssignPaymentModal(paymentReference, bankSource) {
-    console.log('💰 Abriendo modal de asignación de pago:', paymentReference);
+function openAssignPaymentModal(paymentKey, bankSource) {
+    console.log('💰 Abriendo modal de asignación de pago:', paymentKey);
 
-    // Encontrar el pago
+    // Encontrar el pago (priorizar ID si existe)
     const payment = unassignedPayments.find(p =>
-        p.Referencia === paymentReference && p.BankSource === bankSource
+        ((p.ID && p.ID.toString() === paymentKey.toString()) || p.Referencia === paymentKey) && p.BankSource === bankSource
     );
 
     if (!payment) {
@@ -364,7 +364,7 @@ function renderAssignPaymentModal(payment) {
     // Información del pago
     document.getElementById('paymentInfoForAssignment').innerHTML = `
         <div style="background: #e6f3ff; border: 2px solid #007aff; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-            <h4 style="margin: 0 0 8px 0; color: #007aff;">💳 ${payment.Referencia} - ${getBankDisplayName(payment.BankSource)}</h4>
+            <h4 style="margin: 0 0 8px 0; color: #007aff;">💳 ID ${payment.ID || '—'} | Ref ${payment.Referencia} - ${getBankDisplayName(payment.BankSource)}</h4>
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; font-size: 0.9rem;">
                 <div><strong>Monto Total:</strong><br>₡${totalAmount.toLocaleString('es-CR')}</div>
                 <div><strong>Disponible:</strong><br>₡${availableAmount.toLocaleString('es-CR')}</div>
@@ -492,11 +492,11 @@ function renderAssignInvoiceModal(invoice) {
 
         return `
             <div class="payment-option ${isExactMatch ? 'exact-match' : ''}" 
-                 onclick="selectPaymentForInvoice('${payment.Referencia}', '${paymentSource}')"
-                 id="payment-option-${payment.Referencia}-${paymentSource}">
+                 onclick="selectPaymentForInvoice('${payment.ID || payment.Referencia}', '${paymentSource}')"
+                 id="payment-option-${payment.ID || payment.Referencia}-${paymentSource}">
                 <div class="payment-option-header">
                     <div>
-                        <strong>${payment.Referencia}</strong>
+                        <strong>ID ${payment.ID || '—'} | Ref ${payment.Referencia}</strong>
                         <span class="bank-badge ${badgeClass}">${isManualPayment ? '💰 Manual' : payment.BankSource}</span>
                     </div>
                     <div style="text-align: right; font-weight: 600;">
@@ -555,17 +555,17 @@ function selectInvoiceForPayment(invoiceNumber) {
     }
 }
 
-function selectPaymentForInvoice(paymentReference, bankSource) {
+function selectPaymentForInvoice(paymentKey, bankSource) {
     // Remover selección previa
     document.querySelectorAll('.payment-option').forEach(el => el.classList.remove('selected'));
 
     // Seleccionar nueva opción
-    const selectedElement = document.getElementById(`payment-option-${paymentReference}-${bankSource}`);
+    const selectedElement = document.getElementById(`payment-option-${paymentKey}-${bankSource}`);
     if (selectedElement) {
         selectedElement.classList.add('selected');
     }
 
-    selectedPaymentForInvoice = { reference: paymentReference, bankSource: bankSource };
+    selectedPaymentForInvoice = { id: paymentKey, bankSource: bankSource };
 
     // Habilitar botón de confirmar
     const confirmBtn = document.getElementById('confirmAssignInvoiceBtn');
@@ -597,7 +597,7 @@ async function confirmAssignPayment() {
         const paymentAmount = parsePaymentAmountByBank(currentPaymentForAssignment.Créditos, sheetName);
         
         await assignTransactionToInvoice(
-            currentPaymentForAssignment.Referencia,
+            currentPaymentForAssignment.ID || currentPaymentForAssignment.Referencia,
             sheetName,
             selectedInvoiceForPayment,
             paymentAmount // Pasar el monto esperado
@@ -679,7 +679,7 @@ async function confirmAssignInvoice() {
                              window.selectedTransaction.bank === 'AutosubastasBN' ? 'AutosubastasBN' : 'BAC';
             
             await assignTransactionToInvoice(
-                window.selectedTransaction.reference,
+                window.selectedTransaction.id || window.selectedTransaction.reference,
                 sheetName,
                 currentInvoiceForAssignment.NumeroFactura
                 // No pasar expectedAmount para que use el disponible del backend
@@ -697,7 +697,7 @@ async function confirmAssignInvoice() {
 
             // Encontrar el pago en unassignedPayments
             const payment = unassignedPayments.find(p => 
-                p.Referencia === selectedPaymentForInvoice.reference && 
+                ((p.ID && p.ID.toString() === (selectedPaymentForInvoice.id || '').toString()) || p.Referencia === selectedPaymentForInvoice.id) && 
                 p.BankSource === selectedPaymentForInvoice.bankSource
             );
             
@@ -707,7 +707,7 @@ async function confirmAssignInvoice() {
 
             // Usar la función existente para asignar pagos bancarios
             await assignPaymentToInvoice(
-                selectedPaymentForInvoice.reference,
+                selectedPaymentForInvoice.id,
                 selectedPaymentForInvoice.bankSource,
                 currentInvoiceForAssignment.NumeroFactura
             );
@@ -1017,6 +1017,7 @@ async function loadTransactionsTab() {
                 // Parsear el monto correctamente
                 const creditValue = transaction.Créditos || '0';
                 const bank = transaction.banco || 'BAC';
+                const id = transaction.ID || '';
                 
                 // Debug: mostrar el valor original
                 console.log('🔍 Valor original:', creditValue, 'Banco:', bank, 'Tipo:', typeof creditValue);
@@ -1080,13 +1081,13 @@ async function loadTransactionsTab() {
                 return `
                     <div class="transaction-item" 
                          style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: white; cursor: pointer; transition: all 0.3s ease;"
-                         onclick="selectTransaction('${reference}', '${bank}', ${availableAmount}, '${description}')"
+                         onclick="selectTransaction('${id}', '${reference}', '${bank}', ${availableAmount}, '${description}')"
                          onmouseover="this.style.borderColor='#007aff'; this.style.boxShadow='0 2px 8px rgba(0,122,255,0.1)'"
                          onmouseout="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <div style="flex: 1;">
                                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                    <strong style="color: #007aff;">${reference}</strong>
+                                    <strong style="color: #007aff;">ID ${id || '—'} | Ref ${reference}</strong>
                                     <span style="background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #666;">${bank}</span>
                                 </div>
                                 <div style="color: #333; font-size: 0.9rem; margin-bottom: 4px; line-height: 1.3;">
@@ -1129,8 +1130,8 @@ async function loadTransactionsTab() {
 }
 
 // ===== FUNCIÓN PARA SELECCIONAR TRANSACCIONES =====
-function selectTransaction(reference, bank, amount, description) {
-    console.log('🎯 Transacción seleccionada:', { reference, bank, amount, description });
+function selectTransaction(id, reference, bank, amount, description) {
+    console.log('🎯 Transacción seleccionada:', { id, reference, bank, amount, description });
     
     const clickedItem = event.target.closest('.transaction-item');
     const isCurrentlySelected = clickedItem.style.background === 'rgb(230, 243, 255)' || 
@@ -1184,6 +1185,7 @@ function selectTransaction(reference, bank, amount, description) {
     
     // Guardar la transacción seleccionada
     window.selectedTransaction = {
+        id: id,
         reference: reference,
         bank: bank,
         amount: amount,
@@ -1198,6 +1200,7 @@ function selectTransaction(reference, bank, amount, description) {
             <div style="background: #e6f3ff; border: 2px solid #007aff; border-radius: 8px; padding: 12px; margin-top: 12px;">
                 <h5 style="margin: 0 0 8px 0; color: #007aff;">✅ Transacción Seleccionada</h5>
                 <div style="font-size: 0.9rem;">
+                    <strong>ID:</strong> ${id || '—'}<br>
                     <strong>Referencia:</strong> ${reference}<br>
                     <strong>Banco:</strong> ${bank}<br>
                     <strong>Monto:</strong> ₡${amount.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<br>
@@ -1314,7 +1317,7 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
                 if (response.ok) {
                     const sheetTransactions = await response.json();
                     const found = Array.isArray(sheetTransactions) ? 
-                        sheetTransactions.find(t => t.Referencia === transactionReference) : null;
+                        sheetTransactions.find(t => (t.ID && t.ID.toString() === transactionReference.toString()) || t.Referencia === transactionReference) : null;
                     
                     if (found) {
                         transaction = { ...found, banco: sheet };
@@ -1334,13 +1337,14 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
         if (!transaction) {
             console.log('🔍 Transacción no encontrada en API, buscando en unassignedPayments...');
             const localPayment = unassignedPayments.find(p => 
-                p.Referencia === transactionReference && p.BankSource === bank
+                ((p.ID && p.ID.toString() === transactionReference.toString()) || p.Referencia === transactionReference) && p.BankSource === bank
             );
             
             if (localPayment) {
                 console.log('✅ Transacción encontrada en datos locales');
                 // Convertir el formato de unassignedPayments al formato de transacciones
                 transaction = {
+                    ID: localPayment.ID,
                     Referencia: localPayment.Referencia,
                     Créditos: localPayment.Créditos,
                     Fecha: localPayment.Fecha,
@@ -1458,7 +1462,7 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
 
         // ===== NUEVO: ACTUALIZAR CAMPO PAGOS DE LA FACTURA =====
         const newPayment = {
-            reference: transactionReference,
+            reference: transaction.Referencia,
             bank: bank,
             amount: amountToApply,
             date: transactionDate
@@ -1727,8 +1731,45 @@ async function updateTransactionAssignments(transactionReference, bank, formatte
         
         console.log('👤 Cliente encontrado:', { ID: client.ID, ID_Cliente: client.ID_Cliente, Nombre: client.Nombre });
         
-        // URL para actualizar la transacción
-        const updateUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/Referencia/${encodeURIComponent(transactionReference)}?sheet=${bank}`;
+        // Primero intentar localizar por ID; si no existe, usar Referencia con validación de unicidad
+        const baseApi = 'https://sheetdb.io/api/v1/a7oekivxzreg7';
+        const searchByIdUrl = `${baseApi}/search?ID=${encodeURIComponent(transactionReference)}&sheet=${bank}`;
+        const searchByRefUrl = `${baseApi}/search?Referencia=${encodeURIComponent(transactionReference)}&sheet=${bank}`;
+        let targetRecord = null;
+        let updateUrl = '';
+        let searchUrl = '';
+        
+        try {
+            const tryId = await fetch(searchByIdUrl);
+            if (tryId.ok) {
+                const idData = await tryId.json();
+                if (Array.isArray(idData) && idData.length === 1) {
+                    targetRecord = idData[0];
+                    updateUrl = `${baseApi}/ID/${encodeURIComponent(transactionReference)}?sheet=${bank}`;
+                    searchUrl = searchByIdUrl;
+                }
+            }
+        } catch (e) {
+            console.warn('⚠️ Búsqueda por ID falló, se intentará por Referencia:', e.message);
+        }
+        
+        if (!targetRecord) {
+            const tryRef = await fetch(searchByRefUrl);
+            if (!tryRef.ok) {
+                throw new Error(`No se pudo buscar la transacción por Referencia (${tryRef.status})`);
+            }
+            const refData = await tryRef.json();
+            if (!Array.isArray(refData) || refData.length === 0) {
+                throw new Error('Transacción no encontrada por Referencia');
+            }
+            if (refData.length > 1) {
+                throw new Error('Referencia duplicada. Use el ID único para actualizar sin ambigüedad.');
+            }
+            targetRecord = refData[0];
+            updateUrl = `${baseApi}/Referencia/${encodeURIComponent(transactionReference)}?sheet=${bank}`;
+            searchUrl = searchByRefUrl;
+        }
+        
         console.log('🌐 URL de actualización:', updateUrl);
         
         // Formatear fecha actual
@@ -1738,37 +1779,22 @@ async function updateTransactionAssignments(transactionReference, bank, formatte
         console.log('📅 Fecha formateada:', formattedDate);
         
         // ===== NUEVO: CALCULAR SALDO DISPONIBLE =====
-        // Buscar la transacción para obtener el monto total
-        const searchUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7/search?Referencia=${encodeURIComponent(transactionReference)}&sheet=${bank}`;
+        // Ya tenemos targetRecord o URL de búsqueda configurada
         console.log('🔍 URL de búsqueda:', searchUrl);
         
         try {
-            const searchResponse = await fetch(searchUrl);
-            console.log('🔍 Respuesta de búsqueda:', {
-                status: searchResponse.status,
-                statusText: searchResponse.statusText,
-                ok: searchResponse.ok
-            });
-            
             let paymentAmount = 0;
-            if (searchResponse.ok) {
+            let transaction = targetRecord;
+            if (!transaction) {
+                const searchResponse = await fetch(searchUrl);
                 const searchData = await searchResponse.json();
-                console.log('🔍 Datos encontrados:', searchData);
-                
-                if (searchData.length > 0) {
-                    const transaction = searchData[0];
-                    console.log('🔍 Transacción encontrada:', transaction);
-                    
-                    // Parsear el monto usando la lógica de utils.js
-                    paymentAmount = parseAmount(transaction.Créditos);
-                    console.log(`💰 Monto total de la transacción: ₡${paymentAmount.toLocaleString('es-CR')}`);
-                } else {
-                    console.warn('⚠️ No se encontró la transacción en la búsqueda');
-                }
+                transaction = Array.isArray(searchData) && searchData.length > 0 ? searchData[0] : null;
+            }
+            if (transaction) {
+                paymentAmount = parseAmount(transaction.Créditos);
+                console.log(`💰 Monto total de la transacción: ₡${paymentAmount.toLocaleString('es-CR')}`);
             } else {
-                console.warn('⚠️ Error en la búsqueda de la transacción:', searchResponse.status);
-                const errorText = await searchResponse.text();
-                console.warn('Error detallado:', errorText);
+                console.warn('⚠️ No se encontró la transacción para calcular monto total');
             }
             
             // Calcular el total asignado
