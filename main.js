@@ -1303,35 +1303,26 @@ async function assignTransactionToInvoice(transactionReference, bank, invoiceNum
             throw new Error('Factura no encontrada');
         }
 
-        // Obtener datos de la transacción desde todas las hojas de la API
-        const sheets = ['BAC', 'BN', 'HuberBN'];
+        // Obtener datos de la transacción SOLO en la hoja indicada por 'bank'
         let transaction = null;
         let foundInSheet = null;
-        
-        for (const sheet of sheets) {
-            try {
-                console.log(`🔍 Buscando transacción ${transactionReference} en ${sheet}...`);
-                const apiUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7?sheet=${sheet}`;
-                const response = await fetch(apiUrl);
-                
-                if (response.ok) {
-                    const sheetTransactions = await response.json();
-                    const found = Array.isArray(sheetTransactions) ? 
-                        sheetTransactions.find(t => (t.ID && t.ID.toString() === transactionReference.toString()) || t.Referencia === transactionReference) : null;
-                    
-                    if (found) {
-                        transaction = { ...found, banco: sheet };
-                        foundInSheet = sheet;
-                        console.log(`✅ Transacción encontrada en ${sheet}`);
-                        break;
-                    }
+        try {
+            console.log(`🔍 Buscando transacción ${transactionReference} en hoja ${bank}...`);
+            const apiUrl = `https://sheetdb.io/api/v1/a7oekivxzreg7?sheet=${bank}`;
+            const response = await fetch(apiUrl);
+            if (response.ok) {
+                const sheetTransactions = await response.json();
+                const found = Array.isArray(sheetTransactions) ?
+                    sheetTransactions.find(t => (t.ID && t.ID.toString() === transactionReference.toString()) || t.Referencia === transactionReference) : null;
+                if (found) {
+                    transaction = { ...found, banco: bank };
+                    foundInSheet = bank;
+                    console.log(`✅ Transacción encontrada en ${bank}`);
                 }
-            } catch (error) {
-                console.warn(`Error al buscar en ${sheet}:`, error);
             }
+        } catch (error) {
+            console.warn(`Error al buscar en ${bank}:`, error);
         }
-        
-        console.log('🔍 Total de hojas consultadas:', sheets.length);
         
         // ===== NUEVO: BUSCAR EN UNASSIGNEDPAYMENTS COMO RESPALDO =====
         if (!transaction) {
