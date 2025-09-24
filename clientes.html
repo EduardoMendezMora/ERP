@@ -1389,18 +1389,26 @@
             if (clientInvoices.length === 0) {
                 return { status: 'not_billed', invoices: [], summary: null };
             }
-            
-            // Contar por estado
+
+            // Separar facturas de contrato vs manuales
+            const isManual = (inv) => (inv.TipoFactura === 'Manual') || (typeof inv.SemanaNumero === 'string' && inv.SemanaNumero.toUpperCase() === 'MANUAL');
+            const contractInvoices = clientInvoices.filter(inv => !isManual(inv));
+            const manualInvoices = clientInvoices.filter(isManual);
+
+            // Estado de facturación SOLO por facturas de contrato
+            const status = contractInvoices.length > 0 ? 'billed' : 'not_billed';
+
+            // Contar por estado sobre TODAS las facturas (visualización general)
             const pending = clientInvoices.filter(inv => inv.Estado === 'Pendiente');
-            const overdue = clientInvoices.filter(inv => inv.Estado === 'Vencido');  
+            const overdue = clientInvoices.filter(inv => inv.Estado === 'Vencido');
             const paid = clientInvoices.filter(inv => inv.Estado === 'Pagado');
-            
-                    const totalPending = pending.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
-        const totalOverdue = overdue.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
-        const totalFines = clientInvoices.reduce((sum, inv) => sum + parseAmount(inv.MontoMultas || 0), 0);
-            
+
+            const totalPending = pending.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
+            const totalOverdue = overdue.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
+            const totalFines = clientInvoices.reduce((sum, inv) => sum + parseAmount(inv.MontoMultas || 0), 0);
+
             return {
-                status: 'billed',
+                status,
                 invoices: clientInvoices,
                 summary: {
                     total: clientInvoices.length,
@@ -1409,7 +1417,9 @@
                     paid: paid.length,
                     totalPending,
                     totalOverdue,
-                    totalFines
+                    totalFines,
+                    contractInvoices: contractInvoices.length,
+                    manualInvoices: manualInvoices.length
                 }
             };
         }
@@ -1738,7 +1748,10 @@
                 return;
             }
 
-            // Verificar si ya está facturado
+            // Verificar si ya está facturado (solo por facturas de contrato)
+            const billingInfo = getClientBillingInfo(clientId);
+            if (billingInfo.status === 'billed') {
+            // Verificar si ya está facturado (solo por facturas de contrato)
             const billingInfo = getClientBillingInfo(clientId);
             if (billingInfo.status === 'billed') {
                 showToast('Este cliente ya ha sido facturado', 'warning');
