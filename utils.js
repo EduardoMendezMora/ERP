@@ -134,60 +134,29 @@ function validateSystemState() {
 
 // ===== FUNCIONES DE FECHA =====
 function parseDate(dateStr) {
-    if (!dateStr) {
-        console.warn('parseDate: valor vacío:', dateStr);
+    if (!dateStr || typeof dateStr !== 'string') {
+        console.warn('parseDate: valor vacío o no es string:', dateStr);
         return null;
     }
-    // Aceptar Date, número (serial) o string
-    if (dateStr instanceof Date) {
-        return new Date(dateStr.getFullYear(), dateStr.getMonth(), dateStr.getDate());
-    }
-    if (typeof dateStr === 'number') {
-        // Interpretar como serial de Excel (base 1899-12-30)
-        const base = new Date(1899, 11, 30);
-        const d = new Date(base.getTime() + dateStr * 86400000);
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    }
-    if (typeof dateStr !== 'string') {
-        console.warn('parseDate: tipo no soportado:', typeof dateStr);
+    // Intentar parsear la fecha
+    const parts = dateStr.split(/[\/\-]/);
+    if (parts.length < 3) {
+        console.warn('parseDate: formato de fecha no reconocido:', dateStr);
         return null;
     }
-    const trimmed = dateStr.trim();
-    if (trimmed === '') return null;
-
-    // Soportar formato ISO de inputs HTML: YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-        const [y, m, d] = trimmed.split('-').map(Number);
-        const dt = new Date(y, m - 1, d);
-        if (dt && dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d) return dt;
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    if (isNaN(day) || isNaN(month) || isNaN(year)) {
+        console.warn('parseDate: fecha inválida:', dateStr);
         return null;
     }
-
-    // Soportar DD/MM/YYYY o DD-MM-YYYY
-    const parts = trimmed.split(/[\/\-]/);
-    if (parts.length >= 3) {
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const year = parseInt(parts[2], 10);
-        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-            const dt = new Date(year, month, day);
-            if (dt && dt.getFullYear() === year && dt.getMonth() === month && dt.getDate() === day) return dt;
-        }
-    }
-
-    console.warn('parseDate: formato de fecha no reconocido:', dateStr);
-    return null;
+    return new Date(year, month, day);
 }
 
 function formatDateForDisplay(dateString) {
     const date = parseDate(dateString);
-    if (!date) return dateString || 'Fecha no registrada';
-
-    // Guard de rango razonable
-    const year = date.getFullYear();
-    if (year < 2000 || year > 2100) {
-        return 'Fecha no registrada';
-    }
+    if (!date) return dateString || 'Fecha inválida';
 
     try {
         return date.toLocaleDateString('es-CR', {
@@ -196,7 +165,7 @@ function formatDateForDisplay(dateString) {
             year: 'numeric'
         });
     } catch (error) {
-        return dateString || 'Fecha no registrada';
+        return dateString;
     }
 }
 

@@ -1389,26 +1389,18 @@
             if (clientInvoices.length === 0) {
                 return { status: 'not_billed', invoices: [], summary: null };
             }
-
-            // Separar facturas de contrato vs manuales
-            const isManual = (inv) => (inv.TipoFactura === 'Manual') || (typeof inv.SemanaNumero === 'string' && inv.SemanaNumero.toUpperCase() === 'MANUAL');
-            const contractInvoices = clientInvoices.filter(inv => !isManual(inv));
-            const manualInvoices = clientInvoices.filter(isManual);
-
-            // Estado de facturación SOLO por facturas de contrato
-            const status = contractInvoices.length > 0 ? 'billed' : 'not_billed';
-
-            // Contar por estado sobre TODAS las facturas (visualización general)
+            
+            // Contar por estado
             const pending = clientInvoices.filter(inv => inv.Estado === 'Pendiente');
-            const overdue = clientInvoices.filter(inv => inv.Estado === 'Vencido');
+            const overdue = clientInvoices.filter(inv => inv.Estado === 'Vencido');  
             const paid = clientInvoices.filter(inv => inv.Estado === 'Pagado');
-
-            const totalPending = pending.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
-            const totalOverdue = overdue.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
-            const totalFines = clientInvoices.reduce((sum, inv) => sum + parseAmount(inv.MontoMultas || 0), 0);
-
+            
+                    const totalPending = pending.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
+        const totalOverdue = overdue.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
+        const totalFines = clientInvoices.reduce((sum, inv) => sum + parseAmount(inv.MontoMultas || 0), 0);
+            
             return {
-                status,
+                status: 'billed',
                 invoices: clientInvoices,
                 summary: {
                     total: clientInvoices.length,
@@ -1417,9 +1409,7 @@
                     paid: paid.length,
                     totalPending,
                     totalOverdue,
-                    totalFines,
-                    contractInvoices: contractInvoices.length,
-                    manualInvoices: manualInvoices.length
+                    totalFines
                 }
             };
         }
@@ -1748,10 +1738,7 @@
                 return;
             }
 
-            // Verificar si ya está facturado (solo por facturas de contrato)
-            const billingInfo = getClientBillingInfo(clientId);
-            if (billingInfo.status === 'billed') {
-            // Verificar si ya está facturado (solo por facturas de contrato)
+            // Verificar si ya está facturado
             const billingInfo = getClientBillingInfo(clientId);
             if (billingInfo.status === 'billed') {
                 showToast('Este cliente ya ha sido facturado', 'warning');
@@ -2835,7 +2822,7 @@
                         <div class="group-item" style="padding: 12px; border: 1px solid #e0e0e0; border-radius: 6px; margin-bottom: 8px; cursor: pointer; transition: background-color 0.2s;" 
                              onmouseover="this.style.backgroundColor='#f8f9fa'" 
                              onmouseout="this.style.backgroundColor='white'"
-                             onclick="selectGroup('${grupo.id}', decodeURIComponent('${encodeURIComponent(grupo.name)}'))">
+                             onclick="selectGroup('${grupo.id}', '${grupo.name.replace(/'/g, "\\'")}')">
                             <div style="font-weight: 600; color: #1d1d1f; margin-bottom: 4px;">${grupo.name}</div>
                             <div style="font-size: 0.85rem; color: #86868b;">ID: ${grupo.id}</div>
                         </div>
@@ -2912,8 +2899,3 @@
     <a href="index.html" class="home-button" title="Volver al Inicio">
         🏠
     </a>
-
-</div>
-
-</body>
-</html>
