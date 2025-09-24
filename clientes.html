@@ -2835,7 +2835,7 @@
                         <div class="group-item" style="padding: 12px; border: 1px solid #e0e0e0; border-radius: 6px; margin-bottom: 8px; cursor: pointer; transition: background-color 0.2s;" 
                              onmouseover="this.style.backgroundColor='#f8f9fa'" 
                              onmouseout="this.style.backgroundColor='white'"
-                             onclick="selectGroup('${grupo.id}', '${grupo.name.replace(/'/g, "\\'")}')">
+                             onclick="selectGroup('${grupo.id}', decodeURIComponent('${encodeURIComponent(grupo.name)}'))">
                             <div style="font-weight: 600; color: #1d1d1f; margin-bottom: 4px;">${grupo.name}</div>
                             <div style="font-size: 0.85rem; color: #86868b;">ID: ${grupo.id}</div>
                         </div>
