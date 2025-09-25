@@ -126,8 +126,8 @@ function editInvoice(invoiceNumber) {
     // Fecha de vencimiento
     document.getElementById('editInvoiceDueDate').value = formatDateForInput(invoice.FechaVencimiento);
 
-    // Estado
-    document.getElementById('editInvoiceStatus').value = invoice.Estado || 'Pendiente';
+    // Estado (solo Pendiente o Pagado). Si viene Vencido, mostrar como Pendiente.
+    document.getElementById('editInvoiceStatus').value = (invoice.Estado === 'Pagado') ? 'Pagado' : 'Pendiente';
 
     // Fecha de pago (solo si está pagado)
     const paymentDateGroup = document.getElementById('editPaymentDateGroup');
@@ -136,9 +136,11 @@ function editInvoice(invoiceNumber) {
     if (invoice.Estado === 'Pagado') {
         paymentDateGroup.style.display = 'block';
         paymentDateInput.value = formatDateForInput(invoice.FechaPago);
+        paymentDateInput.required = true;
     } else {
         paymentDateGroup.style.display = 'none';
         paymentDateInput.value = '';
+        paymentDateInput.required = false;
     }
 
     // Mostrar modal
@@ -327,7 +329,7 @@ async function loadClientAndInvoices(clientId) {
         today.setHours(0, 0, 0, 0);
 
         clientAllInvoices.forEach(invoice => {
-            if (invoice.Estado === 'Pendiente' || invoice.Estado === 'Vencido') {
+            if ((invoice.Estado === 'Pendiente' || invoice.Estado === 'Vencido')) {
                 const dueDateStr = invoice.FechaVencimiento;
 
                 if (dueDateStr && dueDateStr !== '' && dueDateStr !== 'undefined') {
@@ -340,6 +342,9 @@ async function loadClientAndInvoices(clientId) {
                         let newDaysOverdue = 0;
                         let newFines = 0;
 
+                        // Si el monto base es 0, no calcular multas y mantener Pendiente/Vencido solo visualmente
+                        const baseAmountForCalc = parseAmount(invoice.MontoBase || 0);
+
                         if (today >= dueDate) {
                             const diffTime = today.getTime() - dueDate.getTime();
                             newDaysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -350,12 +355,12 @@ async function loadClientAndInvoices(clientId) {
                                 invoice.NumeroFactura?.startsWith('MAN-') ||
                                 invoice.ConceptoManual;
 
-                            if (!isManualInvoice) {
+                            if (!isManualInvoice && baseAmountForCalc > 0) {
                                 newFines = newDaysOverdue * 2000; // ₡2,000 por día
                             }
                         }
 
-                        const baseAmount = parseAmount(invoice.MontoBase || 0);
+                        const baseAmount = baseAmountForCalc;
                         const newTotal = baseAmount + newFines;
 
                         invoice.DiasAtraso = newDaysOverdue;
@@ -756,9 +761,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     const today = new Date();
                     paymentDateInput.value = formatDateForInput(formatDateForStorage(today));
                 }
+                paymentDateInput.required = true;
             } else {
                 paymentDateGroup.style.display = 'none';
                 paymentDateInput.value = '';
+                paymentDateInput.required = false;
             }
         });
     }
@@ -788,10 +795,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Validar monto
+            // Validar monto (permitir 0)
             const numAmount = parseFloat(amount);
-            if (numAmount <= 0) {
-                showToast('El monto debe ser mayor a cero', 'error');
+            if (isNaN(numAmount) || numAmount < 0) {
+                showToast('El monto debe ser 0 o mayor', 'error');
                 return;
             }
 
@@ -817,12 +824,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     ConceptoManual: concept,
                     DescripcionManual: description,
                     MontoBase: numAmount,
-                    MontoTotal: numAmount, // Se recalculará con multas si es necesario
+                    // Si el monto base es 0, no calcular multas al backend: setear multas 0 y total = 0
+                    MontoMultas: numAmount === 0 ? 0 : undefined,
+                    MontoTotal: numAmount === 0 ? 0 : numAmount,
                     FechaVencimiento: formattedDueDate,
                     Estado: status,
                     FechaPago: safeFormatDate(paymentDate),
                     TipoFactura: currentEditingInvoice.TipoFactura || 'Manual'
                 };
+
+                // Limpiar claves undefined para no sobreescribir si no aplica
+                Object.keys(updateData).forEach(k => updateData[k] === undefined && delete updateData[k]);
 
                 await updateInvoice(updateData);
 

@@ -52,13 +52,13 @@ let currentPaymentForDistribution = null;
 let paymentDistributionData = [];
 
 // ===== FUNCIÓN PRINCIPAL MEJORADA PARA APLICAR PAGOS =====
-async function assignPaymentToInvoice(paymentReference, bankSource, invoiceNumber) {
+async function assignPaymentToInvoice(paymentKey, bankSource, invoiceNumber) {
     try {
-        console.log(`🎯 Iniciando asignación: Pago ${paymentReference} (${bankSource}) → Factura ${invoiceNumber}`);
+        console.log(`🎯 Iniciando asignación: Pago ${paymentKey} (${bankSource}) → Factura ${invoiceNumber}`);
 
         // Encontrar la factura y el pago
         const invoice = clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
-        const payment = unassignedPayments.find(p => p.Referencia === paymentReference && p.BankSource === bankSource);
+        const payment = unassignedPayments.find(p => ((p.ID && p.ID.toString() === paymentKey.toString()) || p.Referencia === paymentKey) && p.BankSource === bankSource);
 
         if (!invoice || !payment) {
             throw new Error('Factura o pago no encontrado');
@@ -209,8 +209,8 @@ async function applySinglePayment(payment, invoice, availableAmount) {
 
         if (Math.abs(totalAccumulatedAssignments - totalPayment) < 0.01) {
             console.log(`✅ Pago completamente asignado - Removiendo de lista no asignados`);
-            const paymentIndex = unassignedPayments.findIndex(p =>
-                p.Referencia === payment.Referencia && p.BankSource === payment.BankSource
+        const paymentIndex = unassignedPayments.findIndex(p =>
+                ((p.ID && payment.ID && p.ID.toString() === payment.ID.toString()) || (p.Referencia === payment.Referencia && p.BankSource === payment.BankSource))
             );
             if (paymentIndex > -1) {
                 unassignedPayments.splice(paymentIndex, 1);
@@ -670,19 +670,30 @@ function closePaymentDistributionModal() {
 async function updatePaymentAssignments(payment, newAssignments) {
     try {
         console.log('🔄 Actualizando asignaciones de pago según documentación oficial:', payment.Referencia);
-
-        // VALIDACIÓN PREVIA: Verificar unicidad de la referencia en la hoja
-        const searchUrl = `${API_CONFIG.PAYMENTS}/search?Referencia=${encodeURIComponent(payment.Referencia)}&sheet=${payment.BankSource}`;
-        const searchResponse = await fetch(searchUrl);
-        if (!searchResponse.ok) {
-            throw new Error(`No se pudo verificar la unicidad del pago (HTTP ${searchResponse.status})`);
-        }
-        const searchData = await searchResponse.json();
-        if (searchData.length === 0) {
-            throw new Error(`El pago ${payment.Referencia} no existe en la hoja ${payment.BankSource}`);
-        }
-        if (searchData.length > 1) {
-            throw new Error(`No se puede actualizar el pago porque la referencia '${payment.Referencia}' aparece más de una vez en la hoja '${payment.BankSource}'. Debe ser única para poder modificar el registro. Corrija los duplicados en la hoja de Google Sheets.`);
+        
+        // VALIDACIÓN/PATH: Usar ID si existe; si no, exigir unicidad por Referencia
+        const baseApi = API_CONFIG.PAYMENTS;
+        let officialUpdateUrl = '';
+        let uniquenessInfo = null;
+        if (payment.ID) {
+            officialUpdateUrl = `${baseApi}/ID/${encodeURIComponent(payment.ID)}?sheet=${payment.BankSource}`;
+            console.log('✅ Usando ID único para actualizar:', payment.ID);
+        } else {
+            // Verificar unicidad por Referencia
+            const searchUrl = `${baseApi}/search?Referencia=${encodeURIComponent(payment.Referencia)}&sheet=${payment.BankSource}`;
+            const searchResponse = await fetch(searchUrl);
+            if (!searchResponse.ok) {
+                throw new Error(`No se pudo verificar la unicidad del pago (HTTP ${searchResponse.status})`);
+            }
+            const searchData = await searchResponse.json();
+            uniquenessInfo = searchData;
+            if (searchData.length === 0) {
+                throw new Error(`El pago ${payment.Referencia} no existe en la hoja ${payment.BankSource}`);
+            }
+            if (searchData.length > 1) {
+                throw new Error(`No se puede actualizar el pago porque la referencia '${payment.Referencia}' aparece más de una vez en la hoja '${payment.BankSource}'. Debe ser única para poder modificar el registro. Corrija los duplicados en la hoja de Google Sheets.`);
+            }
+            officialUpdateUrl = `${baseApi}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
         }
 
         // Obtener asignaciones previas
@@ -717,10 +728,6 @@ async function updatePaymentAssignments(payment, newAssignments) {
         console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
         console.log(`   - Saldo disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
 
-        // ✅ MÉTODO OFICIAL SEGÚN DOCUMENTACIÓN
-        // URL: https://sheetdb.io/api/v1/{API_ID}/{COLUMN_NAME}/{VALUE}?sheet={SHEET}
-        const officialUpdateUrl = `${API_CONFIG.PAYMENTS}/Referencia/${encodeURIComponent(payment.Referencia)}?sheet=${payment.BankSource}`;
-
         console.log('🚀 Usando método oficial SheetDB:', officialUpdateUrl);
 
         // Preparar datos como JSON (según documentación oficial)
@@ -753,7 +760,7 @@ async function updatePaymentAssignments(payment, newAssignments) {
         console.log('🛠️ [DEBUG] Body:', JSON.stringify(updateData));
         console.log('🛠️ [DEBUG] Referencia:', payment.Referencia);
         console.log('🛠️ [DEBUG] Banco:', payment.BankSource);
-        console.log('🛠️ [DEBUG] Resultado búsqueda unicidad:', searchData);
+        if (uniquenessInfo) console.log('🛠️ [DEBUG] Resultado búsqueda unicidad:', uniquenessInfo);
         console.log('🛠️ [DEBUG] --- FIN DEBUG PRE-PATCH ---');
 
         const response = await fetch(officialUpdateUrl, {

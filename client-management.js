@@ -116,7 +116,15 @@ async function saveClient() {
         idGrupoWhatsapp: document.getElementById('idGrupoWhatsapp').value.trim(),
         Placa: document.getElementById('Placa').value.trim(),
         montoContrato: document.getElementById('montoContrato').value.trim(),
-        fechaContrato: document.getElementById('fechaContrato').value.trim(),
+        // Convertir YYYY-MM-DD -> DD/MM/YYYY antes de guardar
+        fechaContrato: (function() {
+            const val = document.getElementById('fechaContrato').value.trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                const [y, m, d] = val.split('-');
+                return `${d}/${m}/${y}`;
+            }
+            return val;
+        })(),
         plazoContrato: document.getElementById('plazoContrato').value.trim(),
         diaPago: document.getElementById('diaPago').value.trim()
     };
@@ -184,7 +192,12 @@ function editClient(clientId) {
     document.getElementById('idGrupoWhatsapp').value = client.idGrupoWhatsapp || '';
     document.getElementById('Placa').value = client.Placa || '';
     document.getElementById('montoContrato').value = client.montoContrato || '';
-    document.getElementById('fechaContrato').value = client.fechaContrato || '';
+    // Mostrar en input tipo date como YYYY-MM-DD
+    document.getElementById('fechaContrato').value = (function(){
+        if (!client.fechaContrato) return '';
+        const v = formatDateForInput(client.fechaContrato);
+        return v || '';
+    })();
     document.getElementById('plazoContrato').value = client.plazoContrato || '';
     document.getElementById('diaPago').value = client.diaPago || '';
 }
