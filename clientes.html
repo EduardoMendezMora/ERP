@@ -1389,29 +1389,43 @@
             if (clientInvoices.length === 0) {
                 return { status: 'not_billed', invoices: [], summary: null };
             }
-            
-            // Contar por estado
-            const pending = clientInvoices.filter(inv => inv.Estado === 'Pendiente');
-            const overdue = clientInvoices.filter(inv => inv.Estado === 'Vencido');  
-            const paid = clientInvoices.filter(inv => inv.Estado === 'Pagado');
-            
-                    const totalPending = pending.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
-        const totalOverdue = overdue.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
-        const totalFines = clientInvoices.reduce((sum, inv) => sum + parseAmount(inv.MontoMultas || 0), 0);
-            
-            return {
-                status: 'billed',
-                invoices: clientInvoices,
-                summary: {
-                    total: clientInvoices.length,
-                    pending: pending.length,
-                    overdue: overdue.length,
-                    paid: paid.length,
-                    totalPending,
-                    totalOverdue,
-                    totalFines
-                }
-            };
+
+			// Determinar si existen facturas de leasing (excluyendo manuales)
+			const isManualInvoice = (inv) => (
+				inv.TipoFactura === 'Manual' ||
+				(inv.NumeroFactura && inv.NumeroFactura.startsWith('MAN-')) ||
+				!!inv.ConceptoManual
+			);
+
+			const leasingInvoices = clientInvoices.filter(inv => !isManualInvoice(inv));
+
+			// Si solo existen facturas manuales, considerar NO facturado (permitir tiraje de leasing)
+			if (leasingInvoices.length === 0) {
+				return { status: 'not_billed', invoices: clientInvoices, summary: null };
+			}
+			
+			// Contar por estado SOLO para facturas de leasing
+			const pending = leasingInvoices.filter(inv => inv.Estado === 'Pendiente');
+			const overdue = leasingInvoices.filter(inv => inv.Estado === 'Vencido');	
+			const paid = leasingInvoices.filter(inv => inv.Estado === 'Pagado');
+			
+			const totalPending = pending.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
+			const totalOverdue = overdue.reduce((sum, inv) => sum + parseAmount(inv.MontoTotal || 0), 0);
+			const totalFines = leasingInvoices.reduce((sum, inv) => sum + parseAmount(inv.MontoMultas || 0), 0);
+			
+			return {
+				status: 'billed',
+				invoices: leasingInvoices,
+				summary: {
+					total: leasingInvoices.length,
+					pending: pending.length,
+					overdue: overdue.length,
+					paid: paid.length,
+					totalPending,
+					totalOverdue,
+					totalFines
+				}
+			};
         }
 
         function renderClients(clientsToRender) {
