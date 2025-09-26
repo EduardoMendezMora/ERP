@@ -649,16 +649,19 @@ async function confirmAssignInvoice() {
             });
 
             // Encontrar el pago manual
-            const manualPayment = manualPayments.find(p => p.Referencia === selectedPaymentForInvoice.reference);
+            const key = selectedPaymentForInvoice.id;
+            const manualPayment = manualPayments.find(p => 
+                p.Referencia === key || (p.ID && p.ID.toString() === (key || '').toString())
+            );
             if (!manualPayment) {
                 throw new Error('Pago manual no encontrado');
             }
 
             // Asignar pago manual a la factura
             await assignManualPaymentToInvoice(
-                selectedPaymentForInvoice.reference,
+                manualPayment.Referencia,
                 currentInvoiceForAssignment.NumeroFactura,
-                parseAmount(manualPayment.Disponible || 0)
+                parseAmount(manualPayment.Disponible || manualPayment.Créditos || 0)
             );
 
         } else if (window.selectedTransaction) {
