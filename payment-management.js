@@ -933,53 +933,59 @@ async function unassignPaymentFromInvoice(paymentReference, bankSource, invoiceN
             throw new Error('Pago no encontrado en asignados');
         }
 
-        // Parsear asignaciones actuales
+        // Parsear asignaciones actuales del pago
         const currentAssignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
 
-        // Remover la asignación específica
+        // Remover solo la asignación específica de esta factura
         const updatedAssignments = currentAssignments.filter(a => a.invoiceNumber !== invoiceNumber);
 
-        // Actualizar en la base de datos usando la función corregida
+        // Actualizar la transacción bancaria:
+        // - Si quedan asignaciones: actualizar FacturasAsignadas y Disponible acorde
+        // - Si NO quedan asignaciones: LIMPIAR Observaciones, ID_Cliente, FacturasAsignadas, FechaAsignacion y Disponible
         await updatePaymentAssignmentsRaw(payment, updatedAssignments);
 
-        // Actualizar la factura - recalcular estado
+        // Actualizar la factura - revertir aplicación del pago y recalcular estado/saldo
         const invoice = clientInvoices.find(inv => inv.NumeroFactura === invoiceNumber);
         if (invoice) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            const dueDateStr = invoice.FechaVencimiento;
-            let newStatus = 'Pendiente';
-            let currentFines = 0;
+            // 1) Quitar del arreglo Pagos el elemento con esta referencia
+            const previousPayments = (typeof parseInvoicePayments === 'function') ? parseInvoicePayments(invoice.Pagos || '') : [];
+            const remainingPayments = previousPayments.filter(p => p.reference !== paymentReference);
+            const formattedRemainingPayments = (typeof formatInvoicePayments === 'function') ? formatInvoicePayments(remainingPayments) : '';
+            const totalRemainingPayments = remainingPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 
-            if (dueDateStr) {
-                const dueDate = parseDate(dueDateStr);
-                if (dueDate) {
-                    dueDate.setHours(0, 0, 0, 0);
+            // 2) Recalcular días de atraso y multas a la fecha actual
+            const daysOverdue = (typeof calculateDaysOverdue === 'function') ? calculateDaysOverdue(invoice.FechaVencimiento) : 0;
+            const currentFines = (typeof calculateFinesUntilDate === 'function') ? calculateFinesUntilDate(invoice, formatDateForStorage(today)) : 0;
 
-                    if (today > dueDate) {
-                        newStatus = 'Vencido';
-                        currentFines = calculateFinesUntilDate(invoice, formatDateForStorage(today));
-                    }
-                }
-            }
-
+            // 3) Recalcular saldo (MontoTotal) tomando en cuenta pagos restantes
             const baseAmount = parseAmount(invoice.MontoBase || 0);
-            const newTotal = baseAmount + currentFines;
+            const recalculatedTotal = Math.max(0, Math.round(baseAmount + currentFines - totalRemainingPayments));
 
-            // Actualizar en la API
+            // 4) Estado siempre vuelve a 'Pendiente' y FechaPago en blanco
+            const newStatus = 'Pendiente';
+
+            // 5) Actualizar en la API
             await updateInvoiceStatus(invoiceNumber, {
+                MontoBase: baseAmount,
+                DiasAtraso: daysOverdue,
+                MontoMultas: currentFines,
+                MontoTotal: recalculatedTotal,
                 Estado: newStatus,
                 FechaPago: '',
-                MontoMultas: currentFines,
-                MontoTotal: newTotal
+                Pagos: formattedRemainingPayments
             });
 
-            // Actualizar localmente
+            // 6) Actualizar localmente
+            invoice.MontoBase = baseAmount;
+            invoice.DiasAtraso = daysOverdue;
+            invoice.MontoMultas = currentFines;
+            invoice.MontoTotal = recalculatedTotal;
             invoice.Estado = newStatus;
             invoice.FechaPago = '';
-            invoice.MontoMultas = currentFines;
-            invoice.MontoTotal = newTotal;
+            invoice.Pagos = formattedRemainingPayments;
         }
 
         // Recargar y renderizar
@@ -1024,11 +1030,24 @@ async function updatePaymentAssignmentsRaw(payment, assignments) {
         console.log('🔍 [DEBUG RAW] Available amount is undefined:', availableAmount === undefined);
 
         // Datos a actualizar
-        const updateData = {
-            FacturasAsignadas: formatAssignedInvoices(assignments, availableAmount), // Nuevo formato con disponible
-            FechaAsignacion: assignments.length > 0 ? formatDateForStorage(new Date()) : '',
-            Disponible: availableAmount.toString() // Mantener columna Disponible para compatibilidad
-        };
+        let updateData;
+        if (assignments.length === 0) {
+            // Limpiar completamente cuando no quedan asignaciones
+            updateData = {
+                Observaciones: '',
+                ID_Cliente: '',
+                FacturasAsignadas: '',
+                FechaAsignacion: '',
+                Disponible: ''
+            };
+        } else {
+            // Mantener asignaciones y disponible cuando aún hay relaciones
+            updateData = {
+                FacturasAsignadas: formatAssignedInvoices(assignments, availableAmount), // Nuevo formato con disponible
+                FechaAsignacion: formatDateForStorage(new Date()),
+                Disponible: availableAmount.toString()
+            };
+        }
         
         // DEBUGGING COMPLETO PARA TODAS LAS TRANSACCIONES
         console.log('🔍 [DEBUG RAW] Update data:', updateData);
