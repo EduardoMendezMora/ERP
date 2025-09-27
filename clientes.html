@@ -1033,6 +1033,10 @@
                 updateStats();
                 console.log('✅ Después de llamar updateStats()');
                 populateVendorSelect();
+                // Actualizar requeridos según modo
+                if (typeof updateRequiredFields === 'function') {
+                    updateRequiredFields();
+                }
                 
                 showToast(`Sistema cargado: ${clients.length} clientes, ${invoices.length} facturas, ${vendors.length} vendedores`, 'success');
                 
@@ -2038,6 +2042,11 @@
             });
             document.getElementById(`card-${clientId}`).classList.add('editing');
 
+            // En modo edición, estos campos no son obligatorios
+            if (typeof updateRequiredFields === 'function') {
+                updateRequiredFields();
+            }
+
             document.querySelector('.form-section').scrollIntoView({ 
                 behavior: 'smooth', 
                 block: 'start' 
@@ -2059,6 +2068,11 @@
             document.querySelectorAll('.client-card').forEach(card => {
                 card.classList.remove('editing');
             });
+
+            // En modo agregar, estos campos son obligatorios
+            if (typeof updateRequiredFields === 'function') {
+                updateRequiredFields();
+            }
         }
 
         function clearValidationStyles() {
@@ -2198,6 +2212,8 @@
             const phoneInput = document.getElementById('numeroTelefono');
             const whatsappInput = document.getElementById('idGrupoWhatsapp');
             const nameInput = document.getElementById('Nombre');
+            const plateInput = document.getElementById('Placa');
+            const vendorSelect = document.getElementById('ID_Vendedor');
             
             if (!idInput.value) {
                 showToast('El ID del cliente es obligatorio', 'error');
@@ -2225,10 +2241,35 @@
                 return false;
             }
             
-            if (phoneInput.value && !validatePhone(phoneInput)) {
-                showToast('El teléfono debe tener el formato: 506 + 8 dígitos (ej: 50688888888)', 'error');
-                phoneInput.focus();
-                return false;
+            // Reglas de requeridos: solo al agregar (no en edición)
+            if (!isEditing) {
+                if (!phoneInput.value.trim()) {
+                    showToast('El número de teléfono es obligatorio', 'error');
+                    phoneInput.focus();
+                    return false;
+                }
+                if (!validatePhone(phoneInput)) {
+                    showToast('El teléfono debe tener el formato: 506 + 8 dígitos (ej: 50688888888)', 'error');
+                    phoneInput.focus();
+                    return false;
+                }
+                if (!plateInput.value.trim()) {
+                    showToast('La placa del vehículo es obligatoria', 'error');
+                    plateInput.focus();
+                    return false;
+                }
+                if (!vendorSelect.value.trim()) {
+                    showToast('El vendedor asignado es obligatorio', 'error');
+                    vendorSelect.focus();
+                    return false;
+                }
+            } else {
+                // En edición, si hay teléfono, validar formato
+                if (phoneInput.value && !validatePhone(phoneInput)) {
+                    showToast('El teléfono debe tener el formato: 506 + 8 dígitos (ej: 50688888888)', 'error');
+                    phoneInput.focus();
+                    return false;
+                }
             }
 
             if (whatsappInput.value && !validateWhatsAppID(whatsappInput)) {
@@ -2238,6 +2279,17 @@
             }
             
             return true;
+        }
+
+        // Actualiza attributes required según modo agregar/editar
+        function updateRequiredFields() {
+            const phoneInput = document.getElementById('numeroTelefono');
+            const plateInput = document.getElementById('Placa');
+            const vendorSelect = document.getElementById('ID_Vendedor');
+            const required = !isEditing;
+            if (phoneInput) phoneInput.required = required;
+            if (plateInput) plateInput.required = required;
+            if (vendorSelect) vendorSelect.required = required;
         }
 
         // ===== FUNCIONES DE ETIQUETAS =====
