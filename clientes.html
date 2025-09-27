@@ -1779,7 +1779,8 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Error HTTP: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
                 }
 
                 // Recargar facturas y actualizar vista
@@ -1861,15 +1862,15 @@
                 const invoiceNumber = `FAC-${lastInvoiceNumber.toString().padStart(3, '0')}`;
                 
                 const invoiceData = {
-                    ID_Cliente: client.ID,
+                    ID_Cliente: client.ID.toString(),
                     NumeroFactura: invoiceNumber,
-                    SemanaNumero: week,
+                    SemanaNumero: week.toString(),
                     SemanaDescripcion: weekDescription,
                     FechaVencimiento: formatDateForStorage(dueDate), // DD/MM/YYYY para Google Sheets
-                    MontoBase: weeklyAmount,
-                    DiasAtraso: 0,
-                    MontoMultas: 0,
-                    MontoTotal: weeklyAmount,
+                    MontoBase: weeklyAmount.toString(),
+                    DiasAtraso: '0',
+                    MontoMultas: '0',
+                    MontoTotal: weeklyAmount.toString(),
                     Estado: 'Pendiente',
                     FechaCreacion: formatDateForStorage(new Date()), // DD/MM/YYYY para Google Sheets
                     FechaPago: '',
