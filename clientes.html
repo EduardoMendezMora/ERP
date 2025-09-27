@@ -1104,14 +1104,25 @@
             const vendorSelect = document.getElementById('ID_Vendedor');
             if (!vendorSelect) return;
             
+            // Lista fija de vendedores (guardar nombre en ID_Vendedor)
+            const FIXED_VENDORS = [
+                'Angie Alejandra Cedeño Medina',
+                'Orlando Jesús González Jiménez',
+                'Osmy Josué Castillo Balladares',
+                'David Josue Bravo Corrales',
+                'Fernando Rodríguez Mora',
+                'Karla Fonseca Arias',
+                'Jeremy Leiva'
+            ];
+            
             // Limpiar opciones existentes excepto la primera
             vendorSelect.innerHTML = '<option value="">-- Seleccionar vendedor --</option>';
             
-            // Agregar vendedores activos
-            vendors.filter(vendor => vendor.estado === 'Activo').forEach(vendor => {
+            // Agregar opciones fijas (value y label = nombre)
+            FIXED_VENDORS.forEach(name => {
                 const option = document.createElement('option');
-                option.value = vendor.id;
-                option.textContent = `${vendor.nombre} (${vendor.id})`;
+                option.value = name;
+                option.textContent = name;
                 vendorSelect.appendChild(option);
             });
         }

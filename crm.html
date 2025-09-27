@@ -709,7 +709,7 @@
                             </div>
                             <div class="info-row">
                                 <span class="info-label">Vendedor:</span>
-                                <span class="info-value">${getVendorName(client.ID_Vendedor) || 'No asignado'}</span>
+                                <span class="info-value">${getVendorName(client.ID_Vendedor) || (client.ID_Vendedor || 'No asignado')}</span>
                             </div>
                             <div class="info-row">
                                 <span class="info-label">Fecha Registro:</span>
