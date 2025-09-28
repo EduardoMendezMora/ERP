@@ -847,12 +847,12 @@
                             <input type="text" class="form-input uppercase" id="Nombre" required placeholder="NOMBRE DEL CLIENTE (se convierte a mayúsculas)">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Número de Teléfono</label>
+                            <label class="form-label">Número de Teléfono <span class="required">*</span></label>
                             <input type="tel" class="form-input" id="numeroTelefono" placeholder="50688888888" pattern="506[0-9]{8}" maxlength="11">
                             <small class="field-help">Formato: 506 + 8 dígitos (ej: 50688888888)</small>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Placa del Vehículo</label>
+                            <label class="form-label">Placa del Vehículo <span class="required">*</span></label>
                             <input type="text" class="form-input uppercase" id="Placa" placeholder="ABC123 (se convierte a mayúsculas)" list="placaList">
                             <datalist id="placaList"></datalist>
                         </div>
@@ -884,7 +884,7 @@
                             <input type="number" class="form-input" id="montoContrato" step="1000" placeholder="50000">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Vendedor Asignado</label>
+                            <label class="form-label">Vendedor Asignado <span class="required">*</span></label>
                             <select class="form-input" id="ID_Vendedor">
                                 <option value="">-- Seleccionar vendedor --</option>
                             </select>
