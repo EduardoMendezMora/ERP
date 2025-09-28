@@ -853,7 +853,8 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Placa del Vehículo</label>
-                            <input type="text" class="form-input uppercase" id="Placa" placeholder="ABC123 (se convierte a mayúsculas)">
+                            <input type="text" class="form-input uppercase" id="Placa" placeholder="ABC123 (se convierte a mayúsculas)" list="placaList">
+                            <datalist id="placaList"></datalist>
                         </div>
                         <div class="form-group">
                             <label class="form-label">ID Grupo WhatsApp</label>
@@ -952,6 +953,7 @@
     <script>
         const API_URL_CLIENTS = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
         const API_URL_INVOICES = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
+        const API_URL_FLOTA = 'https://sheetdb.io/api/v1/nrzmoa46446mu?sheet=Flota';
         
         let clients = [];
         let invoices = [];
@@ -1019,7 +1021,8 @@
                 await Promise.all([
                     loadClientsData(),
                     loadInvoicesData(),
-                    loadVendorsData()
+                    loadVendorsData(),
+                    loadFlotaPlates()
                 ]);
                 
                 console.log('✅ Todas las cargas completadas');
@@ -1101,6 +1104,28 @@
                 console.error('❌ Error cargando vendedores:', error);
                 showToast('Error al cargar vendedores', 'error');
                 vendors = [];
+            }
+        }
+        
+        // Cargar placas desde Flota y poblar datalist
+        async function loadFlotaPlates() {
+            try {
+                console.log('Cargando placas desde Flota:', API_URL_FLOTA);
+                const response = await fetch(API_URL_FLOTA);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                const plates = Array.isArray(data) ? data.map(item => (item.Placa || '').toString().trim()).filter(Boolean) : [];
+                const uniquePlates = [...new Set(plates)];
+                const datalist = document.getElementById('placaList');
+                if (datalist) {
+                    datalist.innerHTML = uniquePlates.map(p => `<option value="${p}"></option>`).join('');
+                }
+                console.log(`✅ Placas cargadas desde Flota: ${uniquePlates.length}`);
+            } catch (error) {
+                console.error('❌ Error cargando placas desde Flota:', error);
+                // No bloquear la app si falla esta carga
             }
         }
         
@@ -2255,6 +2280,16 @@
                 }
                 if (!plateInput.value.trim()) {
                     showToast('La placa del vehículo es obligatoria', 'error');
+                    plateInput.focus();
+                    return false;
+                }
+                // Validar que la placa exista en Flota
+                const plateValue = plateInput.value.trim().toUpperCase();
+                const datalist = document.getElementById('placaList');
+                const options = Array.from(datalist ? datalist.options : []);
+                const existsInFlota = options.some(opt => (opt.value || '').toUpperCase() === plateValue);
+                if (!existsInFlota) {
+                    showToast('La placa no existe en Flota. Seleccione una placa válida.', 'error');
                     plateInput.focus();
                     return false;
                 }
