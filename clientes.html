@@ -841,9 +841,6 @@
                             <label class="form-label">ID del Cliente <span class="required">*</span></label>
                             <input type="text" class="form-input" id="ID" required placeholder="Solo números (9-15 dígitos)" pattern="[0-9]{9,15}" maxlength="15">
                             <small class="field-help">Solo números, entre 9 y 15 dígitos</small>
-                            <small class="field-help" id="nextIdClienteHelp" style="display: block; margin-top: 4px;">
-                                idCliente (provisional): <span id="nextIdClienteBadge">calculando...</span>
-                            </small>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Nombre Completo <span class="required">*</span></label>
@@ -1044,9 +1041,6 @@
                 if (typeof updateRequiredFields === 'function') {
                     updateRequiredFields();
                 }
-
-                // Calcular idCliente provisional para mostrarlo en el formulario
-                updateNextIdClienteBadge();
                 
                 showToast(`Sistema cargado: ${clients.length} clientes, ${invoices.length} facturas, ${vendors.length} vendedores`, 'success');
                 
@@ -1205,23 +1199,10 @@
             });
 
             // Formulario de cliente
-            const formEl = document.getElementById('clientForm');
-            formEl.addEventListener('submit', async function(e) {
+            document.getElementById('clientForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
-                const submitBtn = document.getElementById('submitBtn');
-                const originalText = submitBtn.textContent;
-                try {
-                    submitBtn.disabled = true;
-                    submitBtn.textContent = '⏳ Guardando...';
-                    if (await validateForm()) {
-                        await saveClient();
-                    }
-                } catch (err) {
-                    console.error('❌ Error en submit:', err);
-                    showToast('Error al guardar: ' + (err?.message || err), 'error');
-                } finally {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = originalText;
+                if (await validateForm()) {
+                    saveClient();
                 }
             });
 
@@ -1236,14 +1217,14 @@
             document.getElementById('ID').addEventListener('blur', async function(e) {
                 // Solo al agregar nuevo cliente
                 if (!isEditing) {
-                    await checkIDExists(e.target);
-                    // Siempre intentar autocompletar si el nombre está vacío
-                    const nameInput = document.getElementById('Nombre');
-                    if (nameInput && !nameInput.value.trim()) {
-                        fetchCedulaNameAndFill(e.target.value.trim());
+                    const existed = await checkIDExists(e.target);
+                    // Si el ID no existe y el nombre está vacío, intentar autocompletar desde API cédulas
+                    if (!existed) {
+                        const nameInput = document.getElementById('Nombre');
+                        if (nameInput && !nameInput.value.trim()) {
+                            fetchCedulaNameAndFill(e.target.value.trim());
+                        }
                     }
-                    // Recalcular idCliente provisional por si hubo altas concurrentes
-                    updateNextIdClienteBadge();
                 }
             });
 
@@ -1582,12 +1563,6 @@
                                     <div class="detail-row">
                                         <span class="detail-label">Placa</span>
                                         <span class="detail-value">${client.Placa}</span>
-                                    </div>
-                                ` : ''}
-                                ${client.idCliente ? `
-                                    <div class="detail-row">
-                                        <span class="detail-label">idCliente</span>
-                                        <span class="detail-value">${client.idCliente}</span>
                                     </div>
                                 ` : ''}
                                 ${client.idGrupoWhatsapp ? `
@@ -2066,7 +2041,6 @@
                 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error('❌ Error al guardar cliente:', response.status, errorText);
                     throw new Error(`HTTP ${response.status}: ${errorText}`);
                 }
                 
@@ -2183,7 +2157,7 @@
             return isValid;
         }
 
-        // ===== NUEVA FUNCIÓN: VERIFICAR SI EL ID YA EXISTE (no bloquea, solo informa) =====
+        // ===== NUEVA FUNCIÓN: VERIFICAR SI EL ID YA EXISTE =====
         async function checkIDExists(input) {
             const value = input.value.trim();
             
@@ -2206,15 +2180,20 @@
                 );
                 
                 if (existingClient) {
-                    console.log('ℹ️ ID ya tiene registros. Se asignará idCliente nuevo.');
-                    // Mostrar aviso informativo, NO bloquear, NO limpiar
-                    showToast(`ℹ️ El ID ${value} ya tiene registros. Se asignará idCliente nuevo.`, 'warning');
+                    console.log('❌ ID ya existe:', existingClient.Nombre);
                     
-                    // Resaltar como válido igualmente
-                    input.style.borderColor = '#34c759';
-                    input.style.boxShadow = '0 0 0 3px rgba(52, 199, 89, 0.1)';
+                    // Mostrar error visual
+                    input.style.borderColor = '#ff3b30';
+                    input.style.boxShadow = '0 0 0 3px rgba(255, 59, 48, 0.2)';
                     
-                    return true; // El ID existe, pero no bloquea
+                    // Mostrar mensaje de error
+                    showToast(`❌ El ID ${value} ya está registrado por el cliente: ${existingClient.Nombre}`, 'error');
+                    
+                    // Limpiar el campo
+                    input.value = '';
+                    input.focus();
+                    
+                    return true; // El ID existe
                 } else {
                     console.log('✅ ID disponible:', value);
                     
@@ -2248,8 +2227,7 @@
 
         function validateWhatsAppID(input) {
             const value = input.value.trim();
-            // Aceptar números solos o números@g.us
-            const isValid = value === '' || /^[0-9]+(@g\.us)?$/.test(value);
+            const isValid = value === '' || /^[0-9]+@g\.us$/.test(value);
             
             if (value && !isValid) {
                 input.style.borderColor = '#ff3b30';
@@ -2454,25 +2432,6 @@
             addTag();
         }
 
-        // Mostrar idCliente provisional en el formulario
-        async function updateNextIdClienteBadge() {
-            const badge = document.getElementById('nextIdClienteBadge');
-            if (!badge) return;
-            try {
-                const resp = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`);
-                if (!resp.ok) throw new Error(resp.statusText);
-                const list = await resp.json();
-                const ids = (Array.isArray(list) ? list : [])
-                    .map(c => parseInt(c.idCliente))
-                    .filter(n => !isNaN(n));
-                const next = (ids.length > 0 ? Math.max(...ids) + 1 : 1);
-                badge.textContent = next;
-            } catch (e) {
-                console.warn('No se pudo calcular idCliente provisional:', e);
-                badge.textContent = '—';
-            }
-        }
-
         // Autocompletar nombre desde API de cédulas
         async function fetchCedulaNameAndFill(cedula) {
             try {
@@ -2511,53 +2470,12 @@
 
                 if (composed) {
                     const nameInput = document.getElementById('Nombre');
-                    console.log('🧩 Nombre compuesto desde cédulas:', composed);
                     if (nameInput && !nameInput.value.trim()) {
                         nameInput.value = composed.toUpperCase();
                     }
                 }
             } catch (err) {
                 console.warn('Error consultando cédula:', err);
-            }
-        }
-
-        // Autocompletado con timeout para no bloquear guardado
-        async function tryAutocompleteName(cedula, timeoutMs = 1500) {
-            const nameInput = document.getElementById('Nombre');
-            if (!nameInput || nameInput.value.trim()) return; // ya tiene nombre
-            if (!cedula) return;
-
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), timeoutMs);
-            try {
-                const url = `https://apis.gometa.org/cedulas/${cedula}&key=${API_URL_CEDULAS_KEY}`;
-                console.log('Consultando cédula (con timeout):', url);
-                const resp = await fetch(url, { signal: controller.signal });
-                if (!resp.ok) return;
-                const data = await resp.json();
-                const r = data && Array.isArray(data.results) && data.results[0] ? data.results[0] : {};
-                let composed = [r.firstname1, r.firstname2, r.lastname1, r.lastname2]
-                    .filter(part => part && String(part).trim() !== '')
-                    .join(' ')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-                if (!composed) {
-                    const alt = [r.firstname, r.lastname]
-                        .filter(part => part && String(part).trim() !== '')
-                        .join(' ')
-                        .replace(/\s+/g, ' ')
-                        .trim();
-                    if (alt) composed = alt;
-                }
-                if (!composed) composed = (data && data.nombre) || (r && r.fullname) || '';
-                if (composed && !nameInput.value.trim()) {
-                    console.log('🧩 Nombre compuesto (timeout flow):', composed);
-                    nameInput.value = composed.toUpperCase();
-                }
-            } catch (err) {
-                console.warn('Autocomplete con timeout abortado o falló:', err?.name || err);
-            } finally {
-                clearTimeout(timer);
             }
         }
 
@@ -2831,23 +2749,11 @@
         }
 
         async function saveClient() {
-            // Intentar autocompletar Nombre desde API si está vacío al crear (no bloquear)
-            const idValueRaw = document.getElementById('ID').value.trim();
-            let nameValueRaw = document.getElementById('Nombre').value.trim();
-            if (!isEditing && idValueRaw && !nameValueRaw) {
-                // Lanzar en paralelo con timeout, sin esperar
-                tryAutocompleteName(idValueRaw);
-            }
-
-            // Normalizar WhatsApp ID: si es sólo números, añadir @g.us
-            const rawWhatsapp = document.getElementById('idGrupoWhatsapp').value.trim();
-            const normalizedWhatsapp = rawWhatsapp && /^\d+$/.test(rawWhatsapp) ? `${rawWhatsapp}@g.us` : rawWhatsapp;
-
             const formData = {
-                ID: idValueRaw,
-                Nombre: nameValueRaw.toUpperCase(),
+                ID: document.getElementById('ID').value.trim(),
+                Nombre: document.getElementById('Nombre').value.trim().toUpperCase(),
                 numeroTelefono: document.getElementById('numeroTelefono').value.trim(),
-                idGrupoWhatsapp: normalizedWhatsapp,
+                idGrupoWhatsapp: document.getElementById('idGrupoWhatsapp').value.trim(),
                 Placa: document.getElementById('Placa').value.trim().toUpperCase(),
                 montoContrato: document.getElementById('montoContrato').value.trim(),
                 fechaContrato: document.getElementById('fechaContrato').value.trim(),
@@ -2857,22 +2763,19 @@
                 Etiquetas: formatTags(currentTags)
             };
 
-            if (!formData.ID) {
-                showToast('Por favor completa el ID del cliente', 'error');
-                return;
-            }
-            // Permitir guardar incluso si no se pudo autocompletar el nombre; sigue siendo requerido por UI
-            if (!formData.Nombre) {
-                showToast('El nombre del cliente es obligatorio', 'error');
+            if (!formData.ID || !formData.Nombre) {
+                showToast('Por favor completa los campos obligatorios (ID y Nombre)', 'error');
                 return;
             }
 
-            // Permitir múltiples registros con el mismo ID (idCliente secuencial)
+            if (!isEditing && clients.some(client => client.ID.toString() === formData.ID.toString())) {
+                showToast('Ya existe un cliente con ese ID', 'error');
+                return;
+            }
 
             try {
                 let response;
                 
-                let createdIdCliente = null;
                 if (isEditing) {
                     // Para actualizar, usar el formato correcto de SheetDB PATCH
                     const updateUrl = `${API_URL_CLIENTS}/ID/${currentClient.ID}`;
@@ -2891,84 +2794,14 @@
                         method: 'PATCH'
                     });
                 } else {
-                    // ===== CREACIÓN: calcular idCliente secuencial global y manejar concurrencia =====
-                    // 1) GET fresco de Clientes para obtener max idCliente
-                    let nextIdCliente = 1;
-                    let hasFechaRegistroColumn = false;
-                    try {
-                        const freshResp = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`);
-                        if (freshResp.ok) {
-                            const all = await freshResp.json();
-                            // Detectar si existe la columna FechaRegistro en la hoja
-                            if (Array.isArray(all) && all.length > 0) {
-                                const sampleKeys = Object.keys(all[0] || {});
-                                hasFechaRegistroColumn = sampleKeys.includes('FechaRegistro');
-                            }
-                            const ids = (Array.isArray(all) ? all : [])
-                                .map(c => parseInt(c.idCliente))
-                                .filter(n => !isNaN(n));
-                            const maxId = ids.length > 0 ? Math.max(...ids) : 0;
-                            nextIdCliente = maxId + 1;
-                        }
-                    } catch (e) {
-                        console.warn('No se pudo obtener listado fresco para idCliente. Usando fallback 1.');
-                        nextIdCliente = 1;
-                    }
-
-                    const timestamp = new Date().toISOString();
-                    const createPayload = { ...formData, idCliente: nextIdCliente.toString() };
-                    if (hasFechaRegistroColumn) {
-                        createPayload.FechaRegistro = timestamp;
-                    }
-                    createdIdCliente = createPayload.idCliente;
-
-                    // 2) POST crear con idCliente propuesto
-                    console.log('📝 Creando cliente:', createPayload);
+                    // Para crear, usar POST con JSON
                     response = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify(createPayload)
+                        body: JSON.stringify(formData)
                     });
-                    console.log('📡 Respuesta creación:', response.status, response.statusText);
-
-                    // 3) Verificación post-creación por posible choque
-                    if (hasFechaRegistroColumn) {
-                        try {
-                            const verifyResp = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`);
-                            if (verifyResp.ok) {
-                                const after = await verifyResp.json();
-                                const list = Array.isArray(after) ? after : [];
-                                // identificar nuestro registro por combinación fuerte
-                                const mine = list.find(c => 
-                                    c.ID === createPayload.ID &&
-                                    c.FechaRegistro === timestamp &&
-                                    c.Placa === createPayload.Placa
-                                );
-                                if (mine) {
-                                    const ids = list
-                                        .map(c => parseInt(c.idCliente))
-                                        .filter(n => !isNaN(n));
-                                    const maxIdAfter = ids.length > 0 ? Math.max(...ids) : nextIdCliente;
-                                    // Si alguien tomó el idCliente, nuestro id no es el máximo actual
-                                    if (parseInt(mine.idCliente) !== maxIdAfter) {
-                                        const newId = (maxIdAfter + 1).toString();
-                                        // PATCH para actualizar solo nuestro idCliente
-                                        const patchUrl = `${API_URL_CLIENTS}/FechaRegistro/${encodeURIComponent(timestamp)}?sheet=Clientes`;
-                                        const params = new URLSearchParams();
-                                        params.append('idCliente', newId);
-                                        await fetch(patchUrl, { method: 'PATCH', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
-                                        createdIdCliente = newId;
-                                    }
-                                }
-                            }
-                        } catch (e) {
-                            console.warn('No se pudo verificar/ajustar idCliente tras creación:', e);
-                        }
-                    } else {
-                        console.log('⏭️ Saltando verificación de concurrencia: columna FechaRegistro no existe.');
-                    }
                 }
 
                 if (!response.ok) {
@@ -2999,12 +2832,7 @@
                     }
                 }, 100);
                 
-                if (isEditing) {
-                    showToast('Cliente actualizado correctamente', 'success');
-                } else {
-                    const idc = createdIdCliente ? ` (idCliente: ${createdIdCliente})` : '';
-                    showToast(`Cliente creado correctamente${idc}`, 'success');
-                }
+                showToast(isEditing ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente', 'success');
             } catch (error) {
                 console.error('Error:', error);
                 showToast('Error al guardar cliente: ' + error.message, 'error');
