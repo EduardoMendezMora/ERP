@@ -2445,11 +2445,33 @@
                     return;
                 }
                 const data = await resp.json();
-                const nombre = (data && (data.nombre || (data.results && data.results[0] && data.results[0].fullname))) || '';
-                if (nombre) {
+                const r = data && Array.isArray(data.results) && data.results[0] ? data.results[0] : {};
+                // Construir: firstname1 + firstname2 + lastname1 + lastname2
+                let composed = [r.firstname1, r.firstname2, r.lastname1, r.lastname2]
+                    .filter(part => part && String(part).trim() !== '')
+                    .join(' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                // Fallback: firstname + lastname
+                if (!composed) {
+                    const alt = [r.firstname, r.lastname]
+                        .filter(part => part && String(part).trim() !== '')
+                        .join(' ')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                    if (alt) composed = alt;
+                }
+
+                // Fallback: nombre del root o fullname del result
+                if (!composed) {
+                    composed = (data && data.nombre) || (r && r.fullname) || '';
+                }
+
+                if (composed) {
                     const nameInput = document.getElementById('Nombre');
                     if (nameInput && !nameInput.value.trim()) {
-                        nameInput.value = nombre.toUpperCase();
+                        nameInput.value = composed.toUpperCase();
                     }
                 }
             } catch (err) {
