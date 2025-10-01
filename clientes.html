@@ -954,6 +954,7 @@
         const API_URL_CLIENTS = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
         const API_URL_INVOICES = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
         const API_URL_FLOTA = 'https://sheetdb.io/api/v1/nrzmoa46446mu?sheet=Flota';
+        const API_URL_CEDULAS_KEY = 'ac1OXCfZWZXsyaG'; // GoMeta API key
         
         let clients = [];
         let invoices = [];
@@ -1213,10 +1214,17 @@
             });
 
             // ===== NUEVO: VERIFICACIÓN DE ID DUPLICADO AL SALIR DEL CAMPO =====
-            document.getElementById('ID').addEventListener('blur', function(e) {
-                // Solo verificar si estamos en modo de agregar nuevo cliente (no editando)
+            document.getElementById('ID').addEventListener('blur', async function(e) {
+                // Solo al agregar nuevo cliente
                 if (!isEditing) {
-                    checkIDExists(e.target);
+                    const existed = await checkIDExists(e.target);
+                    // Si el ID no existe y el nombre está vacío, intentar autocompletar desde API cédulas
+                    if (!existed) {
+                        const nameInput = document.getElementById('Nombre');
+                        if (nameInput && !nameInput.value.trim()) {
+                            fetchCedulaNameAndFill(e.target.value.trim());
+                        }
+                    }
                 }
             });
 
@@ -2422,6 +2430,31 @@
             document.getElementById('tagInput').value = tag;
             document.getElementById('tagsSuggestions').style.display = 'none';
             addTag();
+        }
+
+        // Autocompletar nombre desde API de cédulas
+        async function fetchCedulaNameAndFill(cedula) {
+            try {
+                if (!cedula) return;
+                const url = `https://apis.gometa.org/cedulas/${cedula}&key=${API_URL_CEDULAS_KEY}`;
+                console.log('Consultando cédula en GoMeta:', url);
+                const resp = await fetch(url);
+                if (!resp.ok) {
+                    // No bloquear flujo si falla
+                    console.warn('No se pudo consultar cédula:', resp.status, await resp.text());
+                    return;
+                }
+                const data = await resp.json();
+                const nombre = (data && (data.nombre || (data.results && data.results[0] && data.results[0].fullname))) || '';
+                if (nombre) {
+                    const nameInput = document.getElementById('Nombre');
+                    if (nameInput && !nameInput.value.trim()) {
+                        nameInput.value = nombre.toUpperCase();
+                    }
+                }
+            } catch (err) {
+                console.warn('Error consultando cédula:', err);
+            }
         }
 
         // ===== FUNCIONES PARA EDITAR ETIQUETAS DESDE TARJETAS =====
