@@ -2875,10 +2875,16 @@
                     // ===== CREACIÓN: calcular idCliente secuencial global y manejar concurrencia =====
                     // 1) GET fresco de Clientes para obtener max idCliente
                     let nextIdCliente = 1;
+                    let hasFechaRegistroColumn = false;
                     try {
                         const freshResp = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`);
                         if (freshResp.ok) {
                             const all = await freshResp.json();
+                            // Detectar si existe la columna FechaRegistro en la hoja
+                            if (Array.isArray(all) && all.length > 0) {
+                                const sampleKeys = Object.keys(all[0] || {});
+                                hasFechaRegistroColumn = sampleKeys.includes('FechaRegistro');
+                            }
                             const ids = (Array.isArray(all) ? all : [])
                                 .map(c => parseInt(c.idCliente))
                                 .filter(n => !isNaN(n));
@@ -2891,10 +2897,14 @@
                     }
 
                     const timestamp = new Date().toISOString();
-                    const createPayload = { ...formData, idCliente: nextIdCliente.toString(), FechaRegistro: timestamp };
+                    const createPayload = { ...formData, idCliente: nextIdCliente.toString() };
+                    if (hasFechaRegistroColumn) {
+                        createPayload.FechaRegistro = timestamp;
+                    }
                     createdIdCliente = createPayload.idCliente;
 
                     // 2) POST crear con idCliente propuesto
+                    console.log('📝 Creando cliente:', createPayload);
                     response = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`, {
                         method: 'POST',
                         headers: {
@@ -2902,38 +2912,43 @@
                         },
                         body: JSON.stringify(createPayload)
                     });
+                    console.log('📡 Respuesta creación:', response.status, response.statusText);
 
                     // 3) Verificación post-creación por posible choque
-                    try {
-                        const verifyResp = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`);
-                        if (verifyResp.ok) {
-                            const after = await verifyResp.json();
-                            const list = Array.isArray(after) ? after : [];
-                            // identificar nuestro registro por combinación fuerte
-                            const mine = list.find(c => 
-                                c.ID === createPayload.ID &&
-                                c.FechaRegistro === timestamp &&
-                                c.Placa === createPayload.Placa
-                            );
-                            if (mine) {
-                                const ids = list
-                                    .map(c => parseInt(c.idCliente))
-                                    .filter(n => !isNaN(n));
-                                const maxIdAfter = ids.length > 0 ? Math.max(...ids) : nextIdCliente;
-                                // Si alguien tomó el idCliente, nuestro id no es el máximo actual
-                                if (parseInt(mine.idCliente) !== maxIdAfter) {
-                                    const newId = (maxIdAfter + 1).toString();
-                                    // PATCH para actualizar solo nuestro idCliente
-                                    const patchUrl = `${API_URL_CLIENTS}/FechaRegistro/${encodeURIComponent(timestamp)}?sheet=Clientes`;
-                                    const params = new URLSearchParams();
-                                    params.append('idCliente', newId);
-                                    await fetch(patchUrl, { method: 'PATCH', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
-                                    createdIdCliente = newId;
+                    if (hasFechaRegistroColumn) {
+                        try {
+                            const verifyResp = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`);
+                            if (verifyResp.ok) {
+                                const after = await verifyResp.json();
+                                const list = Array.isArray(after) ? after : [];
+                                // identificar nuestro registro por combinación fuerte
+                                const mine = list.find(c => 
+                                    c.ID === createPayload.ID &&
+                                    c.FechaRegistro === timestamp &&
+                                    c.Placa === createPayload.Placa
+                                );
+                                if (mine) {
+                                    const ids = list
+                                        .map(c => parseInt(c.idCliente))
+                                        .filter(n => !isNaN(n));
+                                    const maxIdAfter = ids.length > 0 ? Math.max(...ids) : nextIdCliente;
+                                    // Si alguien tomó el idCliente, nuestro id no es el máximo actual
+                                    if (parseInt(mine.idCliente) !== maxIdAfter) {
+                                        const newId = (maxIdAfter + 1).toString();
+                                        // PATCH para actualizar solo nuestro idCliente
+                                        const patchUrl = `${API_URL_CLIENTS}/FechaRegistro/${encodeURIComponent(timestamp)}?sheet=Clientes`;
+                                        const params = new URLSearchParams();
+                                        params.append('idCliente', newId);
+                                        await fetch(patchUrl, { method: 'PATCH', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+                                        createdIdCliente = newId;
+                                    }
                                 }
                             }
+                        } catch (e) {
+                            console.warn('No se pudo verificar/ajustar idCliente tras creación:', e);
                         }
-                    } catch (e) {
-                        console.warn('No se pudo verificar/ajustar idCliente tras creación:', e);
+                    } else {
+                        console.log('⏭️ Saltando verificación de concurrencia: columna FechaRegistro no existe.');
                     }
                 }
 
