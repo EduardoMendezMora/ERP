@@ -1217,13 +1217,11 @@
             document.getElementById('ID').addEventListener('blur', async function(e) {
                 // Solo al agregar nuevo cliente
                 if (!isEditing) {
-                    const existed = await checkIDExists(e.target);
-                    // Si el ID no existe y el nombre está vacío, intentar autocompletar desde API cédulas
-                    if (!existed) {
-                        const nameInput = document.getElementById('Nombre');
-                        if (nameInput && !nameInput.value.trim()) {
-                            fetchCedulaNameAndFill(e.target.value.trim());
-                        }
+                    await checkIDExists(e.target);
+                    // Siempre intentar autocompletar si el nombre está vacío
+                    const nameInput = document.getElementById('Nombre');
+                    if (nameInput && !nameInput.value.trim()) {
+                        fetchCedulaNameAndFill(e.target.value.trim());
                     }
                 }
             });
@@ -2471,6 +2469,7 @@
 
                 if (composed) {
                     const nameInput = document.getElementById('Nombre');
+                    console.log('🧩 Nombre compuesto desde cédulas:', composed);
                     if (nameInput && !nameInput.value.trim()) {
                         nameInput.value = composed.toUpperCase();
                     }
