@@ -2157,7 +2157,7 @@
             return isValid;
         }
 
-        // ===== NUEVA FUNCIÓN: VERIFICAR SI EL ID YA EXISTE =====
+        // ===== NUEVA FUNCIÓN: VERIFICAR SI EL ID YA EXISTE (no bloquea, solo informa) =====
         async function checkIDExists(input) {
             const value = input.value.trim();
             
@@ -2180,20 +2180,15 @@
                 );
                 
                 if (existingClient) {
-                    console.log('❌ ID ya existe:', existingClient.Nombre);
+                    console.log('ℹ️ ID ya tiene registros. Se asignará idCliente nuevo.');
+                    // Mostrar aviso informativo, NO bloquear, NO limpiar
+                    showToast(`ℹ️ El ID ${value} ya tiene registros. Se asignará idCliente nuevo.`, 'warning');
                     
-                    // Mostrar error visual
-                    input.style.borderColor = '#ff3b30';
-                    input.style.boxShadow = '0 0 0 3px rgba(255, 59, 48, 0.2)';
+                    // Resaltar como válido igualmente
+                    input.style.borderColor = '#34c759';
+                    input.style.boxShadow = '0 0 0 3px rgba(52, 199, 89, 0.1)';
                     
-                    // Mostrar mensaje de error
-                    showToast(`❌ El ID ${value} ya está registrado por el cliente: ${existingClient.Nombre}`, 'error');
-                    
-                    // Limpiar el campo
-                    input.value = '';
-                    input.focus();
-                    
-                    return true; // El ID existe
+                    return true; // El ID existe, pero no bloquea
                 } else {
                     console.log('✅ ID disponible:', value);
                     
@@ -2768,10 +2763,7 @@
                 return;
             }
 
-            if (!isEditing && clients.some(client => client.ID.toString() === formData.ID.toString())) {
-                showToast('Ya existe un cliente con ese ID', 'error');
-                return;
-            }
+            // Permitir múltiples registros con el mismo ID (idCliente secuencial)
 
             try {
                 let response;
@@ -2794,14 +2786,67 @@
                         method: 'PATCH'
                     });
                 } else {
-                    // Para crear, usar POST con JSON
+                    // ===== CREACIÓN: calcular idCliente secuencial global y manejar concurrencia =====
+                    // 1) GET fresco de Clientes para obtener max idCliente
+                    let nextIdCliente = 1;
+                    try {
+                        const freshResp = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`);
+                        if (freshResp.ok) {
+                            const all = await freshResp.json();
+                            const ids = (Array.isArray(all) ? all : [])
+                                .map(c => parseInt(c.idCliente))
+                                .filter(n => !isNaN(n));
+                            const maxId = ids.length > 0 ? Math.max(...ids) : 0;
+                            nextIdCliente = maxId + 1;
+                        }
+                    } catch (e) {
+                        console.warn('No se pudo obtener listado fresco para idCliente. Usando fallback 1.');
+                        nextIdCliente = 1;
+                    }
+
+                    const timestamp = new Date().toISOString();
+                    const createPayload = { ...formData, idCliente: nextIdCliente.toString(), FechaRegistro: timestamp };
+
+                    // 2) POST crear con idCliente propuesto
                     response = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify(formData)
+                        body: JSON.stringify(createPayload)
                     });
+
+                    // 3) Verificación post-creación por posible choque
+                    try {
+                        const verifyResp = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`);
+                        if (verifyResp.ok) {
+                            const after = await verifyResp.json();
+                            const list = Array.isArray(after) ? after : [];
+                            // identificar nuestro registro por combinación fuerte
+                            const mine = list.find(c => 
+                                c.ID === createPayload.ID &&
+                                c.FechaRegistro === timestamp &&
+                                c.Placa === createPayload.Placa
+                            );
+                            if (mine) {
+                                const ids = list
+                                    .map(c => parseInt(c.idCliente))
+                                    .filter(n => !isNaN(n));
+                                const maxIdAfter = ids.length > 0 ? Math.max(...ids) : nextIdCliente;
+                                // Si alguien tomó el idCliente, nuestro id no es el máximo actual
+                                if (parseInt(mine.idCliente) !== maxIdAfter) {
+                                    const newId = (maxIdAfter + 1).toString();
+                                    // PATCH para actualizar solo nuestro idCliente
+                                    const patchUrl = `${API_URL_CLIENTS}/FechaRegistro/${encodeURIComponent(timestamp)}?sheet=Clientes`;
+                                    const params = new URLSearchParams();
+                                    params.append('idCliente', newId);
+                                    await fetch(patchUrl, { method: 'PATCH', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('No se pudo verificar/ajustar idCliente tras creación:', e);
+                    }
                 }
 
                 if (!response.ok) {
