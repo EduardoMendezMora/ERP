@@ -2506,6 +2506,46 @@
             }
         }
 
+        // Autocompletado con timeout para no bloquear guardado
+        async function tryAutocompleteName(cedula, timeoutMs = 1500) {
+            const nameInput = document.getElementById('Nombre');
+            if (!nameInput || nameInput.value.trim()) return; // ya tiene nombre
+            if (!cedula) return;
+
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const url = `https://apis.gometa.org/cedulas/${cedula}&key=${API_URL_CEDULAS_KEY}`;
+                console.log('Consultando cédula (con timeout):', url);
+                const resp = await fetch(url, { signal: controller.signal });
+                if (!resp.ok) return;
+                const data = await resp.json();
+                const r = data && Array.isArray(data.results) && data.results[0] ? data.results[0] : {};
+                let composed = [r.firstname1, r.firstname2, r.lastname1, r.lastname2]
+                    .filter(part => part && String(part).trim() !== '')
+                    .join(' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                if (!composed) {
+                    const alt = [r.firstname, r.lastname]
+                        .filter(part => part && String(part).trim() !== '')
+                        .join(' ')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                    if (alt) composed = alt;
+                }
+                if (!composed) composed = (data && data.nombre) || (r && r.fullname) || '';
+                if (composed && !nameInput.value.trim()) {
+                    console.log('🧩 Nombre compuesto (timeout flow):', composed);
+                    nameInput.value = composed.toUpperCase();
+                }
+            } catch (err) {
+                console.warn('Autocomplete con timeout abortado o falló:', err?.name || err);
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
         // ===== FUNCIONES PARA EDITAR ETIQUETAS DESDE TARJETAS =====
         function editClientTags(clientId) {
             const client = clients.find(c => c.ID.toString() === clientId.toString());
@@ -2776,12 +2816,12 @@
         }
 
         async function saveClient() {
-            // Intentar autocompletar Nombre desde API si está vacío al crear
+            // Intentar autocompletar Nombre desde API si está vacío al crear (no bloquear)
             const idValueRaw = document.getElementById('ID').value.trim();
             let nameValueRaw = document.getElementById('Nombre').value.trim();
             if (!isEditing && idValueRaw && !nameValueRaw) {
-                await fetchCedulaNameAndFill(idValueRaw);
-                nameValueRaw = document.getElementById('Nombre').value.trim();
+                // Lanzar en paralelo con timeout, sin esperar
+                tryAutocompleteName(idValueRaw);
             }
 
             const formData = {
@@ -2798,8 +2838,13 @@
                 Etiquetas: formatTags(currentTags)
             };
 
-            if (!formData.ID || !formData.Nombre) {
-                showToast('Por favor completa los campos obligatorios (ID y Nombre)', 'error');
+            if (!formData.ID) {
+                showToast('Por favor completa el ID del cliente', 'error');
+                return;
+            }
+            // Permitir guardar incluso si no se pudo autocompletar el nombre; sigue siendo requerido por UI
+            if (!formData.Nombre) {
+                showToast('El nombre del cliente es obligatorio', 'error');
                 return;
             }
 
