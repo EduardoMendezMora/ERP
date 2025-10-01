@@ -1565,6 +1565,12 @@
                                         <span class="detail-value">${client.Placa}</span>
                                     </div>
                                 ` : ''}
+                                ${client.idCliente ? `
+                                    <div class="detail-row">
+                                        <span class="detail-label">idCliente</span>
+                                        <span class="detail-value">${client.idCliente}</span>
+                                    </div>
+                                ` : ''}
                                 ${client.idGrupoWhatsapp ? `
                                     <div class="detail-row">
                                         <span class="detail-label">WhatsApp</span>
@@ -2744,9 +2750,17 @@
         }
 
         async function saveClient() {
+            // Intentar autocompletar Nombre desde API si está vacío al crear
+            const idValueRaw = document.getElementById('ID').value.trim();
+            let nameValueRaw = document.getElementById('Nombre').value.trim();
+            if (!isEditing && idValueRaw && !nameValueRaw) {
+                await fetchCedulaNameAndFill(idValueRaw);
+                nameValueRaw = document.getElementById('Nombre').value.trim();
+            }
+
             const formData = {
-                ID: document.getElementById('ID').value.trim(),
-                Nombre: document.getElementById('Nombre').value.trim().toUpperCase(),
+                ID: idValueRaw,
+                Nombre: nameValueRaw.toUpperCase(),
                 numeroTelefono: document.getElementById('numeroTelefono').value.trim(),
                 idGrupoWhatsapp: document.getElementById('idGrupoWhatsapp').value.trim(),
                 Placa: document.getElementById('Placa').value.trim().toUpperCase(),
@@ -2768,6 +2782,7 @@
             try {
                 let response;
                 
+                let createdIdCliente = null;
                 if (isEditing) {
                     // Para actualizar, usar el formato correcto de SheetDB PATCH
                     const updateUrl = `${API_URL_CLIENTS}/ID/${currentClient.ID}`;
@@ -2806,6 +2821,7 @@
 
                     const timestamp = new Date().toISOString();
                     const createPayload = { ...formData, idCliente: nextIdCliente.toString(), FechaRegistro: timestamp };
+                    createdIdCliente = createPayload.idCliente;
 
                     // 2) POST crear con idCliente propuesto
                     response = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`, {
@@ -2841,6 +2857,7 @@
                                     const params = new URLSearchParams();
                                     params.append('idCliente', newId);
                                     await fetch(patchUrl, { method: 'PATCH', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+                                    createdIdCliente = newId;
                                 }
                             }
                         }
@@ -2877,7 +2894,12 @@
                     }
                 }, 100);
                 
-                showToast(isEditing ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente', 'success');
+                if (isEditing) {
+                    showToast('Cliente actualizado correctamente', 'success');
+                } else {
+                    const idc = createdIdCliente ? ` (idCliente: ${createdIdCliente})` : '';
+                    showToast(`Cliente creado correctamente${idc}`, 'success');
+                }
             } catch (error) {
                 console.error('Error:', error);
                 showToast('Error al guardar cliente: ' + error.message, 'error');
