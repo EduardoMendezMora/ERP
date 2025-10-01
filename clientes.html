@@ -1205,10 +1205,23 @@
             });
 
             // Formulario de cliente
-            document.getElementById('clientForm').addEventListener('submit', async function(e) {
+            const formEl = document.getElementById('clientForm');
+            formEl.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                if (await validateForm()) {
-                    saveClient();
+                const submitBtn = document.getElementById('submitBtn');
+                const originalText = submitBtn.textContent;
+                try {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = '⏳ Guardando...';
+                    if (await validateForm()) {
+                        await saveClient();
+                    }
+                } catch (err) {
+                    console.error('❌ Error en submit:', err);
+                    showToast('Error al guardar: ' + (err?.message || err), 'error');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
                 }
             });
 
@@ -2053,6 +2066,7 @@
                 
                 if (!response.ok) {
                     const errorText = await response.text();
+                    console.error('❌ Error al guardar cliente:', response.status, errorText);
                     throw new Error(`HTTP ${response.status}: ${errorText}`);
                 }
                 
@@ -2234,7 +2248,8 @@
 
         function validateWhatsAppID(input) {
             const value = input.value.trim();
-            const isValid = value === '' || /^[0-9]+@g\.us$/.test(value);
+            // Aceptar números solos o números@g.us
+            const isValid = value === '' || /^[0-9]+(@g\.us)?$/.test(value);
             
             if (value && !isValid) {
                 input.style.borderColor = '#ff3b30';
@@ -2824,11 +2839,15 @@
                 tryAutocompleteName(idValueRaw);
             }
 
+            // Normalizar WhatsApp ID: si es sólo números, añadir @g.us
+            const rawWhatsapp = document.getElementById('idGrupoWhatsapp').value.trim();
+            const normalizedWhatsapp = rawWhatsapp && /^\d+$/.test(rawWhatsapp) ? `${rawWhatsapp}@g.us` : rawWhatsapp;
+
             const formData = {
                 ID: idValueRaw,
                 Nombre: nameValueRaw.toUpperCase(),
                 numeroTelefono: document.getElementById('numeroTelefono').value.trim(),
-                idGrupoWhatsapp: document.getElementById('idGrupoWhatsapp').value.trim(),
+                idGrupoWhatsapp: normalizedWhatsapp,
                 Placa: document.getElementById('Placa').value.trim().toUpperCase(),
                 montoContrato: document.getElementById('montoContrato').value.trim(),
                 fechaContrato: document.getElementById('fechaContrato').value.trim(),
