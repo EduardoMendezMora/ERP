@@ -1233,7 +1233,27 @@
                 validateID(e.target);
             });
 
-            // Se elimina verificación de ID duplicado en blur para no interrumpir el flujo
+            // Blur del ID: mantener verificación informativa y autocompletar nombre desde API (sin bloquear)
+            document.getElementById('ID').addEventListener('blur', async function(e) {
+                const cedula = (e.target.value || '').trim();
+                if (!cedula) return;
+                console.group('🪲 DEBUG Cedula API (blur)');
+                try {
+                    // Verificación informativa (no bloquea)
+                    await checkIDExists(e.target);
+                    // Autocompletar nombre solo si está vacío
+                    const nameInput = document.getElementById('Nombre');
+                    if (nameInput && !nameInput.value.trim()) {
+                        await fetchCedulaNameAndFill(cedula);
+                    } else {
+                        console.log('Nombre ya presente: se omite autocompletar');
+                    }
+                } catch (err) {
+                    console.warn('DEBUG cedula blur error:', err);
+                } finally {
+                    console.groupEnd();
+                }
+            });
 
             // Validación en tiempo real del teléfono
             document.getElementById('numeroTelefono').addEventListener('input', function(e) {
