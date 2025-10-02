@@ -128,6 +128,19 @@ async function saveClient() {
         plazoContrato: document.getElementById('plazoContrato').value.trim(),
         diaPago: document.getElementById('diaPago').value.trim()
     };
+    // Asignar idContrato secuencial al crear
+    if (!isEditing) {
+        const existingIds = Array.isArray(clients)
+            ? clients
+                .map(c => {
+                    const n = parseInt((c.idContrato || c.ID_Contrato || c.IdContrato || c.id_contrato), 10);
+                    return Number.isFinite(n) ? n : null;
+                })
+                .filter(n => n !== null)
+            : [];
+        const nextIdContrato = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
+        formData.idContrato = nextIdContrato;
+    }
     try {
         let response;
         if (isEditing && currentClient) {

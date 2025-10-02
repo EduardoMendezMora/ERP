@@ -1576,7 +1576,7 @@
                             <div class="client-header">
                                 <div class="client-info">
                                     <div class="client-name">${client.Nombre || 'Sin nombre'}</div>
-                                    <div class="client-id">ID: ${client.ID || 'Sin ID'}</div>
+                                    <div class="client-id">ID: ${client.ID || 'Sin ID'}${client.idContrato ? ` · Contrato #${client.idContrato}` : ''}</div>
                                 </div>
                             </div>
                             <div class="client-details">
@@ -2815,6 +2815,20 @@
             }
 
             // Se permite crear con IDs duplicados
+            // Generar idContrato secuencial solo al crear
+            if (!isEditing) {
+                const existingIds = Array.isArray(clients)
+                    ? clients
+                        .map(c => {
+                            const n = parseInt((c.idContrato || c.ID_Contrato || c.IdContrato || c.id_contrato), 10);
+                            return Number.isFinite(n) ? n : null;
+                        })
+                        .filter(n => n !== null)
+                    : [];
+                const nextIdContrato = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
+                formData.idContrato = nextIdContrato; // numérico
+                console.log('Asignando idContrato:', nextIdContrato);
+            }
             if (!isEditing) {
                 const exists = Array.isArray(clients) && clients.some(c => c.ID && c.ID.toString() === formData.ID.toString());
                 console.log('Existe ID en memoria (solo info, permitido):', exists);
