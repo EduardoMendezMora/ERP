@@ -1201,8 +1201,28 @@
             // Formulario de cliente
             document.getElementById('clientForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
-                if (await validateForm()) {
-                    saveClient();
+                console.group('🪲 DEBUG Guardar Cliente - submit handler');
+                try {
+                    const idVal = (document.getElementById('ID') || { value: '' }).value;
+                    const nameVal = (document.getElementById('Nombre') || { value: '' }).value;
+                    console.log('isEditing:', isEditing);
+                    console.log('ID ingresado:', idVal);
+                    console.log('Nombre ingresado:', nameVal);
+                    console.time('validateForm');
+                    const isValid = await validateForm();
+                    console.timeEnd('validateForm');
+                    console.log('Resultado validateForm:', isValid);
+                    if (!isValid) {
+                        console.groupEnd();
+                        return;
+                    }
+                    console.time('saveClient');
+                    await saveClient();
+                    console.timeEnd('saveClient');
+                } catch (err) {
+                    console.error('DEBUG submit error:', err);
+                } finally {
+                    console.groupEnd();
                 }
             });
 
@@ -1213,20 +1233,7 @@
                 validateID(e.target);
             });
 
-            // ===== NUEVO: VERIFICACIÓN DE ID DUPLICADO AL SALIR DEL CAMPO =====
-            document.getElementById('ID').addEventListener('blur', async function(e) {
-                // Solo al agregar nuevo cliente
-                if (!isEditing) {
-                    const existed = await checkIDExists(e.target);
-                    // Si el ID no existe y el nombre está vacío, intentar autocompletar desde API cédulas
-                    if (!existed) {
-                        const nameInput = document.getElementById('Nombre');
-                        if (nameInput && !nameInput.value.trim()) {
-                            fetchCedulaNameAndFill(e.target.value.trim());
-                        }
-                    }
-                }
-            });
+            // Se elimina verificación de ID duplicado en blur para no interrumpir el flujo
 
             // Validación en tiempo real del teléfono
             document.getElementById('numeroTelefono').addEventListener('input', function(e) {
@@ -2157,7 +2164,7 @@
             return isValid;
         }
 
-        // ===== NUEVA FUNCIÓN: VERIFICAR SI EL ID YA EXISTE =====
+        // ===== FUNCIÓN: VERIFICAR SI EL ID YA EXISTE (SOLO INFORMATIVA, NO BLOQUEA) =====
         async function checkIDExists(input) {
             const value = input.value.trim();
             
@@ -2180,20 +2187,13 @@
                 );
                 
                 if (existingClient) {
-                    console.log('❌ ID ya existe:', existingClient.Nombre);
+                    console.log('⚠️ ID ya existe (permitido):', existingClient.Nombre);
                     
-                    // Mostrar error visual
-                    input.style.borderColor = '#ff3b30';
-                    input.style.boxShadow = '0 0 0 3px rgba(255, 59, 48, 0.2)';
+                    // Confirmación visual no bloqueante
+                    input.style.borderColor = '#34c759';
+                    input.style.boxShadow = '0 0 0 3px rgba(52, 199, 89, 0.1)';
                     
-                    // Mostrar mensaje de error
-                    showToast(`❌ El ID ${value} ya está registrado por el cliente: ${existingClient.Nombre}`, 'error');
-                    
-                    // Limpiar el campo
-                    input.value = '';
-                    input.focus();
-                    
-                    return true; // El ID existe
+                    return true; // El ID existe, pero se permite continuar
                 } else {
                     console.log('✅ ID disponible:', value);
                     
@@ -2247,30 +2247,35 @@
             const nameInput = document.getElementById('Nombre');
             const plateInput = document.getElementById('Placa');
             const vendorSelect = document.getElementById('ID_Vendedor');
+            console.group('🪲 DEBUG validateForm');
+            console.log('isEditing:', isEditing);
+            console.log('ID:', idInput && idInput.value);
+            console.log('Nombre:', nameInput && nameInput.value);
+            
             
             if (!idInput.value) {
                 showToast('El ID del cliente es obligatorio', 'error');
                 idInput.focus();
+                console.log('Motivo fallo: ID vacío');
+                console.groupEnd();
                 return false;
             }
             
             if (!validateID(idInput)) {
                 showToast('El ID debe tener entre 9 y 15 dígitos numéricos', 'error');
                 idInput.focus();
+                console.log('Motivo fallo: ID formato inválido');
+                console.groupEnd();
                 return false;
             }
             
-            // ===== NUEVO: VERIFICAR SI EL ID YA EXISTE (solo al agregar nuevo cliente) =====
-            if (!isEditing) {
-                const idExists = await checkIDExists(idInput);
-                if (idExists) {
-                    return false; // El ID ya existe, no continuar
-                }
-            }
+            // Validación de ID duplicado ya no bloquea creación; solo informativa en blur
             
             if (!nameInput.value.trim()) {
                 showToast('El nombre del cliente es obligatorio', 'error');
                 nameInput.focus();
+                console.log('Motivo fallo: Nombre vacío');
+                console.groupEnd();
                 return false;
             }
             
@@ -2279,16 +2284,22 @@
                 if (!phoneInput.value.trim()) {
                     showToast('El número de teléfono es obligatorio', 'error');
                     phoneInput.focus();
+                    console.log('Motivo fallo: Teléfono vacío');
+                    console.groupEnd();
                     return false;
                 }
                 if (!validatePhone(phoneInput)) {
                     showToast('El teléfono debe tener el formato: 506 + 8 dígitos (ej: 50688888888)', 'error');
                     phoneInput.focus();
+                    console.log('Motivo fallo: Teléfono formato inválido');
+                    console.groupEnd();
                     return false;
                 }
                 if (!plateInput.value.trim()) {
                     showToast('La placa del vehículo es obligatoria', 'error');
                     plateInput.focus();
+                    console.log('Motivo fallo: Placa vacía');
+                    console.groupEnd();
                     return false;
                 }
                 // Validar que la placa exista en Flota
@@ -2299,11 +2310,15 @@
                 if (!existsInFlota) {
                     showToast('La placa no existe en Flota. Seleccione una placa válida.', 'error');
                     plateInput.focus();
+                    console.log('Motivo fallo: Placa no existe en Flota');
+                    console.groupEnd();
                     return false;
                 }
                 if (!vendorSelect.value.trim()) {
                     showToast('El vendedor asignado es obligatorio', 'error');
                     vendorSelect.focus();
+                    console.log('Motivo fallo: Vendedor vacío');
+                    console.groupEnd();
                     return false;
                 }
             } else {
@@ -2311,6 +2326,8 @@
                 if (phoneInput.value && !validatePhone(phoneInput)) {
                     showToast('El teléfono debe tener el formato: 506 + 8 dígitos (ej: 50688888888)', 'error');
                     phoneInput.focus();
+                    console.log('Motivo fallo: Teléfono formato inválido (edición)');
+                    console.groupEnd();
                     return false;
                 }
             }
@@ -2318,8 +2335,11 @@
             if (whatsappInput.value && !validateWhatsAppID(whatsappInput)) {
                 showToast('El ID de WhatsApp debe tener el formato: números@g.us (ej: 120363295526322228@g.us)', 'error');
                 whatsappInput.focus();
+                console.log('Motivo fallo: WhatsApp ID formato inválido');
+                console.groupEnd();
                 return false;
             }
+            console.groupEnd();
             
             return true;
         }
@@ -2749,6 +2769,7 @@
         }
 
         async function saveClient() {
+            console.group('🪲 DEBUG saveClient');
             const formData = {
                 ID: document.getElementById('ID').value.trim(),
                 Nombre: document.getElementById('Nombre').value.trim().toUpperCase(),
@@ -2762,19 +2783,26 @@
                 ID_Vendedor: document.getElementById('ID_Vendedor').value.trim(),
                 Etiquetas: formatTags(currentTags)
             };
+            console.log('Payload a enviar:', JSON.parse(JSON.stringify(formData)));
+            console.log('isEditing:', isEditing);
+            console.log('Clientes cargados (para referencia):', Array.isArray(clients) ? clients.length : 'no array');
 
             if (!formData.ID || !formData.Nombre) {
                 showToast('Por favor completa los campos obligatorios (ID y Nombre)', 'error');
+                console.log('Motivo cancelación: faltan obligatorios');
+                console.groupEnd();
                 return;
             }
 
-            if (!isEditing && clients.some(client => client.ID.toString() === formData.ID.toString())) {
-                showToast('Ya existe un cliente con ese ID', 'error');
-                return;
+            // Se permite crear con IDs duplicados
+            if (!isEditing) {
+                const exists = Array.isArray(clients) && clients.some(c => c.ID && c.ID.toString() === formData.ID.toString());
+                console.log('Existe ID en memoria (solo info, permitido):', exists);
             }
 
             try {
                 let response;
+                console.time('fetch saveClient');
                 
                 if (isEditing) {
                     // Para actualizar, usar el formato correcto de SheetDB PATCH
@@ -2804,13 +2832,18 @@
                     });
                 }
 
+                console.timeEnd('fetch saveClient');
+                console.log('HTTP status:', response && response.status, response && response.statusText);
+
                 if (!response.ok) {
                     const errorText = await response.text();
+                    console.error('Respuesta HTTP no OK:', errorText);
                     throw new Error(`HTTP ${response.status}: ${errorText}`);
                 }
 
                 cancelEdit();
                 await loadClients();
+                console.log('Post-guardado: clientes recargados:', Array.isArray(clients) ? clients.length : 'no array');
                 
                 // Mejorar experiencia de usuario: filtrar y mostrar solo el cliente recién guardado
                 const searchInput = document.getElementById('searchInput');
@@ -2834,8 +2867,10 @@
                 
                 showToast(isEditing ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente', 'success');
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error en saveClient:', error);
                 showToast('Error al guardar cliente: ' + error.message, 'error');
+            } finally {
+                console.groupEnd();
             }
         }
 
