@@ -128,18 +128,20 @@ async function saveClient() {
         plazoContrato: document.getElementById('plazoContrato').value.trim(),
         diaPago: document.getElementById('diaPago').value.trim()
     };
-    // Asignar idContrato secuencial al crear
+    // Asignar idContrato secuencial al crear y reintentar si hay choque
     if (!isEditing) {
-        const existingIds = Array.isArray(clients)
-            ? clients
-                .map(c => {
-                    const n = parseInt((c.idContrato || c.ID_Contrato || c.IdContrato || c.id_contrato), 10);
-                    return Number.isFinite(n) ? n : null;
-                })
-                .filter(n => n !== null)
-            : [];
-        const nextIdContrato = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
-        formData.idContrato = nextIdContrato;
+        const getNext = () => {
+            const existingIds = Array.isArray(clients)
+                ? clients
+                    .map(c => {
+                        const n = parseInt((c.idContrato || c.ID_Contrato || c.IdContrato || c.id_contrato), 10);
+                        return Number.isFinite(n) ? n : null;
+                    })
+                    .filter(n => n !== null)
+                : [];
+            return existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
+        };
+        formData.idContrato = getNext();
     }
     try {
         let response;
@@ -154,11 +156,43 @@ async function saveClient() {
             });
             response = await fetch(`${updateUrl}?${params.toString()}`, { method: 'PATCH' });
         } else {
-            response = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
+            // Reintentos en caso de conflicto de idContrato
+            let attempt = 0;
+            let ok = false;
+            let lastText = '';
+            while (attempt < 5 && !ok) {
+                if (attempt > 0) {
+                    await loadClients();
+                    const existingIds = Array.isArray(clients)
+                        ? clients
+                            .map(c => {
+                                const n = parseInt((c.idContrato || c.ID_Contrato || c.IdContrato || c.id_contrato), 10);
+                                return Number.isFinite(n) ? n : null;
+                            })
+                            .filter(n => n !== null)
+                        : [];
+                    formData.idContrato = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
+                }
+                response = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                if (response.ok) {
+                    ok = true;
+                } else {
+                    lastText = await response.text();
+                    const t = lastText.toLowerCase();
+                    const conflict = response.status === 409 || t.includes('duplicate') || t.includes('duplicado') || t.includes('idcontrato');
+                    if (!conflict) {
+                        throw new Error(`HTTP ${response.status}: ${lastText}`);
+                    }
+                    attempt++;
+                }
+            }
+            if (!ok) {
+                throw new Error(`No se pudo crear contrato único: ${lastText}`);
+            }
         }
         if (!response.ok) throw new Error('Error al guardar cliente');
         cancelEdit();

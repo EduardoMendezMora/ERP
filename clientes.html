@@ -1142,7 +1142,8 @@
                 'David Josue Bravo Corrales',
                 'Fernando Rodríguez Mora',
                 'Karla Fonseca Arias',
-                'Jeremy Leiva'
+                'Jeremy Leiva',
+                'Daniel Gonzalez Fallas'
             ];
             
             // Limpiar opciones existentes excepto la primera
@@ -2788,6 +2789,26 @@
             }
         }
 
+        // Utilidad: obtener siguiente idContrato único a partir de la lista actual
+        function getNextContractId() {
+            const existingIds = Array.isArray(clients)
+                ? clients
+                    .map(c => {
+                        const n = parseInt((c.idContrato || c.ID_Contrato || c.IdContrato || c.id_contrato), 10);
+                        return Number.isFinite(n) ? n : null;
+                    })
+                    .filter(n => n !== null)
+                : [];
+            return existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
+        }
+
+        function isDuplicateContractError(status, text) {
+            const t = (text || '').toLowerCase();
+            return status === 409 ||
+                   t.includes('duplicate') || t.includes('duplicado') || t.includes('ya existe') ||
+                   (t.includes('idcontrato') && (t.includes('existe') || t.includes('unique') || t.includes('duplic')));
+        }
+
         async function saveClient() {
             console.group('🪲 DEBUG saveClient');
             const formData = {
@@ -2815,19 +2836,10 @@
             }
 
             // Se permite crear con IDs duplicados
-            // Generar idContrato secuencial solo al crear
+            // Generar idContrato secuencial único solo al crear
             if (!isEditing) {
-                const existingIds = Array.isArray(clients)
-                    ? clients
-                        .map(c => {
-                            const n = parseInt((c.idContrato || c.ID_Contrato || c.IdContrato || c.id_contrato), 10);
-                            return Number.isFinite(n) ? n : null;
-                        })
-                        .filter(n => n !== null)
-                    : [];
-                const nextIdContrato = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
-                formData.idContrato = nextIdContrato; // numérico
-                console.log('Asignando idContrato:', nextIdContrato);
+                formData.idContrato = getNextContractId();
+                console.log('Asignando idContrato inicial:', formData.idContrato);
             }
             if (!isEditing) {
                 const exists = Array.isArray(clients) && clients.some(c => c.ID && c.ID.toString() === formData.ID.toString());
@@ -2855,25 +2867,47 @@
                     response = await fetch(`${updateUrl}?${params.toString()}`, {
                         method: 'PATCH'
                     });
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Respuesta HTTP no OK (PATCH):', errorText);
+                        throw new Error(`HTTP ${response.status}: ${errorText}`);
+                    }
                 } else {
-                    // Para crear, usar POST con JSON
-                    response = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(formData)
-                    });
+                    // Crear con reintentos si idContrato choca
+                    let attempt = 0;
+                    let lastErrorText = '';
+                    while (attempt < 5) {
+                        if (attempt > 0) {
+                            // Refrescar y asignar siguiente disponible
+                            await loadClients();
+                            formData.idContrato = getNextContractId();
+                            console.log(`Reintento #${attempt}: nuevo idContrato =>`, formData.idContrato);
+                        }
+                        response = await fetch(`${API_URL_CLIENTS}?sheet=Clientes`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(formData)
+                        });
+                        if (response.ok) {
+                            break;
+                        }
+                        lastErrorText = await response.text();
+                        console.warn('POST no OK:', response.status, lastErrorText);
+                        if (!isDuplicateContractError(response.status, lastErrorText)) {
+                            // Error distinto a duplicado -> abortar
+                            throw new Error(`HTTP ${response.status}: ${lastErrorText}`);
+                        }
+                        attempt++;
+                    }
+                    if (!response || !response.ok) {
+                        throw new Error(`No se pudo asignar un idContrato único después de ${attempt} intentos. ${lastErrorText || ''}`);
+                    }
                 }
 
                 console.timeEnd('fetch saveClient');
                 console.log('HTTP status:', response && response.status, response && response.statusText);
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Respuesta HTTP no OK:', errorText);
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
-                }
 
                 cancelEdit();
                 await loadClients();
