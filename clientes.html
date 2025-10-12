@@ -863,9 +863,6 @@
                                 <button type="button" class="btn btn-secondary" onclick="openGroupSearchModal()" style="white-space: nowrap; padding: 12px 16px; min-height: 44px;">
                                     🔍 Buscar Grupo
                                 </button>
-                                <button type="button" class="btn btn-danger" id="liberarBtn" onclick="liberarAuto()" style="white-space: nowrap; padding: 12px 16px; min-height: 44px; display: none;">
-                                    🔓 Liberar auto
-                                </button>
                             </div>
                             <small class="field-help">Formato: números@g.us (ej: 120363295526322228@g.us)</small>
                         </div>
@@ -921,6 +918,9 @@
                     <div style="display: flex; gap: 16px; margin-top: 32px; justify-content: center; flex-wrap: wrap;">
                         <button type="submit" class="btn btn-primary btn-large" id="submitBtn">
                             💾 Guardar Cliente
+                        </button>
+                        <button type="button" class="btn btn-danger btn-large" id="liberarBtn" onclick="liberarAuto()" style="display: none;">
+                            🔓 Liberar auto
                         </button>
                         <button type="button" class="btn btn-secondary btn-large" id="cancelBtn" onclick="cancelEdit()" style="display: none;">
                             ❌ Cancelar Edición
