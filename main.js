@@ -1803,10 +1803,9 @@ async function updateTransactionAssignments(transactionReference, bank, formatte
             console.log(`   - Total asignado: ₡${totalAssignedAmount.toLocaleString('es-CR')}`);
             console.log(`   - Saldo disponible: ₡${availableAmount.toLocaleString('es-CR')}`);
             
-        const updateData = {
+            const updateData = {
                 FacturasAsignadas: formattedAssignments,
                 ID_Cliente: client.ID || client.ID_Cliente,
-            idContrato: client.idContrato || client.ID_Contrato || client.IdContrato || client.id_contrato || '',
                 FechaAsignacion: formattedDate,
                 Observaciones: `Conciliada con factura - ${formattedAssignments}`,
                 Disponible: availableAmount.toString() // Guardar saldo disponible

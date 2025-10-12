@@ -36,7 +36,6 @@ async function createManualInvoice(invoiceData) {
         const invoicePayload = {
             sheet: 'Facturas',
             ID_Cliente: currentClientId,
-            idContrato: (window.currentClient && (window.currentClient.idContrato || window.currentClient.ID_Contrato || window.currentClient.IdContrato || window.currentClient.id_contrato)) || null,
             NumeroFactura: invoiceNumber,
             SemanaNumero: 'MANUAL',
             SemanaDescripcion: `Factura Manual - ${invoiceData.concept}`,

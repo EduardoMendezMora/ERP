@@ -111,7 +111,6 @@ async function createManualPayment(paymentData) {
             Créditos: parseFloat(paymentData.amount),
             Observaciones: paymentData.observations || '',
             ID_Cliente: currentClientId,
-            idContrato: (window.currentClient && (window.currentClient.idContrato || window.currentClient.ID_Contrato || window.currentClient.IdContrato || window.currentClient.id_contrato)) || '',
             Disponible: parseFloat(paymentData.amount), // Inicialmente todo disponible
             FacturasAsignadas: '',
             FechaAsignacion: ''
@@ -712,9 +711,7 @@ async function assignManualPaymentToInvoice(paymentReference, invoiceNumber, amo
             Referencia: paymentReference,
             FacturasAsignadas: formattedAssignments,
             FechaAsignacion: formatDateForStorage(new Date()),
-            Disponible: (availableAmount - amountToApply).toString(),
-            ID_Cliente: currentClientId,
-            idContrato: (window.currentClient && (window.currentClient.idContrato || window.currentClient.ID_Contrato || window.currentClient.IdContrato || window.currentClient.id_contrato)) || ''
+            Disponible: (availableAmount - amountToApply).toString()
         };
 
         await updateManualPayment(paymentUpdateData);
