@@ -863,6 +863,9 @@
                                 <button type="button" class="btn btn-secondary" onclick="openGroupSearchModal()" style="white-space: nowrap; padding: 12px 16px; min-height: 44px;">
                                     🔍 Buscar Grupo
                                 </button>
+                                <button type="button" class="btn btn-danger" id="liberarBtn" onclick="liberarAuto()" style="white-space: nowrap; padding: 12px 16px; min-height: 44px; display: none;">
+                                    🔓 Liberar auto
+                                </button>
                             </div>
                             <small class="field-help">Formato: números@g.us (ej: 120363295526322228@g.us)</small>
                         </div>
@@ -1266,6 +1269,13 @@
             // Validación en tiempo real del ID de WhatsApp
             document.getElementById('idGrupoWhatsapp').addEventListener('input', function(e) {
                 validateWhatsAppID(e.target);
+                // Si el valor queda vacío mientras se edita, actualizar visibilidad del botón
+                const liberarBtn = document.getElementById('liberarBtn');
+                if (liberarBtn) {
+                    const clientHasGroup = (currentClient && currentClient.idGrupoWhatsapp && currentClient.idGrupoWhatsapp.trim() !== '');
+                    const inputHasValue = (e.target.value || '').trim() !== '';
+                    liberarBtn.style.display = (isEditing && (clientHasGroup || inputHasValue)) ? 'inline-flex' : 'none';
+                }
             });
 
             // ===== NUEVO: CONVERSIÓN AUTOMÁTICA A MAYÚSCULAS =====
@@ -2098,6 +2108,16 @@
             fillForm(client);
             document.getElementById('ID').disabled = true;
 
+            // Mostrar/ocultar botón Liberar según exista idGrupoWhatsapp
+            const liberarBtn = document.getElementById('liberarBtn');
+            if (liberarBtn) {
+                if (client.idGrupoWhatsapp && client.idGrupoWhatsapp.trim() !== '') {
+                    liberarBtn.style.display = 'inline-flex';
+                } else {
+                    liberarBtn.style.display = 'none';
+                }
+            }
+
             document.querySelectorAll('.client-card').forEach(card => {
                 card.classList.remove('editing');
             });
@@ -2125,6 +2145,12 @@
 
             clearForm();
             clearValidationStyles();
+
+            // Ocultar el botón Liberar al salir de edición
+            const liberarBtn = document.getElementById('liberarBtn');
+            if (liberarBtn) {
+                liberarBtn.style.display = 'none';
+            }
 
             document.querySelectorAll('.client-card').forEach(card => {
                 card.classList.remove('editing');
@@ -2162,6 +2188,16 @@
             // Cargar etiquetas
             currentTags = parseTags(client.Etiquetas || '');
             updateTagsDisplay();
+
+            // Sincronizar visibilidad del botón Liberar al llenar el formulario
+            const liberarBtn = document.getElementById('liberarBtn');
+            if (liberarBtn) {
+                if (client.idGrupoWhatsapp && client.idGrupoWhatsapp.trim() !== '') {
+                    liberarBtn.style.display = 'inline-flex';
+                } else {
+                    liberarBtn.style.display = 'none';
+                }
+            }
         }
 
         function clearForm() {
@@ -2859,8 +2895,11 @@
                     params.append('sheet', 'Clientes'); // Especificar la hoja
                     
                     Object.keys(formData).forEach(key => {
-                        if (formData[key] !== '' && key !== 'ID') { // No incluir ID en la actualización
-                            params.append(key, formData[key]);
+                        if (key !== 'ID') { // No incluir ID en la actualización
+                            // Nota: En edición normal no enviamos vacíos (evita borrar accidentalmente campos)
+                            if (formData[key] !== '') {
+                                params.append(key, formData[key]);
+                            }
                         }
                     });
                     
@@ -2995,6 +3034,52 @@
                 toast.classList.remove('show');
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
+        }
+
+        // ===== LIBERAR AUTO: Limpia idGrupoWhatsapp del cliente actual =====
+        async function liberarAuto() {
+            try {
+                if (!isEditing || !currentClient) {
+                    showToast('Primero selecciona un cliente para editar', 'warning');
+                    return;
+                }
+
+                const confirmMsg = `¿Seguro que deseas liberar el auto de "${currentClient.Nombre}"?\nEsto borrará el ID de Grupo WhatsApp del cliente.`;
+                if (!confirm(confirmMsg)) return;
+
+                const clientId = currentClient.ID;
+                const updateUrl = `${API_URL_CLIENTS}/ID/${clientId}?sheet=Clientes`;
+
+                const response = await fetch(updateUrl, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idGrupoWhatsapp: '' })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                // Actualizar estado local
+                currentClient.idGrupoWhatsapp = '';
+                const formInput = document.getElementById('idGrupoWhatsapp');
+                if (formInput) formInput.value = '';
+
+                // Ocultar botón liberar
+                const liberarBtn = document.getElementById('liberarBtn');
+                if (liberarBtn) liberarBtn.style.display = 'none';
+
+                // Refrescar lista y estadísticas
+                await loadClients();
+                renderClients(clients);
+                updateStats();
+
+                showToast('Auto liberado: grupo de WhatsApp eliminado', 'success');
+            } catch (error) {
+                console.error('Error al liberar auto:', error);
+                showToast('Error al liberar auto: ' + error.message, 'error');
+            }
         }
 
         // ===== FUNCIONES PARA BÚSQUEDA DE GRUPOS DE WHATSAPP =====
