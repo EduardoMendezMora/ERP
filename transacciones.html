@@ -2792,6 +2792,8 @@ _Sistema Inteligente de Transacciones_`;
                 const suggestions = [];
                 const unconciledDesc = (unconciledTransaction.Descripción || '').trim();
                 const unconciledAmount = this.parseAmount(unconciledTransaction.Créditos || '0');
+                // Detectar placas al inicio para relajar filtros y habilitar fallback
+                const initialPlacas = this.detectPlacasInText(unconciledDesc);
                
                 console.log(`🔍 Buscando similitudes para: "${unconciledDesc}" (${this.formatAmount(unconciledTransaction.Créditos)})`);
                
@@ -2800,9 +2802,9 @@ _Sistema Inteligente de Transacciones_`;
                     return [];
                 }
 
-                // === FILTRO DE DESCRIPCIONES GENÉRICAS ===
-                if (this.isGenericDescription(unconciledDesc)) {
-                    console.log('⚠️ Descripción demasiado genérica, no se generan sugerencias');
+                // === FILTRO DE DESCRIPCIONES GENÉRICAS (relajado si hay placa detectada) ===
+                if (initialPlacas.length === 0 && this.isGenericDescription(unconciledDesc)) {
+                    console.log('⚠️ Descripción demasiado genérica y sin placa detectada, no se generan sugerencias');
                     return [];
                 }
 
@@ -3017,10 +3019,59 @@ _Sistema Inteligente de Transacciones_`;
                     }
                 }
 
-                // Ordenar por similitud total (mayor a menor) y tomar las mejores 3
-                const sortedSuggestions = suggestions
+                // === FALLBACK: si no hay sugerencias y hay placa, proponer por cruce con Clientes ===
+                let sortedSuggestions = suggestions
                     .sort((a, b) => b.totalSimilarity - a.totalSimilarity)
                     .slice(0, 3);
+
+                if (sortedSuggestions.length === 0 && initialPlacas.length > 0) {
+                    try {
+                        // Resolver cliente por placa usando mapas ya cargados
+                        let resolved = null;
+                        for (const p of initialPlacas) {
+                            const plateUpper = (p.placa || '').toString().trim().toUpperCase();
+                            if (plateUpper && this.clientByPlaca && this.clientByPlaca.has(plateUpper)) {
+                                const c = this.clientByPlaca.get(plateUpper);
+                                const idVal = (c.ID || c.Id || c.id || '').toString();
+                                resolved = {
+                                    placa: plateUpper,
+                                    id: idVal,
+                                    nombre: (c.Nombre || c.nombre || ''),
+                                    identificacion: this.getClientIdentification(c)
+                                };
+                                break;
+                            }
+                        }
+
+                        if (resolved) {
+                            const fallbackObservation = `Placa ${resolved.placa} | ID ${resolved.identificacion || resolved.id || 'N/D'} | ${resolved.nombre || 'N/D'}`;
+                            const fallbackSuggestion = {
+                                conciliatedTransaction: {
+                                    Referencia: 'CLIENTS_API',
+                                    Descripción: unconciledDesc,
+                                    Observaciones: fallbackObservation
+                                },
+                                totalSimilarity: 0.8, // Alta por match de placa
+                                nameSimilarity: 0,
+                                placaSimilarity: 1.0,
+                                referenceSimilarity: 0,
+                                codeSimilarity: 0,
+                                matchFactors: [
+                                    `PLACA DETECTADA: ${resolved.placa}`,
+                                    'CRUCE CLIENTES POR PLACA'
+                                ],
+                                suggestedObservation: fallbackObservation,
+                                unconciledPlacas: initialPlacas,
+                                conciliatedPlacas: initialPlacas,
+                                placaMatchInfo: { matchType: 'PLACA DETECTADA VIA CLIENTES', similarity: 1.0 },
+                            };
+                            sortedSuggestions = [fallbackSuggestion];
+                            console.log('💡 Fallback por placa (Clientes):', fallbackObservation);
+                        }
+                    } catch (e) {
+                        console.warn('⚠️ Error en fallback por placa:', e);
+                    }
+                }
 
                 if (sortedSuggestions.length > 0) {
                     const best = sortedSuggestions[0];
