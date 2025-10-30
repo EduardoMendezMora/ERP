@@ -3595,6 +3595,8 @@ _Sistema Inteligente de Transacciones_`;
             // ===== FUNCIÓN PARA GENERAR SUGERENCIAS POR DEMANDA =====
             async generateSuggestionsForTransaction(transactionRef) {
                 try {
+                    // Asegurar datos de clientes/facturas para cruce
+                    await this.ensureClientDataLoaded();
                     // Buscar la transacción específica
                     const transaction = this.allTransactions.find(t => t.Referencia === transactionRef);
                     if (!transaction) {
@@ -3646,6 +3648,8 @@ _Sistema Inteligente de Transacciones_`;
                         this.showSavingIndicator('✅ Sugerencias generadas exitosamente', 'success');
                         
                         console.log(`💡 Sugerencias generadas para ${transactionRef}:`, suggestions[0].suggestedObservation);
+                        // Abrir panel automáticamente para mostrar los datos cruzados
+                        this.showSuggestionPanel(transactionRef);
                     } else {
                         this.showSavingIndicator('⚠️ No se encontraron sugerencias para esta transacción', 'warning');
                     }
@@ -4011,6 +4015,17 @@ _Sistema Inteligente de Transacciones_`;
             }
 
             // === HELPERS PARA CRUCE ===
+            async ensureClientDataLoaded() {
+                try {
+                    const noClients = !this.clients || this.clients.length === 0;
+                    const mapsEmpty = (this.clientById.size === 0 && this.clientByPlaca.size === 0);
+                    if (noClients || mapsEmpty) {
+                        await this.loadClientsAndInvoices();
+                    }
+                } catch (e) {
+                    console.warn('⚠️ No se pudieron preparar datos de Clientes/Facturas:', e);
+                }
+            }
             getClientIdentification(client) {
                 if (!client) return '';
                 // Buscar campos típicos de identificación
