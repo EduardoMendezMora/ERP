@@ -1690,6 +1690,8 @@
                 // API Configuration
                 this.apiUrl = 'https://sheetdb.io/api/v1/a7oekivxzreg7';
                 this.flotaApiUrl = 'https://sheetdb.io/api/v1/nrzmoa46446mu';
+                this.clientsApiUrl = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
+                this.invoicesApiUrl = 'https://sheetdb.io/api/v1/qu62bagiwlgqy';
                
                 // === CONFIGURACIÓN DE WHATSAPP ULTRAMSG ===
                 this.whatsappConfig = {
@@ -1708,6 +1710,11 @@
                 this.autosubastasBNTransactions = [];
                 this.filteredTransactions = [];
                 this.lastDisplayedResults = []; // Para referencia en funciones de copia
+                this.clients = [];
+                this.invoices = [];
+                this.clientById = new Map();
+                this.clientByPlaca = new Map();
+                this.invoicesByClientId = new Map();
                
                 // State management
                 this.currentFilter = 'all';
@@ -1744,6 +1751,7 @@
                 this.initializeElements();
                 this.bindEvents();
                 this.loadTransactions();
+                this.loadClientsAndInvoices();
             }
 
             // === NUEVA FUNCIÓN: ENVIAR MENSAJE DE WHATSAPP ===
@@ -3659,6 +3667,25 @@ _Sistema Inteligente de Transacciones_`;
                 const confidence = suggestion.confidence;
                 const topMatch = suggestion.suggestions[0];
 
+                // Resolver cliente/placa cruzando con APIs de Clientes/Facturas
+                const resolved = this.findClientForTransaction(transaction, topMatch);
+                let clientInfoHTML = '';
+                if (resolved) {
+                    const placaTxt = resolved.placa ? resolved.placa : 'N/D';
+                    const idTxt = resolved.identificacion || resolved.id || 'N/D';
+                    const nombreTxt = resolved.nombre || 'N/D';
+                    clientInfoHTML = `
+                        <div style="background: rgba(255,255,255,0.12); padding: 12px; border-radius: 10px; margin: 10px 0 16px 0;">
+                            <h4 style="margin: 0 0 8px 0; font-size: 14px; opacity: 0.9;">🔗 Datos cruzados (Clientes/Facturas)</h4>
+                            <div style="display: grid; grid-template-columns: 1fr; gap: 6px; font-size: 13px;">
+                                <div>🚗 <strong>Placa:</strong> ${placaTxt}</div>
+                                <div>🆔 <strong>Identificación:</strong> ${idTxt}</div>
+                                <div>👤 <strong>Nombre:</strong> ${nombreTxt}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+
                 // Crear backdrop
                 const backdrop = document.createElement('div');
                 backdrop.className = 'suggestion-panel-backdrop';
@@ -3699,6 +3726,7 @@ _Sistema Inteligente de Transacciones_`;
                         ${topMatch.unconciledNames && topMatch.unconciledNames.length > 0 ? `<p style="margin: 8px 0 0 0; font-size: 12px; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 6px;">👤 Nombre detectado: <strong>${topMatch.unconciledNames[0]}</strong></p>` : ''}
                         ${topMatch.unconciledNumbers && topMatch.unconciledNumbers.length > 0 ? `<p style="margin: 8px 0 0 0; font-size: 12px; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 6px;">🔢 Número único: <strong>${topMatch.unconciledNumbers[0]}</strong></p>` : ''}
                     </div>
+                    ${clientInfoHTML}
 
                     <div style="background: rgba(255,255,255,0.15); padding: 16px; border-radius: 12px; margin-bottom: 16px; border-left: 4px solid #ff9500;">
                         <h4 style="margin: 0 0 8px 0; font-size: 14px; opacity: 0.8;">💡 Observación sugerida:</h4>
@@ -3927,6 +3955,134 @@ _Sistema Inteligente de Transacciones_`;
                     this.showError(`Error al cargar las transacciones: ${error.message}. Verifique la conexión a la API.`);
                 } finally {
                     this.showLoading(false);
+                }
+            }
+
+            // === CARGA DE CLIENTES Y FACTURAS (PARA CRUCE EN SUGERENCIAS) ===
+            async loadClientsAndInvoices() {
+                try {
+                    // Cargar en paralelo
+                    const [clientsResp, invoicesResp] = await Promise.all([
+                        fetch(`${this.clientsApiUrl}?sheet=Clientes`),
+                        fetch(`${this.invoicesApiUrl}?sheet=Facturas`)
+                    ]);
+
+                    // Clientes
+                    if (clientsResp.ok) {
+                        const clientsData = await clientsResp.json();
+                        this.clients = Array.isArray(clientsData) ? clientsData.filter(c => c && (c.ID || c.Id || c.id)) : [];
+                        // Mapas de acceso rápido
+                        this.clientById.clear();
+                        this.clientByPlaca.clear();
+                        for (const c of this.clients) {
+                            const idVal = (c.ID || c.Id || c.id || '').toString();
+                            if (idVal) this.clientById.set(idVal, c);
+                            const placaVal = (c.Placa || c.placa || '').toString().trim();
+                            if (placaVal) this.clientByPlaca.set(placaVal.toUpperCase(), c);
+                        }
+                    } else {
+                        this.clients = [];
+                    }
+
+                    // Facturas
+                    if (invoicesResp.ok) {
+                        const invoicesData = await invoicesResp.json();
+                        this.invoices = Array.isArray(invoicesData) ? invoicesData : [];
+                        this.invoicesByClientId.clear();
+                        for (const inv of this.invoices) {
+                            const cid = (inv.ID_Cliente || inv.IdCliente || inv.id_cliente || '').toString();
+                            if (!cid) continue;
+                            if (!this.invoicesByClientId.has(cid)) this.invoicesByClientId.set(cid, []);
+                            this.invoicesByClientId.get(cid).push(inv);
+                        }
+                    } else {
+                        this.invoices = [];
+                    }
+
+                    console.log(`✅ Datos cruzados cargados: ${this.clients.length} clientes, ${this.invoices.length} facturas`);
+                } catch (error) {
+                    console.warn('⚠️ No se pudieron cargar clientes/facturas para cruce:', error);
+                    this.clients = [];
+                    this.invoices = [];
+                    this.clientById.clear();
+                    this.clientByPlaca.clear();
+                    this.invoicesByClientId.clear();
+                }
+            }
+
+            // === HELPERS PARA CRUCE ===
+            getClientIdentification(client) {
+                if (!client) return '';
+                // Buscar campos típicos de identificación
+                return (
+                    client.Identificacion || client.Identificación ||
+                    client.Cedula || client.Cédula ||
+                    client.cedula || client.identificacion ||
+                    client.ID || client.Id || client.id ||
+                    ''
+                ).toString();
+            }
+
+            findClientForTransaction(transaction, topMatch) {
+                try {
+                    // 1) Por ID_Cliente si viene en la transacción
+                    const rawId = (transaction.ID_Cliente || transaction.IdCliente || transaction.id_cliente || '').toString();
+                    if (rawId && this.clientById.has(rawId)) {
+                        const c = this.clientById.get(rawId);
+                        const placa = (c.Placa || c.placa || '').toString().trim();
+                        return { placa, id: rawId, nombre: (c.Nombre || c.nombre || ''), identificacion: this.getClientIdentification(c), client: c };
+                    }
+
+                    // 2) Por placa detectada en el texto / match de sugerencia
+                    let candidatePlaca = '';
+                    if (topMatch && topMatch.unconciledPlacas && topMatch.unconciledPlacas.length > 0) {
+                        candidatePlaca = (topMatch.unconciledPlacas[0].placa || '').toString().toUpperCase();
+                    } else {
+                        // Fallback: intentar detectar placas nuevamente
+                        const placas = this.detectPlacasInText(transaction.Descripción || '');
+                        if (Array.isArray(placas) && placas.length > 0) candidatePlaca = (placas[0].placa || '').toString().toUpperCase();
+                    }
+                    if (candidatePlaca && this.clientByPlaca.has(candidatePlaca)) {
+                        const c = this.clientByPlaca.get(candidatePlaca);
+                        const idVal = (c.ID || c.Id || c.id || '').toString();
+                        return { placa: candidatePlaca, id: idVal, nombre: (c.Nombre || c.nombre || ''), identificacion: this.getClientIdentification(c), client: c };
+                    }
+
+                    // 3) Por nombre detectado en descripción (fuzzy simple)
+                    const names = this.extractPersonNames(transaction.Descripción || '');
+                    if (names && names.length > 0 && this.clients.length > 0) {
+                        const targetName = names[0].toString().toLowerCase();
+                        let best = null; let bestScore = 0;
+                        for (const c of this.clients) {
+                            const clientName = (c.Nombre || c.nombre || '').toString().toLowerCase();
+                            if (!clientName) continue;
+                            // puntuación simple: incluye o similitud parcial
+                            let score = 0;
+                            if (clientName.includes(targetName) || targetName.includes(clientName)) score = 1;
+                            else {
+                                // tokens en común
+                                const a = new Set(targetName.split(/\s+/).filter(w => w.length >= 3));
+                                const b = new Set(clientName.split(/\s+/).filter(w => w.length >= 3));
+                                const common = [...a].filter(x => b.has(x)).length;
+                                const denom = Math.max(a.size, b.size) || 1;
+                                score = common / denom;
+                            }
+                            if (score > bestScore) {
+                                bestScore = score;
+                                best = c;
+                            }
+                        }
+                        if (best && bestScore >= 0.5) {
+                            const idVal = (best.ID || best.Id || best.id || '').toString();
+                            const placaVal = (best.Placa || best.placa || '').toString().trim();
+                            return { placa: placaVal, id: idVal, nombre: (best.Nombre || best.nombre || ''), identificacion: this.getClientIdentification(best), client: best };
+                        }
+                    }
+
+                    return null;
+                } catch (e) {
+                    console.warn('⚠️ Error resolviendo cliente para transacción:', e);
+                    return null;
                 }
             }
 

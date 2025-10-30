@@ -1137,24 +1137,39 @@
             const vendorSelect = document.getElementById('ID_Vendedor');
             if (!vendorSelect) return;
             
-            // Lista fija de vendedores (guardar nombre en ID_Vendedor)
-            const FIXED_VENDORS = [
-                'Angie Alejandra Cedeño Medina',
-                'Orlando Jesús González Jiménez',
-                'Osmy Josué Castillo Balladares',
-                'David Josue Bravo Corrales',
-                'Fernando Rodríguez Mora',
-                'Karla Fonseca Arias',
-                'JOHNNY ANDRES MORALES REYES',
-                'Jeremy Leiva',
-                'Daniel Gonzalez Fallas'
-            ];
-            
-            // Limpiar opciones existentes excepto la primera
+            // Limpiar opciones existentes
             vendorSelect.innerHTML = '<option value="">-- Seleccionar vendedor --</option>';
-            
-            // Agregar opciones fijas (value y label = nombre)
-            FIXED_VENDORS.forEach(name => {
+
+            // Poblar desde datos dinámicos (sheet "Usuarios"); fallback a lista fija si vacío
+            const loadedVendors = Array.isArray(window.vendors) ? window.vendors : [];
+            const isActiveVendor = (v) => String((v.Estado || v.estado || 'Activo')).toLowerCase() === 'activo';
+            const getVendorName = (v) => (v.Nombre || v.nombre || '').toString().trim();
+
+            let vendorNames = loadedVendors
+                .filter(isActiveVendor)
+                .map(getVendorName)
+                .filter(Boolean);
+
+            // Únicos y ordenados
+            vendorNames = Array.from(new Set(vendorNames)).sort((a, b) => a.localeCompare(b, 'es'));
+
+            // Fallback a lista fija si no hay datos dinámicos
+            if (vendorNames.length === 0) {
+                const FIXED_VENDORS = [
+                    'Angie Alejandra Cedeño Medina',
+                    'Orlando Jesús González Jiménez',
+                    'Osmy Josué Castillo Balladares',
+                    'David Josue Bravo Corrales',
+                    'Fernando Rodríguez Mora',
+                    'Karla Fonseca Arias',
+                    'JOHNNY ANDRES MORALES REYES',
+                    'Jeremy Leiva',
+                    'Daniel Gonzalez Fallas'
+                ];
+                vendorNames = FIXED_VENDORS;
+            }
+
+            vendorNames.forEach((name) => {
                 const option = document.createElement('option');
                 option.value = name;
                 option.textContent = name;
@@ -1325,6 +1340,7 @@
                 loadAllTags(); // Cargar todas las etiquetas
                 renderClients(clients);
                 updateStats();
+                populateVendorSelect();
             } catch (error) {
                 console.error('Error al recargar clientes:', error);
                 showToast('Error al recargar clientes: ' + error.message, 'error');
