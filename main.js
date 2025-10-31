@@ -78,6 +78,70 @@ async function initializeApp() {
 
         console.log('✅ Aplicación inicializada correctamente');
 
+        // === NUEVO: AUTO-ABRIR MODAL DE ASIGNACIÓN POR FACTURA (MÁS VIEJA) SI LLEGA DESDE TRANSACCIONES ===
+        try {
+            const payRef = urlParams.get('payRef');
+            const bank = urlParams.get('bank');
+            if (payRef && bank) {
+                // Esperar un tick para asegurar datos renderizados
+                setTimeout(() => {
+                    try {
+                        // 1) Determinar factura más vieja con saldo (priorizar Vencido)
+                        const invoices = (window.clientInvoices || []).filter(inv => {
+                            const estado = (inv.Estado || '').toString();
+                            const saldo = typeof parseAmount === 'function' ? parseAmount(inv.MontoTotal || 0) : (parseFloat(inv.MontoTotal || 0) || 0);
+                            return (estado === 'Vencido' || estado === 'Pendiente') && saldo > 0.01;
+                        }).sort((a, b) => {
+                            const aOver = a.Estado === 'Vencido';
+                            const bOver = b.Estado === 'Vencido';
+                            if (aOver !== bOver) return aOver ? -1 : 1;
+                            const dateOf = (s) => {
+                                if (!s) return Infinity;
+                                if (/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s + 'T00:00:00').getTime();
+                                const sep = s.includes('/') ? '/' : (s.includes('-') ? '-' : null);
+                                if (!sep) return Infinity;
+                                const parts = s.split(sep).map(x => parseInt(x, 10));
+                                if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
+                                return Infinity;
+                            };
+                            return dateOf(a.FechaVencimiento) - dateOf(b.FechaVencimiento);
+                        });
+
+                        if (!invoices.length) {
+                            console.warn('No hay facturas con saldo para auto-asignación.');
+                            return;
+                        }
+
+                        const oldest = invoices[0];
+
+                        if (typeof openAssignInvoiceModal === 'function') {
+                            openAssignInvoiceModal(oldest.NumeroFactura, { reference: payRef, bankSource: bank });
+                        }
+
+                        // 2) Preseleccionar el pago en el modal de factura
+                        const found = (window.unassignedPayments || []).find(p => p.Referencia === payRef && p.BankSource === bank);
+                        if (found && typeof selectPaymentForInvoice === 'function') {
+                            const key = found.ID ? found.ID.toString() : payRef;
+                            // Dar tiempo a que el modal renderice opciones
+                            setTimeout(() => {
+                                try {
+                                    selectPaymentForInvoice(key, found.BankSource || bank);
+                                } catch (e) {
+                                    console.warn('No se pudo preseleccionar el pago en el modal de factura:', e);
+                                }
+                            }, 200);
+                        } else {
+                            console.warn('No se encontró el pago para preselección en la factura:', payRef, bank);
+                        }
+                    } catch (err) {
+                        console.warn('Error en auto-apertura de modal de factura:', err);
+                    }
+                }, 250);
+            }
+        } catch (e) {
+            console.warn('No se pudo auto-abrir el modal de asignación:', e);
+        }
+
     } catch (error) {
         console.error('❌ Error al inicializar aplicación:', error);
         showError(error.message);

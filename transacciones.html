@@ -1754,112 +1754,26 @@
                 this.loadClientsAndInvoices();
             }
 
-            // === MODAL: APLICAR TRANSACCIÓN A FACTURAS ===
+            // === NAVEGAR A FACTURAS CON CLIENTE Y TRANSACCIÓN PRESELECCIONADA ===
             async openApplyToInvoicesModal(referencia) {
                 try {
                     await this.ensureClientDataLoaded();
                     const suggestion = this.aiSuggestions.get(referencia);
                     const transaction = suggestion ? suggestion.transaction : this.allTransactions.find(t => t.Referencia === referencia);
-                    if (!transaction) {
-                        alert('Transacción no encontrada');
-                        return;
-                    }
+                    if (!transaction) { alert('Transacción no encontrada'); return; }
 
                     const topMatch = suggestion ? suggestion.suggestions?.[0] : null;
                     const resolved = this.findClientForTransaction(transaction, topMatch);
-                    if (!resolved || !resolved.id) {
-                        alert('No se pudo determinar el cliente. Seleccione el cliente manualmente en Clientes.');
-                        return;
-                    }
+                    if (!resolved || !resolved.id) { alert('No se pudo determinar el cliente.'); return; }
 
-                    // Obtener facturas del cliente
-                    let clientInvoices = this.invoicesByClientId.get(resolved.id) || [];
-                    if (!clientInvoices || clientInvoices.length === 0) {
-                        try {
-                            const resp = await fetch(`${this.invoicesApiUrl}?sheet=Facturas`);
-                            if (resp.ok) {
-                                const data = await resp.json();
-                                const all = Array.isArray(data) ? data : [];
-                                clientInvoices = all.filter(inv => (inv.ID_Cliente || '').toString() === resolved.id.toString());
-                            }
-                        } catch (e) {
-                            console.warn('No se pudieron recargar facturas:', e);
-                        }
-                    }
-
-                    if (!clientInvoices || clientInvoices.length === 0) {
-                        alert('El cliente no tiene facturas disponibles.');
-                        return;
-                    }
-
-                    // Calcular saldo pendiente por factura
-                    const getPayments = (pagos) => {
-                        if (!pagos || typeof pagos !== 'string') return [];
-                        return pagos.split(',').map(p => p.trim()).filter(Boolean).map(p => {
-                            const parts = p.split(':');
-                            return { reference: parts[0], amount: parseFloat(parts[1]) || 0, date: parts[2] || '' };
-                        });
-                    };
-                    const getOutstanding = (inv) => {
-                        const base = this.parseAmount(inv.MontoBase || '0');
-                        const fines = this.parseAmount(inv.MontoMultas || '0');
-                        const totalField = this.parseAmount(inv.MontoTotal || '0');
-                        const payments = getPayments(inv.Pagos || '');
-                        const paid = payments.reduce((s, p) => s + (p.amount || 0), 0);
-                        // Si MontoTotal ya es saldo pendiente, úsalo. Si es 0 y hay base+multas-pagado > 0, usa ese.
-                        const fallback = Math.max(base + fines - paid, 0);
-                        return totalField > 0 ? totalField : fallback;
-                    };
-
-                    // Ordenar: vencidas primero por fecha, luego pendientes por fecha
-                    const parseDate = (str) => {
-                        try {
-                            if (!str) return null;
-                            if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str + 'T00:00:00');
-                            if (str.includes('/') || str.includes('-')) {
-                                const sep = str.includes('/') ? '/' : '-';
-                                const [d, m, y] = str.split(sep).map(x => parseInt(x, 10));
-                                if (!isNaN(d) && !isNaN(m) && !isNaN(y)) return new Date(y, m - 1, d);
-                            }
-                        } catch {}
-                        return null;
-                    };
-
-                    const invoicesWithOutstanding = clientInvoices.map(inv => ({
-                        inv,
-                        outstanding: getOutstanding(inv),
-                        due: parseDate(inv.FechaVencimiento),
-                        status: (inv.Estado || '').toString()
-                    }))
-                    .filter(x => x.outstanding > 0)
-                    .sort((a, b) => {
-                        const aOver = a.status === 'Vencido';
-                        const bOver = b.status === 'Vencido';
-                        if (aOver !== bOver) return aOver ? -1 : 1;
-                        const at = a.due ? a.due.getTime() : Infinity;
-                        const bt = b.due ? b.due.getTime() : Infinity;
-                        return at - bt;
-                    });
-
-                    if (invoicesWithOutstanding.length === 0) {
-                        alert('No hay facturas con saldo para aplicar.');
-                        return;
-                    }
-
-                    const txAmount = this.parseAmount(transaction.Créditos || '0');
-                    // Asignación automática
-                    let remaining = txAmount;
-                    const allocation = invoicesWithOutstanding.map(x => {
-                        const apply = Math.min(x.outstanding, Math.max(remaining, 0));
-                        remaining -= apply;
-                        return { numero: x.inv.NumeroFactura, apply, outstanding: x.outstanding, inv: x.inv };
-                    });
-
-                    // Render modal
-                    this.renderApplyInvoicesModal({ referencia, transaction, resolved, txAmount, allocation });
-                } catch (error) {
-                    console.error('Error abriendo modal de aplicación a facturas:', error);
-                    alert('Error preparando la aplicación a facturas. Ver consola.');
+                    const bank = transaction.banco || '';
+                    const clientId = resolved.id;
+                    // Navegar a facturas con parámetros para preabrir flujo de asignación
+                    const url = `/facturas.html?clientId=${encodeURIComponent(clientId)}&payRef=${encodeURIComponent(transaction.Referencia)}&bank=${encodeURIComponent(bank)}`;
+                    window.location.href = url;
+                } catch (e) {
+                    console.error('Error preparando navegación a facturas:', e);
+                    alert('Error navegando a facturas. Ver consola.');
                 }
             }
 
