@@ -1379,24 +1379,22 @@ function autoSelectTransactionByRef(reference, bank, maxAttempts = 20, intervalM
                 if (typeof filterTransactions === 'function') {
                     filterTransactions(reference);
                 }
+                try { searchInput.focus(); } catch {}
             }
 
             const items = Array.from(document.querySelectorAll('.transaction-item'));
             const match = items.find(el => el.textContent.includes(`Ref ${reference}`) && (!bank || el.textContent.includes(bank)));
             if (match) {
-                // No hacer click: solo dejar el filtro aplicado y enfocado
-                const searchInput2 = document.getElementById('transactionSearch');
-                if (searchInput2) searchInput2.focus();
-                // Desplazar el primer resultado a la vista para facilitar la selección manual
                 try { match.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
                 console.log('✅ Transacción filtrada y enfocada para selección manual:', reference, bank);
-                return;
             }
         } catch (e) {
             console.warn('Fallo en intento de auto-selección:', e);
         }
 
-        if (attempts < maxAttempts) {
+        // Reintentar mientras el input aún no refleja la referencia
+        const currentVal = (document.getElementById('transactionSearch') || {}).value || '';
+        if (attempts < maxAttempts && currentVal !== String(reference)) {
             setTimeout(trySelect, intervalMs);
         } else {
             console.warn('No se pudo auto-seleccionar la transacción después de reintentos:', reference, bank);
