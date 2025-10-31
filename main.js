@@ -1367,6 +1367,40 @@ function clearTransactionSearch() {
     }
 }
 
+// ===== AUTO-SELECCIÓN DE TRANSACCIÓN POR REFERENCIA (REINTENTOS) =====
+function autoSelectTransactionByRef(reference, bank, maxAttempts = 20, intervalMs = 300) {
+    let attempts = 0;
+    const trySelect = () => {
+        attempts++;
+        try {
+            const searchInput = document.getElementById('transactionSearch');
+            if (searchInput) {
+                searchInput.value = reference;
+                if (typeof filterTransactions === 'function') {
+                    filterTransactions(reference);
+                }
+            }
+
+            const items = Array.from(document.querySelectorAll('.transaction-item'));
+            const match = items.find(el => el.textContent.includes(`Ref ${reference}`) && (!bank || el.textContent.includes(bank)));
+            if (match) {
+                match.click();
+                console.log('✅ Transacción auto-seleccionada:', reference, bank);
+                return;
+            }
+        } catch (e) {
+            console.warn('Fallo en intento de auto-selección:', e);
+        }
+
+        if (attempts < maxAttempts) {
+            setTimeout(trySelect, intervalMs);
+        } else {
+            console.warn('No se pudo auto-seleccionar la transacción después de reintentos:', reference, bank);
+        }
+    };
+    trySelect();
+}
+
 // ===== FUNCIÓN PARA ASIGNAR TRANSACCIONES BANCARIAS =====
 async function assignTransactionToInvoice(transactionReference, bank, invoiceNumber, expectedAmount = null) {
     // Agregar timeout de 30 segundos para evitar que se quede colgado
