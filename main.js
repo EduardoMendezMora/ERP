@@ -114,6 +114,10 @@ async function initializeApp() {
 
                         const oldest = invoices[0];
 
+                        // Guardar referencia para auto-búsqueda tras render
+                        window.__autoRefForSearch = payRef;
+                        window.__autoBankForSearch = bank;
+
                         if (typeof openAssignInvoiceModal === 'function') {
                             openAssignInvoiceModal(oldest.NumeroFactura, { reference: payRef, bankSource: bank });
                         }
@@ -124,26 +128,12 @@ async function initializeApp() {
                                 if (typeof switchInvoiceTab === 'function') {
                                     switchInvoiceTab('transactions');
                                 }
-                                // Esperar render del tab
+                                // Esperar render del tab y aplicar auto-búsqueda sin seleccionar
                                 setTimeout(() => {
                                     try {
-                                        const searchInput = document.getElementById('transactionSearch');
-                                        if (searchInput) {
-                                            searchInput.value = payRef;
-                                            if (typeof filterTransactions === 'function') {
-                                                filterTransactions(payRef);
-                                            }
-                                        }
-
-                                        const items = Array.from(document.querySelectorAll('.transaction-item'));
-                                        const match = items.find(el => el.textContent.includes(`Ref ${payRef}`));
-                                        if (match) {
-                                            match.click();
-                                        } else {
-                                            console.warn('No se encontró la transacción en la lista para seleccionar:', payRef);
-                                        }
+                                        autoSelectTransactionByRef(payRef, bank, 20, 300);
                                     } catch (e2) {
-                                        console.warn('Fallo al preseleccionar la transacción en el tab de transacciones:', e2);
+                                        console.warn('Fallo al programar auto-búsqueda:', e2);
                                     }
                                 }, 350);
                             } catch (e1) {
