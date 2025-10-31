@@ -1200,6 +1200,24 @@ async function loadTransactionsTab() {
         }
         
         console.log('✅ Transacciones cargadas correctamente');
+
+        // === AUTO-BÚSQUEDA POR REFERENCIA SI FUE PROVISTA DESDE TRANSACCIONES ===
+        try {
+            if (window.__autoRefForSearch) {
+                const searchInput = document.getElementById('transactionSearch');
+                if (searchInput) {
+                    searchInput.value = window.__autoRefForSearch;
+                    if (typeof filterTransactions === 'function') {
+                        filterTransactions(window.__autoRefForSearch);
+                    }
+                    try { searchInput.focus(); } catch {}
+                }
+                // Limpiar para que no se repita en futuras aperturas
+                window.__autoRefForSearch = null;
+            }
+        } catch (e) {
+            console.warn('No se pudo aplicar auto-búsqueda de referencia:', e);
+        }
         
     } catch (error) {
         console.error('❌ Error cargando transacciones:', error);
