@@ -118,21 +118,38 @@ async function initializeApp() {
                             openAssignInvoiceModal(oldest.NumeroFactura, { reference: payRef, bankSource: bank });
                         }
 
-                        // 2) Preseleccionar el pago en el modal de factura
-                        const found = (window.unassignedPayments || []).find(p => p.Referencia === payRef && p.BankSource === bank);
-                        if (found && typeof selectPaymentForInvoice === 'function') {
-                            const key = found.ID ? found.ID.toString() : payRef;
-                            // Dar tiempo a que el modal renderice opciones
-                            setTimeout(() => {
-                                try {
-                                    selectPaymentForInvoice(key, found.BankSource || bank);
-                                } catch (e) {
-                                    console.warn('No se pudo preseleccionar el pago en el modal de factura:', e);
+                        // 2) Abrir tab de transacciones bancarias y preseleccionar la transacción por referencia
+                        setTimeout(() => {
+                            try {
+                                if (typeof switchInvoiceTab === 'function') {
+                                    switchInvoiceTab('transactions');
                                 }
-                            }, 200);
-                        } else {
-                            console.warn('No se encontró el pago para preselección en la factura:', payRef, bank);
-                        }
+                                // Esperar render del tab
+                                setTimeout(() => {
+                                    try {
+                                        const searchInput = document.getElementById('transactionSearch');
+                                        if (searchInput) {
+                                            searchInput.value = payRef;
+                                            if (typeof filterTransactions === 'function') {
+                                                filterTransactions(payRef);
+                                            }
+                                        }
+
+                                        const items = Array.from(document.querySelectorAll('.transaction-item'));
+                                        const match = items.find(el => el.textContent.includes(`Ref ${payRef}`));
+                                        if (match) {
+                                            match.click();
+                                        } else {
+                                            console.warn('No se encontró la transacción en la lista para seleccionar:', payRef);
+                                        }
+                                    } catch (e2) {
+                                        console.warn('Fallo al preseleccionar la transacción en el tab de transacciones:', e2);
+                                    }
+                                }, 350);
+                            } catch (e1) {
+                                console.warn('Fallo al abrir tab de transacciones:', e1);
+                            }
+                        }, 250);
                     } catch (err) {
                         console.warn('Error en auto-apertura de modal de factura:', err);
                     }
