@@ -1754,6 +1754,314 @@
                 this.loadClientsAndInvoices();
             }
 
+            // === MODAL: APLICAR TRANSACCIÓN A FACTURAS ===
+            async openApplyToInvoicesModal(referencia) {
+                try {
+                    await this.ensureClientDataLoaded();
+                    const suggestion = this.aiSuggestions.get(referencia);
+                    const transaction = suggestion ? suggestion.transaction : this.allTransactions.find(t => t.Referencia === referencia);
+                    if (!transaction) {
+                        alert('Transacción no encontrada');
+                        return;
+                    }
+
+                    const topMatch = suggestion ? suggestion.suggestions?.[0] : null;
+                    const resolved = this.findClientForTransaction(transaction, topMatch);
+                    if (!resolved || !resolved.id) {
+                        alert('No se pudo determinar el cliente. Seleccione el cliente manualmente en Clientes.');
+                        return;
+                    }
+
+                    // Obtener facturas del cliente
+                    let clientInvoices = this.invoicesByClientId.get(resolved.id) || [];
+                    if (!clientInvoices || clientInvoices.length === 0) {
+                        try {
+                            const resp = await fetch(`${this.invoicesApiUrl}?sheet=Facturas`);
+                            if (resp.ok) {
+                                const data = await resp.json();
+                                const all = Array.isArray(data) ? data : [];
+                                clientInvoices = all.filter(inv => (inv.ID_Cliente || '').toString() === resolved.id.toString());
+                            }
+                        } catch (e) {
+                            console.warn('No se pudieron recargar facturas:', e);
+                        }
+                    }
+
+                    if (!clientInvoices || clientInvoices.length === 0) {
+                        alert('El cliente no tiene facturas disponibles.');
+                        return;
+                    }
+
+                    // Calcular saldo pendiente por factura
+                    const getPayments = (pagos) => {
+                        if (!pagos || typeof pagos !== 'string') return [];
+                        return pagos.split(',').map(p => p.trim()).filter(Boolean).map(p => {
+                            const parts = p.split(':');
+                            return { reference: parts[0], amount: parseFloat(parts[1]) || 0, date: parts[2] || '' };
+                        });
+                    };
+                    const getOutstanding = (inv) => {
+                        const base = this.parseAmount(inv.MontoBase || '0');
+                        const fines = this.parseAmount(inv.MontoMultas || '0');
+                        const totalField = this.parseAmount(inv.MontoTotal || '0');
+                        const payments = getPayments(inv.Pagos || '');
+                        const paid = payments.reduce((s, p) => s + (p.amount || 0), 0);
+                        // Si MontoTotal ya es saldo pendiente, úsalo. Si es 0 y hay base+multas-pagado > 0, usa ese.
+                        const fallback = Math.max(base + fines - paid, 0);
+                        return totalField > 0 ? totalField : fallback;
+                    };
+
+                    // Ordenar: vencidas primero por fecha, luego pendientes por fecha
+                    const parseDate = (str) => {
+                        try {
+                            if (!str) return null;
+                            if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str + 'T00:00:00');
+                            if (str.includes('/') || str.includes('-')) {
+                                const sep = str.includes('/') ? '/' : '-';
+                                const [d, m, y] = str.split(sep).map(x => parseInt(x, 10));
+                                if (!isNaN(d) && !isNaN(m) && !isNaN(y)) return new Date(y, m - 1, d);
+                            }
+                        } catch {}
+                        return null;
+                    };
+
+                    const invoicesWithOutstanding = clientInvoices.map(inv => ({
+                        inv,
+                        outstanding: getOutstanding(inv),
+                        due: parseDate(inv.FechaVencimiento),
+                        status: (inv.Estado || '').toString()
+                    }))
+                    .filter(x => x.outstanding > 0)
+                    .sort((a, b) => {
+                        const aOver = a.status === 'Vencido';
+                        const bOver = b.status === 'Vencido';
+                        if (aOver !== bOver) return aOver ? -1 : 1;
+                        const at = a.due ? a.due.getTime() : Infinity;
+                        const bt = b.due ? b.due.getTime() : Infinity;
+                        return at - bt;
+                    });
+
+                    if (invoicesWithOutstanding.length === 0) {
+                        alert('No hay facturas con saldo para aplicar.');
+                        return;
+                    }
+
+                    const txAmount = this.parseAmount(transaction.Créditos || '0');
+                    // Asignación automática
+                    let remaining = txAmount;
+                    const allocation = invoicesWithOutstanding.map(x => {
+                        const apply = Math.min(x.outstanding, Math.max(remaining, 0));
+                        remaining -= apply;
+                        return { numero: x.inv.NumeroFactura, apply, outstanding: x.outstanding, inv: x.inv };
+                    });
+
+                    // Render modal
+                    this.renderApplyInvoicesModal({ referencia, transaction, resolved, txAmount, allocation });
+                } catch (error) {
+                    console.error('Error abriendo modal de aplicación a facturas:', error);
+                    alert('Error preparando la aplicación a facturas. Ver consola.');
+                }
+            }
+
+            renderApplyInvoicesModal(ctx) {
+                const { referencia, transaction, resolved, txAmount, allocation } = ctx;
+                // Backdrop
+                const bd = document.createElement('div');
+                bd.className = 'suggestion-panel-backdrop';
+                bd.id = 'apply-invoices-backdrop';
+                // Panel
+                const panel = document.createElement('div');
+                panel.className = 'suggestion-panel';
+                panel.id = 'apply-invoices-panel';
+
+                const rows = allocation.map((a, idx) => `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: center;">
+                        <div>
+                            <div style="font-weight:600">${a.numero}</div>
+                            <div style="font-size:12px; opacity:0.9">Pendiente: ${this.formatAmount(a.outstanding)}</div>
+                        </div>
+                        <div>
+                            <input type="number" step="0.01" min="0" data-apply-input="${idx}" value="${a.apply}" style="width:100%; padding:6px; border-radius:6px; border:1px solid #ddd;">
+                        </div>
+                        <div>
+                            <input type="checkbox" data-apply-check="${idx}" ${a.apply > 0 ? 'checked' : ''}>
+                            <label style="font-size:12px">Incluir</label>
+                        </div>
+                    </div>
+                `).join('');
+
+                panel.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom: 16px;">
+                        <span style="font-size: 24px;">💳</span>
+                        <div>
+                            <h3 style="margin:0; font-size:18px; font-weight:700;">Aplicar a Facturas</h3>
+                            <p style="margin:0; opacity:0.9; font-size:13px;">Ref ${transaction.Referencia} · Monto ${this.formatAmount(transaction.Créditos)}</p>
+                            <p style="margin:0; opacity:0.9; font-size:13px;">Cliente: ${resolved.nombre || 'N/D'} · ID: ${resolved.identificacion || resolved.id || 'N/D'} · Placa: ${resolved.placa || 'N/D'}</p>
+                        </div>
+                        <button onclick="window.transactionSearchSystem.closeApplyInvoicesModal()" style="margin-left:auto; background: rgba(255,255,255,0.2); border:none; color:white; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:18px;">×</button>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 10px; margin-bottom: 12px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div><strong>Monto transacción:</strong> ${this.formatAmount(transaction.Créditos)}</div>
+                            <div id="apply-remaining" style="font-weight:600;">Restante: ${this.formatAmount(txAmount)}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:10px; max-height: 50vh; overflow:auto; margin-bottom: 12px;">
+                        ${rows}
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button id="btn-apply-invoices" style="background:#27ae60; color:white; border:none; padding:10px 16px; border-radius:8px; font-weight:600; cursor:pointer; flex:1;">Aplicar</button>
+                        <button id="btn-cancel-invoices" style="background:#95a5a6; color:white; border:none; padding:10px 16px; border-radius:8px; font-weight:600; cursor:pointer; flex:1;">Cancelar</button>
+                    </div>
+                `;
+
+                document.body.appendChild(bd);
+                document.body.appendChild(panel);
+                setTimeout(() => { bd.classList.add('show'); panel.classList.add('show'); }, 10);
+
+                const updateRemaining = () => {
+                    let total = 0;
+                    allocation.forEach((a, idx) => {
+                        const chk = panel.querySelector(`[data-apply-check="${idx}"]`);
+                        const inp = panel.querySelector(`[data-apply-input="${idx}"]`);
+                        const val = Math.max(parseFloat((inp?.value || '0')), 0) || 0;
+                        a.apply = chk?.checked ? val : 0;
+                        total += a.apply;
+                    });
+                    const rem = Math.max(txAmount - total, 0);
+                    const remEl = panel.querySelector('#apply-remaining');
+                    if (remEl) remEl.textContent = `Restante: ${this.formatAmount(rem)}`;
+                };
+
+                panel.querySelectorAll('input[data-apply-input], input[data-apply-check]').forEach(el => {
+                    el.addEventListener('input', updateRemaining);
+                    el.addEventListener('change', updateRemaining);
+                });
+
+                panel.querySelector('#btn-cancel-invoices').addEventListener('click', () => this.closeApplyInvoicesModal());
+                panel.querySelector('#btn-apply-invoices').addEventListener('click', async () => {
+                    try {
+                        // Validación básica
+                        const totalApply = allocation.reduce((s, a) => s + (a.apply || 0), 0);
+                        if (totalApply <= 0) {
+                            alert('Seleccione montos a aplicar.');
+                            return;
+                        }
+                        if (totalApply > txAmount + 0.01) {
+                            alert('El total a aplicar excede el monto de la transacción.');
+                            return;
+                        }
+                        await this.applyAllocationToInvoices(transaction, resolved, allocation.filter(a => a.apply > 0));
+                        this.closeApplyInvoicesModal();
+                    } catch (e) {
+                        console.error('Error aplicando a facturas:', e);
+                        alert('Error aplicando a facturas. Ver consola.');
+                    }
+                });
+            }
+
+            closeApplyInvoicesModal() {
+                const bd = document.getElementById('apply-invoices-backdrop');
+                const pn = document.getElementById('apply-invoices-panel');
+                if (bd) { bd.classList.remove('show'); setTimeout(() => bd.remove(), 300); }
+                if (pn) { pn.classList.remove('show'); setTimeout(() => pn.remove(), 300); }
+            }
+
+            formatDateYYYYMMDD(dateObj) {
+                const y = dateObj.getFullYear();
+                const m = `${dateObj.getMonth() + 1}`.padStart(2, '0');
+                const d = `${dateObj.getDate()}`.padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+
+            async applyAllocationToInvoices(transaction, resolved, items) {
+                // Respetar backend de facturas: PATCH URL-encoded, actualizar Pagos, MontoTotal, Estado y FechaPago si queda en 0
+                const todayStr = this.formatDateYYYYMMDD(new Date());
+                const txRef = transaction.Referencia;
+                const txDate = this.parseTransactionDate(transaction.Fecha) || new Date();
+                const txDateStr = this.formatDateYYYYMMDD(txDate);
+
+                const buildPaymentsString = (current, add) => {
+                    const base = (current || '').toString().trim();
+                    const newEntry = `${txRef}:${add}:${txDateStr}`;
+                    return base ? `${base},${newEntry}` : newEntry;
+                };
+
+                for (const it of items) {
+                    const inv = it.inv;
+                    const applyAmount = it.apply;
+                    if (!inv || !inv.NumeroFactura || applyAmount <= 0) continue;
+
+                    const currentPayments = (inv.Pagos || '').toString();
+                    const newPayments = buildPaymentsString(currentPayments, applyAmount);
+
+                    const currentTotal = this.parseAmount(inv.MontoTotal || '0');
+                    // Si MontoTotal no está, usar base+multas - pagos
+                    const base = this.parseAmount(inv.MontoBase || '0');
+                    const fines = this.parseAmount(inv.MontoMultas || '0');
+                    const fallbackTotal = Math.max(base + fines - applyAmount, 0);
+                    const newRemaining = currentTotal > 0 ? Math.max(currentTotal - applyAmount, 0) : fallbackTotal;
+
+                    const paidNow = newRemaining <= 0.0001;
+
+                    const updateData = {
+                        Pagos: newPayments,
+                        MontoTotal: paidNow ? 0 : Math.round(newRemaining * 100) / 100,
+                        Estado: paidNow ? 'Pagado' : (inv.Estado || 'Pendiente'),
+                        FechaPago: paidNow ? todayStr : (inv.FechaPago || '')
+                    };
+
+                    try {
+                        const url = `${this.invoicesApiUrl}/NumeroFactura/${encodeURIComponent(inv.NumeroFactura)}?sheet=Facturas`;
+                        const body = new URLSearchParams(Object.entries(updateData).reduce((acc, [k, v]) => { if (v !== undefined && v !== null) acc[k] = v; return acc; }, {})).toString();
+                        const resp = await fetch(url, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body
+                        });
+                        if (!resp.ok) {
+                            const txt = await resp.text();
+                            throw new Error(`HTTP ${resp.status}: ${txt}`);
+                        }
+                    } catch (e) {
+                        console.error(`Error actualizando factura ${inv.NumeroFactura}:`, e);
+                        throw e;
+                    }
+                }
+
+                // Actualizar transacción con Observaciones e ID_Cliente
+                try {
+                    const resumen = `Aplicado a facturas (${items.map(i => i.inv.NumeroFactura).join(', ')}) - Cliente ${resolved.identificacion || resolved.id || ''} ${resolved.nombre || ''}`.trim();
+                    await this.patchTransactionObservations(transaction, resumen, resolved.id || '');
+                    this.showSavingIndicator('✅ Pago aplicado a facturas', 'conciliated', true);
+                    // Refrescar fila
+                    this.updateTransactionRowWithSuggestion(transaction.Referencia);
+                } catch (e) {
+                    console.warn('Aplicado a facturas, pero no se pudo actualizar la transacción:', e);
+                }
+            }
+
+            async patchTransactionObservations(transaction, observations, idCliente) {
+                try {
+                    const sheetName = transaction.banco === 'BN' ? 'BN' :
+                        transaction.banco === 'HuberBN' ? 'HuberBN' :
+                        transaction.banco === 'AutosubastasBAC' ? 'AutosubastasBAC' :
+                        transaction.banco === 'AutosubastasBN' ? 'AutosubastasBN' : 'BAC';
+                    const url = `${this.apiUrl}/Referencia/${transaction.Referencia}?sheet=${sheetName}`;
+                    const body = JSON.stringify({ Observaciones: observations, ID_Cliente: idCliente });
+                    const resp = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body });
+                    if (!resp.ok) {
+                        const txt = await resp.text();
+                        throw new Error(`HTTP ${resp.status}: ${txt}`);
+                    }
+                    transaction.Observaciones = observations;
+                    transaction.ID_Cliente = idCliente;
+                    this.updateTransactionInArrays(transaction);
+                } catch (e) {
+                    throw e;
+                }
+            }
+
             // === NUEVA FUNCIÓN: ENVIAR MENSAJE DE WHATSAPP ===
             async sendWhatsAppNotification(transaction, observations) {
                 try {
@@ -3804,6 +4112,10 @@ _Sistema Inteligente de Transacciones_`;
                         <button onclick="window.transactionSearchSystem.applySuggestionFromPanel('${referencia}')"
                                 style="background: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; flex: 1;">
                             ✅ Aplicar Sugerencia
+                        </button>
+                        <button onclick="window.transactionSearchSystem.openApplyToInvoicesModal('${referencia}')"
+                                style="background: #007aff; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; flex: 1;">
+                            💳 Aplicar a Facturas
                         </button>
                         <button onclick="window.transactionSearchSystem.dismissSuggestionFromPanel('${referencia}')"
                                 style="background: #e74c3c; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; flex: 1;">

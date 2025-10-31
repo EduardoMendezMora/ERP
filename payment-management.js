@@ -223,6 +223,20 @@ async function applySinglePayment(payment, invoice, availableAmount) {
         // Re-cargar y renderizar
         await reloadDataAndRender();
 
+        // === MOSTRAR RECIBO EN PANTALLA ===
+        try {
+            // Guardar Assignments para el recibo
+            payment.Assignments = newAssignments;
+            const fullyAssigned = Math.abs(totalAccumulatedAssignments - totalPayment) < 0.01;
+            if (fullyAssigned && typeof generateReceipt === 'function') {
+                generateReceipt(payment.Referencia, payment.BankSource);
+            } else if (!fullyAssigned && typeof generateUnassignedPaymentReceipt === 'function') {
+                generateUnassignedPaymentReceipt(payment.Referencia, payment.BankSource);
+            }
+        } catch (e) {
+            console.warn('No se pudo mostrar el recibo automáticamente:', e);
+        }
+
         // === NUEVA FUNCIONALIDAD: ENVIAR A WHATSAPP ===
         console.log('📱 Iniciando envío de notificación de WhatsApp...');
         
@@ -598,6 +612,20 @@ async function confirmPaymentDistribution() {
         // Cerrar modal y recargar datos
         closePaymentDistributionModal();
         await reloadDataAndRender();
+
+        // === MOSTRAR RECIBO EN PANTALLA ===
+        try {
+            // Guardar Assignments para el recibo
+            currentPaymentForDistribution.Assignments = newAssignments;
+            const fullyAssignedDist = Math.abs(totalAccumulatedAssignments - totalPayment) < 0.01;
+            if (fullyAssignedDist && typeof generateReceipt === 'function') {
+                generateReceipt(currentPaymentForDistribution.Referencia, currentPaymentForDistribution.BankSource);
+            } else if (!fullyAssignedDist && typeof generateUnassignedPaymentReceipt === 'function') {
+                generateUnassignedPaymentReceipt(currentPaymentForDistribution.Referencia, currentPaymentForDistribution.BankSource);
+            }
+        } catch (e) {
+            console.warn('No se pudo mostrar el recibo automáticamente (distribución):', e);
+        }
 
         // === NUEVA FUNCIONALIDAD: ENVIAR A WHATSAPP ===
         // Solo enviar si hay asignaciones válidas
