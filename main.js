@@ -1394,7 +1394,9 @@ function autoSelectTransactionByRef(reference, bank, maxAttempts = 20, intervalM
             const match = items.find(el => el.textContent.includes(`Ref ${reference}`) && (!bank || el.textContent.includes(bank)));
             if (match) {
                 try { match.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
-                console.log('✅ Transacción filtrada y enfocada para selección manual:', reference, bank);
+                try { match.click(); } catch {}
+                console.log('✅ Transacción filtrada y seleccionada automáticamente:', reference, bank);
+                return;
             }
         } catch (e) {
             console.warn('Fallo en intento de auto-selección:', e);
@@ -1402,7 +1404,7 @@ function autoSelectTransactionByRef(reference, bank, maxAttempts = 20, intervalM
 
         // Reintentar mientras el input aún no refleja la referencia
         const currentVal = (document.getElementById('transactionSearch') || {}).value || '';
-        if (attempts < maxAttempts && currentVal !== String(reference)) {
+        if (attempts < maxAttempts) {
             setTimeout(trySelect, intervalMs);
         } else {
             console.warn('No se pudo auto-seleccionar la transacción después de reintentos:', reference, bank);
