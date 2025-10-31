@@ -1384,8 +1384,12 @@ function autoSelectTransactionByRef(reference, bank, maxAttempts = 20, intervalM
             const items = Array.from(document.querySelectorAll('.transaction-item'));
             const match = items.find(el => el.textContent.includes(`Ref ${reference}`) && (!bank || el.textContent.includes(bank)));
             if (match) {
-                match.click();
-                console.log('✅ Transacción auto-seleccionada:', reference, bank);
+                // No hacer click: solo dejar el filtro aplicado y enfocado
+                const searchInput2 = document.getElementById('transactionSearch');
+                if (searchInput2) searchInput2.focus();
+                // Desplazar el primer resultado a la vista para facilitar la selección manual
+                try { match.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
+                console.log('✅ Transacción filtrada y enfocada para selección manual:', reference, bank);
                 return;
             }
         } catch (e) {
