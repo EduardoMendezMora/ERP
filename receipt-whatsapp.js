@@ -346,13 +346,18 @@ async function sendViaUltramsg(phoneNumber, base64PDF, message) {
 }
 
 function generateWhatsAppMessage() {
-    const { payment } = currentReceiptData;
+    const { payment, client } = currentReceiptData;
     const reference = payment.Referencia || 'Sin referencia';
 
     // Si es un pago manual, usar el mensaje específico para pagos manuales
     if (currentReceiptData.isManualPayment) {
         return generateManualPaymentWhatsAppMessage();
     }
+
+    const clientName = (client && client.Nombre) ? client.Nombre : 'Cliente';
+    const bankName = typeof getBankDisplayName === 'function' ? getBankDisplayName(payment.BankSource) : (payment.BankSource || 'Banco');
+    const totalPayment = typeof parsePaymentAmount === 'function' ? parsePaymentAmount(payment.Créditos, payment.BankSource) : (parseFloat(payment.Créditos || 0) || 0);
+    const fechaPago = typeof formatDateForDisplay === 'function' ? formatDateForDisplay(payment.Fecha) : (payment.Fecha || '');
 
     // Construir descripción de cómo se aplicó el pago (distribución)
     let assignments = [];
@@ -382,10 +387,11 @@ function generateWhatsAppMessage() {
         }).join('\n');
 
         const totalApplied = assignments.reduce((s, a) => s + (a.amount || 0), 0);
-        distributionText = `\n\n📋 Aplicación del Pago:\n${lines}\nTotal aplicado: ₡${totalApplied.toLocaleString('es-CR')}`;
+        const pending = Math.max(0, totalPayment - totalApplied);
+        distributionText = `\n\n📋 Aplicación del Pago:\n${lines}\nTotal aplicado: ₡${totalApplied.toLocaleString('es-CR')}${pending > 0 ? `\nPendiente por aplicar: ₡${pending.toLocaleString('es-CR')}` : ''}`;
     }
 
-    const message = `Recibo de Dinero # ${reference}${distributionText}`;
+    const message = `Hola ${clientName}, gracias por su pago. 🙌\n\nRecibo de Dinero # ${reference}\n📅 Fecha Pago: ${fechaPago}\n🏦 Banco: ${bankName}\n💰 Monto Total: ₡${totalPayment.toLocaleString('es-CR')}${distributionText}`;
     console.log('📱 Mensaje generado:', message);
     return message;
 }
