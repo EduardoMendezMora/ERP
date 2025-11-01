@@ -354,8 +354,38 @@ function generateWhatsAppMessage() {
         return generateManualPaymentWhatsAppMessage();
     }
 
-    // Mensaje simplificado SOLAMENTE para pagos bancarios
-    const message = `Recibo de Dinero # ${reference}`;
+    // Construir descripción de cómo se aplicó el pago (distribución)
+    let assignments = [];
+    try {
+        if (Array.isArray(payment.Assignments) && payment.Assignments.length > 0) {
+            assignments = payment.Assignments;
+        } else if (payment.FacturasAsignadas) {
+            assignments = parseAssignedInvoices(payment.FacturasAsignadas || '');
+        }
+    } catch (e) {
+        console.warn('No se pudieron obtener asignaciones para el mensaje de WhatsApp:', e);
+    }
+
+    let distributionText = '';
+    if (assignments && assignments.length > 0) {
+        // Enriquecer con semana/descripcion si existe en facturas cargadas
+        const lines = assignments.map(a => {
+            let extra = '';
+            try {
+                const inv = (window.clientInvoices || []).find(i => i.NumeroFactura === a.invoiceNumber);
+                if (inv && (inv.SemanaDescripcion || inv.ConceptoManual)) {
+                    extra = ` (${inv.SemanaDescripcion || inv.ConceptoManual})`;
+                }
+            } catch {}
+            const amount = (a.amount || 0);
+            return `- ${a.invoiceNumber}: ₡${amount.toLocaleString('es-CR')}${extra}`;
+        }).join('\n');
+
+        const totalApplied = assignments.reduce((s, a) => s + (a.amount || 0), 0);
+        distributionText = `\n\n📋 Aplicación del Pago:\n${lines}\nTotal aplicado: ₡${totalApplied.toLocaleString('es-CR')}`;
+    }
+
+    const message = `Recibo de Dinero # ${reference}${distributionText}`;
     console.log('📱 Mensaje generado:', message);
     return message;
 }
