@@ -373,25 +373,32 @@ function generateWhatsAppMessage() {
 
     let distributionText = '';
     if (assignments && assignments.length > 0) {
-        // Enriquecer con semana/descripcion si existe en facturas cargadas
+        let totalWeek = 0;
+        let totalFines = 0;
+
         const lines = assignments.map(a => {
-            let extra = '';
-            try {
-                const inv = (window.clientInvoices || []).find(i => i.NumeroFactura === a.invoiceNumber);
-                if (inv && (inv.SemanaDescripcion || inv.ConceptoManual)) {
-                    extra = ` (${inv.SemanaDescripcion || inv.ConceptoManual})`;
-                }
-            } catch {}
             const amount = (a.amount || 0);
-            return `- ${a.invoiceNumber}: ₡${amount.toLocaleString('es-CR')}${extra}`;
+            let appliedToFines = 0;
+            let appliedToWeek = amount;
+            try {
+                const inv = (window.clientInvoices || []).find(i => i.NumeroFactura === a.invoiceNumber) || {};
+                const finesAtPayment = (typeof calculateFinesUntilDate === 'function') ? calculateFinesUntilDate(inv, payment.Fecha) : parseAmount(inv.MontoMultas || 0);
+                appliedToFines = Math.min(amount, Math.max(0, finesAtPayment));
+                appliedToWeek = Math.max(0, amount - appliedToFines);
+            } catch {}
+
+            totalWeek += appliedToWeek;
+            totalFines += appliedToFines;
+
+            return `- ${a.invoiceNumber}: Semana ₡${appliedToWeek.toLocaleString('es-CR')}, Multas ₡${appliedToFines.toLocaleString('es-CR')} (Total ₡${amount.toLocaleString('es-CR')})`;
         }).join('\n');
 
         const totalApplied = assignments.reduce((s, a) => s + (a.amount || 0), 0);
         const pending = Math.max(0, totalPayment - totalApplied);
-        distributionText = `\n\n📋 Aplicación del Pago:\n${lines}\nTotal aplicado: ₡${totalApplied.toLocaleString('es-CR')}${pending > 0 ? `\nPendiente por aplicar: ₡${pending.toLocaleString('es-CR')}` : ''}`;
+        distributionText = `\n\n📋 Aplicación del Pago:\n${lines}\n\nTotales → Semana: ₡${totalWeek.toLocaleString('es-CR')} | Multas: ₡${totalFines.toLocaleString('es-CR')} | Aplicado: ₡${totalApplied.toLocaleString('es-CR')}${pending > 0 ? `\nPendiente por aplicar: ₡${pending.toLocaleString('es-CR')}` : ''}`;
     }
 
-    const message = `Hola ${clientName}, gracias por su pago. 🙌\n\nRecibo de Dinero # ${reference}\n📅 Fecha Pago: ${fechaPago}\n🏦 Banco: ${bankName}\n💰 Monto Total: ₡${totalPayment.toLocaleString('es-CR')}${distributionText}`;
+    const message = `Hola ${clientName}, gracias por su pago. 🙌\n\nRecibo de Dinero # ${reference}\n📅 Fecha Pago: ${fechaPago}\n🏦 Banco: ${bankName}\n💰 Monto Total: ₡${totalPayment.toLocaleString('es-CR')}${distributionText}\n\nAdjuntamos su recibo en PDF. Cualquier duda, responda este mensaje. 🙏`;
     console.log('📱 Mensaje generado:', message);
     return message;
 }
