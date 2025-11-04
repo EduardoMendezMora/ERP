@@ -341,9 +341,11 @@
         // Variables globales
         let currentVendor = null;
         let currentVendorId = null;
-        let verificationCode = null; // ya no se usa desde el cliente, mantenido por compatibilidad
+        let verificationCode = null; // usado en fallback directo
         let otpSessionToken = null; // token de sesión OTP devuelto por la función serverless
         let resendTimeout = null;
+        const ULTRA_INSTANCE_ID = 'instance112077';
+        const ULTRA_TOKEN = 'wp98xs1qrfhqg9ya';
         
         // Inicializar la aplicación
         document.addEventListener('DOMContentLoaded', function() {
@@ -428,8 +430,8 @@
                 
                 console.log('✅ Configuración de usuario válida');
                 
-                // Solicitar OTP por WhatsApp vía función serverless
-                await requestOtpServerless();
+                // Solicitar OTP por WhatsApp (serverless con fallback directo)
+                await requestOtpAny();
                 
             } catch (error) {
                 console.error('❌ Error validando vendedor:', error);
@@ -461,7 +463,55 @@
                 setupResendTimeout();
             } catch (error) {
                 console.error('❌ Error solicitando OTP:', error);
-                showMessage('Error enviando el código. Intenta de nuevo.', 'error');
+                throw error;
+            }
+        }
+
+        // Fallback: envío directo a UltraMSG desde el cliente
+        async function requestOtpDirect() {
+            console.log('📱 Solicitando OTP (directo UltraMSG)...');
+            verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
+            const phone = currentVendor.telefono;
+            const ultraUrl = `https://api.ultramsg.com/${ULTRA_INSTANCE_ID}/messages/chat`;
+            const formData = new URLSearchParams();
+            formData.append('token', ULTRA_TOKEN);
+            formData.append('to', phone);
+            formData.append('body', `Tu código de acceso es ${verificationCode}. Válido por 5 minutos. No lo compartas.`);
+            try {
+                const r = await fetch(ultraUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData });
+                if (r.ok) {
+                    console.log('✅ WhatsApp enviado (directo)');
+                    showStep2();
+                    setupResendTimeout();
+                    return;
+                }
+                throw new Error('HTTP ' + r.status);
+            } catch (e) {
+                console.warn('⚠️ Directo falló, usando proxy CORS...', e);
+                const proxyUrl = `https://cors.isomorphic-git.org/${ultraUrl}`;
+                const pr = await fetch(proxyUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData });
+                if (pr.ok) {
+                    console.log('✅ WhatsApp enviado (proxy)');
+                    showStep2();
+                    setupResendTimeout();
+                    return;
+                }
+                throw new Error('Proxy HTTP ' + pr.status);
+            }
+        }
+
+        // Orquestador: intenta serverless y si falla usa directo
+        async function requestOtpAny() {
+            try {
+                await requestOtpServerless();
+            } catch (_) {
+                try {
+                    await requestOtpDirect();
+                    otpSessionToken = null; // verificación será local
+                } catch (err2) {
+                    console.error('❌ Error enviando OTP (todos los métodos):', err2);
+                    showMessage('No se pudo enviar el código. Intenta de nuevo en unos segundos.', 'error');
+                }
             }
         }
         
@@ -507,7 +557,7 @@
             }, 100);
         }
         
-        // Verificar código (serverless)
+        // Verificar código (serverless o local fallback)
         async function verifyOtp() {
             const codeInputs = document.querySelectorAll('.code-input');
             const enteredCode = Array.from(codeInputs).map(input => input.value).join('');
@@ -525,43 +575,49 @@
             verifyBtn.innerHTML = '<span class="loading"></span>Verificando...';
             
             try {
-                const resp = await fetch('/.netlify/functions/verify-otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ vendorId: currentVendorId, code: enteredCode, otpSession: otpSessionToken })
-                });
-                const data = await resp.json().catch(() => ({}));
-                if (resp.ok && data.success) {
-                    console.log('✅ Código verificado correctamente');
-                    // Guardar sesión
-                    const session = {
-                        userId: currentVendor.id,
-                        userName: currentVendor.nombre,
-                        userRole: currentVendor.rol,
-                        userModules: currentVendor.modulos ? currentVendor.modulos.split(',') : [],
-                        loginTime: new Date().toISOString(),
-                        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 horas
-                    };
-                    localStorage.setItem('vendorSession', JSON.stringify(session));
-                    showMessage('¡Acceso exitoso! Redirigiendo...', 'success');
-                    setTimeout(() => {
-                        if (session.userRole === 'SuperAdmin') {
-                            window.location.href = '/index.html?admin=true';
-                        } else if (session.userRole === 'Vendedor') {
-                            window.location.href = '/crm.html?vendor=true';
-                        } else {
-                            window.location.href = '/index.html?user=true';
-                        }
-                    }, 1500);
+                if (otpSessionToken) {
+                    const resp = await fetch('/.netlify/functions/verify-otp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ vendorId: currentVendorId, code: enteredCode, otpSession: otpSessionToken })
+                    });
+                    const data = await resp.json().catch(() => ({}));
+                    if (!(resp.ok && data.success)) {
+                        throw new Error(data.error || 'Código incorrecto');
+                    }
                 } else {
-                    showMessage(data.error || 'Código incorrecto. Intenta de nuevo.', 'error');
-                    codeInputs.forEach(input => input.value = '');
-                    codeInputs[0].focus();
+                    if (enteredCode !== verificationCode) {
+                        throw new Error('Código incorrecto');
+                    }
                 }
+                
+                console.log('✅ Código verificado correctamente');
+                // Guardar sesión
+                const session = {
+                    userId: currentVendor.id,
+                    userName: currentVendor.nombre,
+                    userRole: currentVendor.rol,
+                    userModules: currentVendor.modulos ? currentVendor.modulos.split(',') : [],
+                    loginTime: new Date().toISOString(),
+                    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 horas
+                };
+                localStorage.setItem('vendorSession', JSON.stringify(session));
+                showMessage('¡Acceso exitoso! Redirigiendo...', 'success');
+                setTimeout(() => {
+                    if (session.userRole === 'SuperAdmin') {
+                        window.location.href = '/index.html?admin=true';
+                    } else if (session.userRole === 'Vendedor') {
+                        window.location.href = '/crm.html?vendor=true';
+                    } else {
+                        window.location.href = '/index.html?user=true';
+                    }
+                }, 1500);
                 
             } catch (error) {
                 console.error('❌ Error verificando código:', error);
                 showMessage('Error al verificar el código. Intenta de nuevo.', 'error');
+                codeInputs.forEach(input => input.value = '');
+                codeInputs[0].focus();
             } finally {
                 // Restaurar botón
                 verifyBtn.disabled = false;
@@ -604,7 +660,7 @@
             console.log('🔄 Reenviando código...');
             
             try {
-                await requestOtpServerless();
+                await requestOtpAny();
                 showMessage('Código reenviado exitosamente.', 'success');
                 setupResendTimeout();
             } catch (error) {
