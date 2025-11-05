@@ -404,9 +404,8 @@
             validateBtn.innerHTML = '<span class="loading"></span>Validando...';
             
             try {
-                // Buscar usuario en la API (endpoint de búsqueda correcto)
-                const searchParam = encodeURIComponent(JSON.stringify({ id: vendorId }));
-                const response = await fetch(`https://sheetdb.io/api/v1/qu62bagiwlgqy/search?sheet=Usuarios&search=${searchParam}`);
+                // Buscar usuario en la API (filtro por id)
+                const response = await fetch(`https://sheetdb.io/api/v1/qu62bagiwlgqy?sheet=Usuarios&id=${vendorId}`, { cache: 'no-store' });
                 
                 if (!response.ok) {
                     throw new Error('Error al conectar con el servidor');
