@@ -1150,19 +1150,24 @@
                 .map(getVendorName)
                 .filter(Boolean);
 
+            // Eliminar vendedores bloqueados de la lista dinámica
+            const REMOVED_VENDORS = [
+                'Angie Alejandra Cedeño Medina',
+                'Karla Fonseca Arias',
+                'JOHNNY ANDRES MORALES REYES'
+            ];
+            vendorNames = vendorNames.filter(n => !REMOVED_VENDORS.includes(n));
+
             // Únicos y ordenados
             vendorNames = Array.from(new Set(vendorNames)).sort((a, b) => a.localeCompare(b, 'es'));
 
             // Fallback a lista fija si no hay datos dinámicos
             if (vendorNames.length === 0) {
                 const FIXED_VENDORS = [
-                    'Angie Alejandra Cedeño Medina',
                     'Orlando Jesús González Jiménez',
                     'Osmy Josué Castillo Balladares',
                     'David Josue Bravo Corrales',
                     'Fernando Rodríguez Mora',
-                    'Karla Fonseca Arias',
-                    'JOHNNY ANDRES MORALES REYES',
                     'Jeremy Leiva',
                     'Daniel Gonzalez Fallas'
                 ];
@@ -1172,7 +1177,8 @@
             // Asegurar inclusión de vendedores solicitados
             const ALWAYS_INCLUDE = [
                 'ESTEBAN ARTURO MONTERO CHAVES',
-                'DANIEL JOSE VINDAS VARGAS'
+                'DANIEL JOSE VINDAS VARGAS',
+                'RICHARD ANDREY ALFARO ESQUIVEL'
             ];
             vendorNames = Array.from(new Set([...vendorNames, ...ALWAYS_INCLUDE]))
                 .sort((a, b) => a.localeCompare(b, 'es'));
