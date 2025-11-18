@@ -1169,6 +1169,14 @@
                 vendorNames = FIXED_VENDORS;
             }
 
+            // Asegurar inclusión de vendedores solicitados
+            const ALWAYS_INCLUDE = [
+                'ESTEBAN ARTURO MONTERO CHAVES',
+                'DANIEL JOSE VINDAS VARGAS'
+            ];
+            vendorNames = Array.from(new Set([...vendorNames, ...ALWAYS_INCLUDE]))
+                .sort((a, b) => a.localeCompare(b, 'es'));
+
             vendorNames.forEach((name) => {
                 const option = document.createElement('option');
                 option.value = name;
